@@ -190,6 +190,13 @@ main() {
   log_info "Memória livre antes: ${mem_before} MB   agora: $(mem_available_mb) MB   (o ganho real aparece após reiniciar)"
   [[ ${#failed[@]} -gt 0 ]] && for pkg in "${failed[@]}"; do log_warn "  $pkg"; done
   log_info "Pacotes desabilitados continuam em memória até reiniciar."
+  # O Android grava o estado dos pacotes (package-restrictions.xml) com atraso
+  # de alguns segundos. Reiniciar antes disso PERDE as mudanças: foi o que
+  # aconteceu na unidade de referência (4 pacotes "voltaram" após --reboot).
+  if [[ ${#applied[@]} -gt 0 && "$DRY_RUN" != "1" ]]; then
+    log_step "Aguardando ${PM_WRITE_WAIT:-15} s para o Android gravar o estado dos pacotes (não desligue a TV)"
+    sleep "${PM_WRITE_WAIT:-15}"
+  fi
   if [[ "$do_reboot" == "1" ]]; then
     log_step "Reiniciando a TV"
     tv_run reboot || true

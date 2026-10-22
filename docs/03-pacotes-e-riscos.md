@@ -108,9 +108,9 @@ voltou a ficar habilitado sozinho na mesma noite. Inofensivo; não insista.
 `streaming-optional.list` (Netflix, Prime, Disney+, Claro TV+, Mercado Play,
 Speedtest…) e `sideload-tools.list` (Aptoide, Downloader…). Edite antes de aplicar.
 
-## Unidade de referência deste repositório: TCL "Smart TV Pro" (Amlogic, Brasil)
+## Unidade de referência deste repositório: TCL "Smart TV Pro" G09 (Amlogic, Brasil)
 
-Inventário de 22/10/2026, Google TV / Android 14, 152 pacotes. Diferenças em
+Inventário de 22/10/2026, device G09, Google TV / Android 14, 152 pacotes, 1911 MB de RAM (728 MB livres de fábrica). Diferenças em
 relação ao 65C7K da literatura:
 
 - **Chipset Amlogic**, não MediaTek: `com.droidlogic`, `com.droidlogic.overlay`,

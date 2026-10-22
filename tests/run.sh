@@ -12,7 +12,7 @@ trap 'rm -rf "$WORK"' EXIT
 export FAKE_ADB_STATE="$WORK/state"
 export BACKUPS_DIR="$WORK/backups" REPORTS_DIR="$WORK/reports"
 export PATH="$ROOT/tests/fake-adb:$PATH"
-export TV_HOST=10.0.0.9 ASSUME_YES=1
+export TV_HOST=10.0.0.9 ASSUME_YES=1 PM_WRITE_WAIT=0
 mkdir -p "$FAKE_ADB_STATE" "$BACKUPS_DIR" "$REPORTS_DIR"
 
 pass=0; fail=0
@@ -133,7 +133,8 @@ check "tudo persistiu" '[[ "$out" == *"Voltaram: 0"* ]]'
 printf 'com.tcl.exhibit\n' > "$FAKE_ADB_STATE/disabled"    # simula firmware reabilitando tudo no boot
 out="$("$ROOT/scripts/35-verify.sh" 2>&1 || true)"
 check "detecta pacotes que voltaram" '[[ "$out" == *"com.tcl.ttvs VOLTOU"* ]]'
-"$ROOT/scripts/30-debloat.sh" tcl-telemetry tcl-promo-ads tcl-retail-demo >/dev/null 2>&1   # reaplica para o resto dos testes
+"$ROOT/scripts/35-verify.sh" --fix >/dev/null 2>&1
+check "--fix reaplica o que voltou" 'has disabled com.tcl.ttvs && has disabled com.tcl.logkit'
 
 echo "== 40-tune"
 "$ROOT/scripts/40-tune.sh" --animations 0.5 --screensaver basic --private-dns dns.adguard.com --sleep-after 5 >/dev/null 2>&1
