@@ -237,3 +237,20 @@ fun TeamInfoCard(name: String, info: tech.futureme.tvhome.data.FlamengoRepositor
         }
     }
 }
+
+
+/** Programa da grade: horário em destaque, título, sinopse curta. */
+@Composable
+fun ProgramCard(p: tech.futureme.tvhome.data.ProgramEntry, isNow: Boolean, onClick: () -> Unit) {
+    val d = LocalDims.current
+    val f = java.text.SimpleDateFormat("HH:mm", java.util.Locale("pt", "BR"))
+    FocusSurface(onClick = onClick, modifier = Modifier.width(d.mediaW).height(d.mediaH)) {
+        Column(Modifier.fillMaxSize().background(if (isNow) Brush.linearGradient(listOf(Color(0xFF1B5E20), Color(0xFF0B0F14))) else placeholderBrush("globo")).padding(12.dp), verticalArrangement = Arrangement.SpaceBetween) {
+            Text(if (isNow) "AGORA · ${f.format(java.util.Date(p.startMs))}–${f.format(java.util.Date(p.endMs))}" else "${f.format(java.util.Date(p.startMs))}–${f.format(java.util.Date(p.endMs))}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = if (isNow) Color(0xFFA5D6A7) else TvColors.textDim)
+            Column {
+                Text(p.title, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = TvColors.text, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                if (!p.description.isNullOrBlank()) Text(p.description, fontSize = 12.sp, color = TvColors.textDim, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+        }
+    }
+}

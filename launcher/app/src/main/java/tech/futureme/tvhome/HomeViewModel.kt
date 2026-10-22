@@ -18,6 +18,7 @@ import tech.futureme.tvhome.data.TeamContent
 import tech.futureme.tvhome.data.HomeContent
 import tech.futureme.tvhome.data.MediaItem
 import tech.futureme.tvhome.data.Prefs
+import tech.futureme.tvhome.data.Profile
 import tech.futureme.tvhome.data.RatesRepository
 import tech.futureme.tvhome.data.RecentEntry
 import tech.futureme.tvhome.data.StatusRepository
@@ -37,6 +38,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _team = MutableStateFlow(TeamContent())
     val team: StateFlow<TeamContent> = _team
+
+    /** Perfil em uso. Nulo = mostrar o seletor (processo novo = TV ligada agora). */
+    val profile = MutableStateFlow<Profile?>(null)
 
     private val _content = MutableStateFlow(HomeContent())
     val content: StateFlow<HomeContent> = _content
@@ -89,7 +93,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 val broadcast = loaded.tuner.filter { it.isBroadcast }
                 val fast = loaded.tuner.filter { !it.isBroadcast }
                 val sports = (broadcast + fast).filter { Classifier.isSportsChannel(it) }
-                HomeContent(apps, inputs, grouped, perApp, broadcast, fast, sports, tvRepo.hasPermission(), loaded.diagnostics, statusRepo.read())
+                val globo = broadcast.firstOrNull { it.name.contains("globo", true) }
+                val schedule = try { globo?.let { tvRepo.programs(it, 10) } ?: emptyList() } catch (e: Exception) { emptyList() }
+                HomeContent(apps, inputs, grouped, perApp, broadcast, fast, sports, tvRepo.hasPermission(), loaded.diagnostics, statusRepo.read(), globo, schedule)
             }
             _content.value = result
             _loading.value = false

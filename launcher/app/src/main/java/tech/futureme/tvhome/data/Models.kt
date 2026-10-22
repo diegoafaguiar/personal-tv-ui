@@ -95,6 +95,8 @@ data class HomeContent(
     val hasPermission: Boolean = false,
     val diagnostics: Diagnostics = Diagnostics(),
     val status: DeviceStatus = DeviceStatus(),
+    val globo: TunerChannel? = null,
+    val globoSchedule: List<ProgramEntry> = emptyList(),
 ) {
     val allItems: List<MediaItem> get() = sections.values.flatten() + perApp.values.flatten()
 }

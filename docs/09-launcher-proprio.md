@@ -94,6 +94,21 @@ aberta (Globo 4.1 com grade) e ~200 canais do TCL Channel+ na mesma tabela.
   Prime, HBO Max, Disney+, Spotify por padrão), editável nos ajustes com ▲▼.
 - Ajustes novos: hero compacto, estado da TV no hero, seção do time, ordem dos apps.
 
+## v0.6: perfis
+
+Seletor "Quem está assistindo?" ao abrir o launcher (processo novo, ou seja,
+TV recém-ligada) e pelo ícone de perfil no menu. Definidos em `data/Profile.kt`:
+
+| Perfil | Senha | Apps | Seções próprias |
+|---|---|---|---|
+| Diego | 1234 | todos | Flamengo |
+| Letícia | 1234 | todos | TV Globo (canal com sintonia, agora/depois, grade das próximas 10 h, Globoplay) |
+| Arthur e Davi | não | Netflix, Prime Video, Apple TV, HBO Max e TV aberta | nada de Futebol, Flamengo, busca, HDMI, ajustes ou canais da internet; as seções só mostram conteúdo desses apps |
+
+A senha é digitada pelos números do controle ou pelo teclado na tela, e pode
+ser trocada em Ajustes › Perfis (fica no DataStore do app). Ao trocar de
+perfil pelo menu, Diego e Letícia pedem senha de novo; o infantil não.
+
 ## Por que isso funciona sem scraping
 
 No Android TV os apps publicam "Watch Next" e "canais de prévia" num banco do

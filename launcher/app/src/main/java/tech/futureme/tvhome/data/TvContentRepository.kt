@@ -93,6 +93,25 @@ class TvContentRepository(private val context: Context) {
         return out
     }
 
+    /** Grade de um canal nas próximas horas (para a seção TV Globo). */
+    fun programs(ch: TunerChannel, hours: Int): List<ProgramEntry> {
+        val now = System.currentTimeMillis()
+        val uri = TvContract.buildProgramsUriForChannel(ch.id, now - 30 * 60_000L, now + hours * 3600_000L)
+        val projection = arrayOf(TvContract.Programs.COLUMN_TITLE, TvContract.Programs.COLUMN_START_TIME_UTC_MILLIS, TvContract.Programs.COLUMN_END_TIME_UTC_MILLIS, TvContract.Programs.COLUMN_SHORT_DESCRIPTION)
+        val out = ArrayList<ProgramEntry>()
+        resolver.query(uri, projection, null, null, null)?.use { c ->
+            while (c.moveToNext()) {
+                out += ProgramEntry(
+                    c.getStringOrNull(TvContract.Programs.COLUMN_TITLE) ?: "",
+                    c.getLongOrZero(TvContract.Programs.COLUMN_START_TIME_UTC_MILLIS),
+                    c.getLongOrZero(TvContract.Programs.COLUMN_END_TIME_UTC_MILLIS),
+                    c.getStringOrNull(TvContract.Programs.COLUMN_SHORT_DESCRIPTION),
+                )
+            }
+        }
+        return out.filter { it.endMs > now }.sortedBy { it.startMs }
+    }
+
     /** Programa de agora e o seguinte, pela URI com intervalo (parâmetros são permitidos). */
     fun withNowNext(ch: TunerChannel): TunerChannel {
         val now = System.currentTimeMillis()

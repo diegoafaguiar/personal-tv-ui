@@ -45,7 +45,9 @@ data class Settings(
     val teamEspnId: String = "819",
     val teamLeague: String = "bra.1",
     val teamName: String = "Flamengo",
+    val pins: Map<String, String> = emptyMap(),   // perfil -> senha (padrão 1234)
 ) {
+    fun pinFor(profileId: String): String = pins[profileId] ?: Profiles.DEFAULT_PIN
     fun appRank(pkg: String): Int = appOrder.indexOf(pkg).let { if (it < 0) 999 else it }
     companion object {
         val DEFAULT_ORDER = listOf(
@@ -92,6 +94,7 @@ class Prefs(private val context: Context) {
     private val heroKey = booleanPreferencesKey("hero_compact")
     private val lastChKey = stringPreferencesKey("last_channel")
     private val teamYtKey = stringPreferencesKey("team_youtube")
+    private val pinsKey = stringPreferencesKey("pins")
 
     val settings: Flow<Settings> = context.dataStore.data.map { p ->
         Settings(
@@ -116,6 +119,7 @@ class Prefs(private val context: Context) {
             heroCompact = p[heroKey] ?: false,
             lastChannelId = p[lastChKey]?.toLongOrNull() ?: 0L,
             teamYoutube = p[teamYtKey]?.split(',')?.filter { it.isNotBlank() } ?: listOf("UCOa-WaNwQaoyFHLCDk7qKIw"),
+            pins = p[pinsKey]?.split(',')?.mapNotNull { e -> e.split('=').takeIf { it.size == 2 }?.let { it[0] to it[1] } }?.toMap() ?: emptyMap(),
         )
     }
 
@@ -170,6 +174,10 @@ class Prefs(private val context: Context) {
     suspend fun toggleTeam() = context.dataStore.edit { p -> p[teamKey] = !(p[teamKey] ?: true) }
     suspend fun toggleStatus() = context.dataStore.edit { p -> p[statusKey] = !(p[statusKey] ?: true) }
     suspend fun toggleHeroCompact() = context.dataStore.edit { p -> p[heroKey] = !(p[heroKey] ?: false) }
+    suspend fun setPin(profileId: String, pin: String) = context.dataStore.edit { p ->
+        val cur = p[pinsKey]?.split(',')?.mapNotNull { e -> e.split('=').takeIf { it.size == 2 }?.let { it[0] to it[1] } }?.toMap() ?: emptyMap()
+        p[pinsKey] = (cur + (profileId to pin)).entries.joinToString(",") { "${it.key}=${it.value}" }
+    }
     suspend fun setLastChannel(id: Long) = context.dataStore.edit { p -> p[lastChKey] = id.toString() }
 
     /** Move um app na ordem de preferência; apps fora da lista entram no fim ao serem movidos. */

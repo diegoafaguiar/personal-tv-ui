@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Apps
+import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SettingsInputHdmi
 import androidx.compose.material.icons.rounded.Tv
@@ -41,6 +42,7 @@ import tech.futureme.tvhome.data.DeviceStatus
 import tech.futureme.tvhome.data.HomeContent
 import tech.futureme.tvhome.data.InputEntry
 import tech.futureme.tvhome.data.MediaItem
+import tech.futureme.tvhome.data.Profile
 import tech.futureme.tvhome.data.QuickAction
 import tech.futureme.tvhome.data.RatesRepository
 import tech.futureme.tvhome.data.RecentEntry
@@ -58,6 +60,7 @@ import java.util.Locale
 fun HomeScreen(
     content: HomeContent,
     settings: Settings,
+    profile: Profile,
     rates: List<RatesRepository.Rate>,
     weather: WeatherRepository.Weather?,
     team: TeamContent,
@@ -75,11 +78,14 @@ fun HomeScreen(
     onOpenAllApps: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenDiagnostics: () -> Unit,
+    onSwitchProfile: () -> Unit,
     onRequestPermission: () -> Unit,
 ) {
-    val visibleApps = content.apps.filter { it.packageName !in settings.hidden }
+    val visibleApps = content.apps.filter { it.packageName !in settings.hidden && profile.allows(it.packageName) }
     val byPkg = visibleApps.associateBy { it.packageName }
     val dock = settings.dock.mapNotNull { byPkg[it] }.ifEmpty { visibleApps.take(8) }
+    val kids = profile.isKids
+    fun List<MediaItem>.allowed() = filter { profile.allows(it.packageName) }
     val gap = LocalDims.current.gap
     val tuner = content.inputs.firstOrNull { it.isTuner }
     val hdmi = content.inputs.filter { !it.isTuner }
@@ -93,19 +99,21 @@ fun HomeScreen(
             collapsed = collapsed,
             rates = if (settings.showRates) rates else emptyList(),
             weather = if (settings.showWeather) weather else null,
-            status = if (settings.showStatus) content.status else null,
+            status = if (settings.showStatus && !kids) content.status else null,
             focused = if (!collapsed) focused else null,
             appLabel = appLabel,
+            who = profile.name,
         )
         LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = 48.dp)) {
             // Menu nativo: só ícones
             item {
                 LazyRow(contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.padding(bottom = 14.dp)) {
-                    item { IconButton(Icons.Rounded.Search, "Buscar", onOpenSearch) }
+                    item { IconButton(Icons.Rounded.Person, "Perfil: ${profile.name}", onSwitchProfile) }
+                    if (!kids) item { IconButton(Icons.Rounded.Search, "Buscar", onOpenSearch) }
                     if (tuner != null || broadcast.isNotEmpty()) item { IconButton(Icons.Rounded.Tv, "TV aberta", onOpenTuner) }
-                    if (settings.showInputs) items(hdmi, key = { it.id }) { IconButton(Icons.Rounded.SettingsInputHdmi, it.label, { onOpenInput(it) }) }
-                    items(QuickAction.entries.filter { it in settings.quick }, key = { it.name }) { IconButton(it.icon, it.label, { onQuick(it) }) }
-                    item { IconButton(Icons.Rounded.Apps, "Todos os apps", onOpenAllApps) }
+                    if (!kids && settings.showInputs) items(hdmi, key = { it.id }) { IconButton(Icons.Rounded.SettingsInputHdmi, it.label, { onOpenInput(it) }) }
+                    if (!kids) items(QuickAction.entries.filter { it in settings.quick }, key = { it.name }) { IconButton(it.icon, it.label, { onQuick(it) }) }
+                    if (!kids) item { IconButton(Icons.Rounded.Apps, "Todos os apps", onOpenAllApps) }
                 }
             }
 
@@ -123,14 +131,28 @@ fun HomeScreen(
                 }
             }
 
-            val cont = content.sections[Section.CONTINUE].orEmpty()
+            val cont = content.sections[Section.CONTINUE].orEmpty().allowed()
             if (cont.isNotEmpty() && Section.CONTINUE.name !in settings.disabledSections) {
                 item(key = "title-continue") { RowTitle(Section.CONTINUE.title) }
                 item(key = "row-continue") { MediaRow(cont, appLabel, onOpenItem, onFocused) }
             }
 
+            // TV Globo (perfil Letícia): canal com sintonia + grade das próximas horas
+            if (profile.showGlobo && content.globo != null) {
+                val g = content.globo
+                item(key = "title-globo") { RowTitle("TV Globo", g.nowTitle?.let { "Agora: $it" }) }
+                item(key = "row-globo") {
+                    LazyRow(contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(gap)) {
+                        item { ChannelCard(g) { onOpenChannel(g) } }
+                        val now = System.currentTimeMillis()
+                        items(content.globoSchedule.take(12), key = { "pg-${it.startMs}" }) { ProgramCard(it, isNow = it.startMs <= now && it.endMs > now) { onOpenChannel(g) } }
+                        items(content.perApp["com.globo.globotv"].orEmpty().take(10), key = { "gp-${it.id}" }) { MediaCard(it, "Globoplay", onFocused) { onOpenItem(it) } }
+                    }
+                }
+            }
+
             // Time
-            if (settings.showTeam && (team.info != null || team.videos.isNotEmpty() || team.related.isNotEmpty())) {
+            if (profile.showTeam && settings.showTeam && (team.info != null || team.videos.isNotEmpty() || team.related.isNotEmpty())) {
                 item(key = "title-team") { RowTitle(settings.teamName) }
                 item(key = "row-team") {
                     LazyRow(contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(gap)) {
@@ -141,8 +163,8 @@ fun HomeScreen(
                 }
             }
 
-            val fut = content.sections[Section.FUTEBOL].orEmpty()
-            if ((fut.isNotEmpty() || content.sportsChannels.isNotEmpty()) && Section.FUTEBOL.name !in settings.disabledSections) {
+            val fut = content.sections[Section.FUTEBOL].orEmpty().allowed()
+            if (!kids && (fut.isNotEmpty() || content.sportsChannels.isNotEmpty()) && Section.FUTEBOL.name !in settings.disabledSections) {
                 item(key = "title-futebol") { RowTitle("Futebol") }
                 item(key = "row-futebol") {
                     LazyRow(contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(gap)) {
@@ -163,13 +185,13 @@ fun HomeScreen(
 
             for (section in listOf(Section.FILMES, Section.SERIES, Section.OUTROS)) {
                 if (section.name in settings.disabledSections) continue
-                val sectionItems = content.sections[section].orEmpty()
+                val sectionItems = content.sections[section].orEmpty().allowed()
                 if (sectionItems.isEmpty()) continue
                 item(key = "title-${section.name}") { RowTitle(section.title) }
                 item(key = "row-${section.name}") { MediaRow(sectionItems, appLabel, onOpenItem, onFocused) }
             }
 
-            if (settings.recents.isNotEmpty()) {
+            if (!kids && settings.recents.isNotEmpty()) {
                 item(key = "title-recents") { RowTitle("Abertos recentemente") }
                 item(key = "row-recents") {
                     LazyRow(contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(gap)) {
@@ -181,12 +203,12 @@ fun HomeScreen(
             }
 
             for ((pkg, appItems) in content.perApp) {
-                if (appItems.isEmpty()) continue
+                if (appItems.isEmpty() || !profile.allows(pkg)) continue
                 item(key = "title-app-$pkg") { RowTitle(appLabel(pkg)) }
                 item(key = "row-app-$pkg") { MediaRow(appItems.take(30), appLabel, onOpenItem, onFocused) }
             }
 
-            if (settings.showFast && content.fastChannels.isNotEmpty()) {
+            if (!kids && settings.showFast && content.fastChannels.isNotEmpty()) {
                 item(key = "title-fast") { RowTitle("Canais pela internet") }
                 item(key = "row-fast") {
                     LazyRow(contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(gap)) {
@@ -195,11 +217,12 @@ fun HomeScreen(
                 }
             }
 
-            item {
+            if (!kids) item {
                 RowTitle("Esta home")
                 LazyRow(contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(gap)) {
                     item { PillCard("Ajustes", onOpenSettings) }
                     item { PillCard("Diagnóstico", onOpenDiagnostics) }
+                    item { PillCard("Trocar perfil", onSwitchProfile) }
                 }
             }
         }
@@ -218,6 +241,7 @@ private fun Hero(
     status: DeviceStatus?,
     focused: MediaItem?,
     appLabel: (String) -> String,
+    who: String,
 ) {
     var now by remember { mutableStateOf(Date()) }
     LaunchedEffect(Unit) { while (true) { now = Date(); delay(15_000) } }
@@ -241,6 +265,7 @@ private fun Hero(
         } else {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
                 Column {
+                    Text("Olá, $who", fontSize = 15.sp, color = TvColors.textDim)
                     Text(time, fontSize = 68.sp, fontWeight = FontWeight.ExtraLight, color = TvColors.text)
                     Text(date, fontSize = 17.sp, color = TvColors.textDim)
                     if (status != null) {

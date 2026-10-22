@@ -30,13 +30,15 @@ import tech.futureme.tvhome.data.AppEntry
 import tech.futureme.tvhome.data.Background
 import tech.futureme.tvhome.data.InputEntry
 import tech.futureme.tvhome.data.MediaItem
+import tech.futureme.tvhome.data.Profile
+import tech.futureme.tvhome.data.Profiles
 import tech.futureme.tvhome.data.QuickAction
 import tech.futureme.tvhome.data.RecentEntry
 import tech.futureme.tvhome.data.TunerChannel
 import java.io.File
 import java.util.Calendar
 
-private enum class Screen { HOME, ALL_APPS, SETTINGS, DIAGNOSTICS, SEARCH, LIVE_TV }
+private enum class Screen { HOME, ALL_APPS, SETTINGS, DIAGNOSTICS, SEARCH, LIVE_TV, PIN_CHANGE }
 
 @Composable
 fun App(
@@ -54,6 +56,9 @@ fun App(
     val rates by vm.rates.collectAsStateWithLifecycle()
     val weather by vm.weather.collectAsStateWithLifecycle()
     val team by vm.team.collectAsStateWithLifecycle()
+    val activeProfile by vm.profile.collectAsStateWithLifecycle()
+    var pendingProfile by remember { mutableStateOf<Profile?>(null) }   // escolhido, aguardando senha
+    var pinChangeFor by remember { mutableStateOf<Profile?>(null) }
     var screen by remember { mutableStateOf(Screen.HOME) }
     var focused by remember { mutableStateOf<MediaItem?>(null) }
     var liveChannel by remember { mutableStateOf<TunerChannel?>(null) }
@@ -62,14 +67,34 @@ fun App(
     val scope = rememberCoroutineScope()
     val appLabel: (String) -> String = { pkg -> content.apps.firstOrNull { it.packageName == pkg }?.label ?: vm.appsRepo.label(pkg) }
 
-    BackHandler(enabled = screen != Screen.HOME) { screen = Screen.HOME }
+    BackHandler(enabled = screen != Screen.HOME || pendingProfile != null) {
+        if (pendingProfile != null) pendingProfile = null else screen = Screen.HOME
+    }
 
+    val profile = activeProfile
     CompositionLocalProvider(LocalDims provides Dims.of(settings.density)) {
         Box(Modifier.fillMaxSize()) {
-            if (screen != Screen.LIVE_TV) BackgroundLayer(settings.background, if (screen == Screen.HOME) focused?.imageUri else null, settings.nightMode)
+            if (screen != Screen.LIVE_TV) BackgroundLayer(settings.background, if (screen == Screen.HOME && profile != null) focused?.imageUri else null, settings.nightMode)
+            // Sem perfil: seletor (e senha, se o perfil pedir)
+            if (profile == null) {
+                val pend = pendingProfile
+                if (pend != null && pend.requiresPin) {
+                    PinPad(
+                        title = "Senha de ${pend.name}", subtitle = "Digite os 4 números",
+                        expected = settings.pinFor(pend.id),
+                        onDone = { vm.profile.value = pend; pendingProfile = null; screen = Screen.HOME },
+                        onCancel = { pendingProfile = null },
+                    )
+                } else {
+                    ProfilePicker(Profiles.ALL) { p ->
+                        if (p.requiresPin) pendingProfile = p else { vm.profile.value = p; screen = Screen.HOME }
+                    }
+                }
+                return@Box
+            }
             when (screen) {
                 Screen.HOME -> HomeScreen(
-                    content = content, settings = settings, rates = rates, weather = weather, team = team,
+                    content = content, settings = settings, profile = profile, rates = rates, weather = weather, team = team,
                     focused = focused, onFocused = { focused = it }, appLabel = appLabel,
                     onOpenItem = onOpenItem, onOpenApp = onOpenApp, onOpenInput = onOpenInput,
                     onOpenRecent = onOpenRecent, onOpenChannel = ::openChannel,
@@ -83,6 +108,7 @@ fun App(
                     onOpenAllApps = { screen = Screen.ALL_APPS },
                     onOpenSettings = { screen = Screen.SETTINGS },
                     onOpenDiagnostics = { screen = Screen.DIAGNOSTICS },
+                    onSwitchProfile = { vm.profile.value = null; focused = null },
                     onRequestPermission = onRequestPermission,
                 )
                 Screen.ALL_APPS -> LazyVerticalGrid(
@@ -92,7 +118,7 @@ fun App(
                     horizontalArrangement = Arrangement.spacedBy(LocalDims.current.gap),
                     verticalArrangement = Arrangement.spacedBy(LocalDims.current.gap),
                 ) {
-                    items(content.apps.filter { it.packageName !in settings.hidden }, key = { it.packageName }) { app ->
+                    items(content.apps.filter { it.packageName !in settings.hidden && profile.allows(it.packageName) }, key = { it.packageName }) { app ->
                         AppCard(app) { onOpenApp(app) }
                     }
                 }
@@ -116,7 +142,18 @@ fun App(
                     onToggleStatus = { scope.launch { vm.prefs.toggleStatus() } },
                     onToggleHeroCompact = { scope.launch { vm.prefs.toggleHeroCompact() } },
                     onMoveOrder = { pkg, d -> scope.launch { vm.prefs.moveOrder(pkg, d) } },
+                    onChangePin = { p -> pinChangeFor = p; screen = Screen.PIN_CHANGE },
                 )
+                Screen.PIN_CHANGE -> {
+                    val p = pinChangeFor
+                    if (p == null) screen = Screen.SETTINGS
+                    else PinPad(
+                        title = "Nova senha de ${p.name}", subtitle = "Digite 4 números",
+                        expected = null,
+                        onDone = { pin -> scope.launch { vm.prefs.setPin(p.id, pin) }; pinChangeFor = null; screen = Screen.SETTINGS },
+                        onCancel = { pinChangeFor = null; screen = Screen.SETTINGS },
+                    )
+                }
                 Screen.DIAGNOSTICS -> DiagnosticsScreen(content, team, appLabel)
                 Screen.LIVE_TV -> {
                     val ch = liveChannel
@@ -129,7 +166,7 @@ fun App(
                     )
                 }
                 Screen.SEARCH -> SearchScreen(
-                    items = content.allItems, apps = content.apps.filter { it.packageName !in settings.hidden },
+                    items = content.allItems.filter { profile.allows(it.packageName) }, apps = content.apps.filter { it.packageName !in settings.hidden && profile.allows(it.packageName) },
                     appLabel = appLabel, onOpenItem = onOpenItem, onOpenApp = onOpenApp,
                 )
             }

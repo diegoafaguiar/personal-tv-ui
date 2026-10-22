@@ -19,6 +19,8 @@ import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
 import tech.futureme.tvhome.data.AppEntry
 import tech.futureme.tvhome.data.Background
+import tech.futureme.tvhome.data.Profile
+import tech.futureme.tvhome.data.Profiles
 import tech.futureme.tvhome.data.QuickAction
 import tech.futureme.tvhome.data.Section
 import tech.futureme.tvhome.data.Settings
@@ -45,9 +47,15 @@ fun SettingsScreen(
     onToggleStatus: () -> Unit,
     onToggleHeroCompact: () -> Unit,
     onMoveOrder: (String, Int) -> Unit,
+    onChangePin: (Profile) -> Unit,
 ) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 24.dp)) {
         item { RowTitle("Ajustes da home", "Voltar sai desta tela. As mudanças valem na hora.") }
+
+        item { RowTitle("Perfis", "Senha dos perfis adultos (padrão 1234). O perfil infantil não tem senha.") }
+        items(Profiles.ALL.filter { it.requiresPin }, key = { "pin-" + it.id }) { p ->
+            SettingRow("Senha de ${p.name}", if (settings.pins.containsKey(p.id)) "personalizada" else "padrão") { onChangePin(p) }
+        }
 
         item { RowTitle("Aparência") }
         item { SettingRow("Densidade dos cards", if (settings.density == "normal") "normal (~4 por linha)" else "compacta (~6 por linha)") { onToggleDensity() } }
