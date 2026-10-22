@@ -40,7 +40,8 @@ scripts/20-inventory.sh                    # 3. lista em português: pode deslig
                                            #    com RAM em uso e espaço de cada app (abra reports/*-inventory.md)
 scripts/25-review.sh                       # 4. você marca um a um: [d]esligar [m]anter [p]ular → gera um plano
 scripts/30-debloat.sh --ask-each plano-…   # 5. aplica o plano perguntando antes de cada pacote; grava reports/*-undo.sh
-scripts/55-tv-detox.sh install "com.google.android.youtube.tv,com.netflix.ninja,…"   # 6. tela inicial TV Detox
+scripts/55-tv-detox.sh install "com.tcl.tv,com.google.android.youtube.tv,com.netflix.ninja,…"   # 6. tela inicial TV Detox
+scripts/70-live-tv.sh now 4                # TV aberta: o que está passando no canal 4 (e "tune 4" para sintonizar)
 scripts/40-tune.sh --guided                # 7. animações off, suspender em 5 min, pergunta se é OLED (screensaver)
 scripts/95-finish.sh                       # 8. espera 30 s, reinicia, confirma o boot, memória antes/depois
 ```

@@ -26,6 +26,24 @@ Nota de quem testou: em Google TV o Projectivy e o FLauncher precisam de ADB
 para serem o Home de verdade (desabilitar `launcherx` + `setupwraith`); só o
 "Override" do Projectivy, sem ADB, funciona interceptando o botão.
 
+## TV aberta na home: o que o TV Detox faz e não faz (lido no código, v1.5.2)
+
+- Tiles aceitam **só nomes de pacote** (`appList()` descarta o que não tem
+  `getLeanbackLaunchIntentForPackage`/`getLaunchIntentForPackage`). Entradas
+  HDMI vêm do `TvInputManager` (apenas `TYPE_HDMI`, até 4) e abrem com
+  `ACTION_VIEW` em `TvContract.buildChannelUriForPassthroughInput(id)`.
+- **Não** lista o sintonizador (`TYPE_TUNER`), **não** lê `TvContract.Programs`
+  (sem `READ_TV_LISTINGS` no manifesto) e não sabe abrir "canal 4".
+- O que dá hoje: um tile `com.tcl.tv` (TV ao vivo) que abre o app da TCL no
+  último canal sintonizado; a grade fica dentro dele.
+- O que exige launcher próprio (fase 2): um tile "TV Globo" que mostra o
+  programa de agora e o próximo (lidos de `content://android.media.tv/program`,
+  permissão concedida via `adb shell pm grant <pkg> android.permission.READ_TV_LISTINGS`)
+  e sintoniza com `ACTION_VIEW content://android.media.tv/channel/<id>`.
+  `scripts/70-live-tv.sh` já faz as três coisas pelo adb e serve de protótipo.
+  Como o TV Detox é MIT, Java puro, uma Activity e sem Gradle, um fork em
+  `launcher/` é o caminho mais curto.
+
 ## Princípios de 10-foot UI (o que faz uma home de TV parecer "limpa")
 
 Baseado nas diretrizes do Android TV e no que os launchers acima acertam:
