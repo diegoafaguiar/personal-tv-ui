@@ -24,8 +24,8 @@ object Classifier {
     )
     private val versusWords = Regex("\\b\\S+\\s+(x|vs\\.?)\\s+\\S+\\b", RegexOption.IGNORE_CASE)
 
+    /** Seção temática (Futebol/Filmes/Séries/Outros) de qualquer item, inclusive do Watch Next. */
     fun section(item: MediaItem): Section {
-        if (item.isWatchNext) return Section.CONTINUE
         val text = listOfNotNull(item.title, item.description, item.channelName, item.episodeTitle).joinToString(" ")
         if (item.genres.any { it.equals(TvContract.Programs.Genres.SPORTS, ignoreCase = true) } ||
             footballWords.containsMatchIn(text) ||
@@ -39,6 +39,15 @@ object Classifier {
             else -> Section.OUTROS
         }
     }
+
+    private val sportsChannelWords = Regex(
+        "\\b(caz[ée]tv|ge tv|goat|fifa|football|futebol|desimpedidos|nsports|sportynet|xsports|man city|gfn|espn|sportv|premiere|esporte|sports?)\\b",
+        RegexOption.IGNORE_CASE,
+    )
+    fun isSportsChannel(ch: MediaChannelLike): Boolean =
+        sportsChannelWords.containsMatchIn(ch.name) || (ch.nowTitle != null && footballWords.containsMatchIn(ch.nowTitle))
+
+    interface MediaChannelLike { val name: String; val nowTitle: String? }
 
     fun typeName(type: Int): String = when (type) {
         TvContract.PreviewPrograms.TYPE_MOVIE -> "MOVIE"

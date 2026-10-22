@@ -42,13 +42,13 @@ class TvContentRepository(private val context: Context) {
         try { programs = queryPreviewPrograms(preview) } catch (e: Exception) { error = "preview_program: $e"; Log.w(TAG, "Falha lendo programas de prévia", e) }
         try {
             tuner = channels.values.filter { !it.isPreview && it.browsable }
-                .map { c -> TunerChannel(c.id, c.number ?: "", c.displayName ?: "", c.inputId ?: "") }
+                .map { c -> TunerChannel(c.id, c.number ?: "", c.displayName ?: "", c.inputId ?: "", c.type ?: "") }
                 .sortedWith(compareBy({ it.number.substringBefore('.').toIntOrNull() ?: 9999 }, { it.number }))
-                .map { withNowNext(it) }
+                .map { if (it.isBroadcast) withNowNext(it) else it }   // EPG só na TV aberta (os FAST não têm)
         } catch (e: Exception) { error = "program: $e"; Log.w(TAG, "Falha lendo EPG", e) }
 
         val all = watchNext + programs
-        val epgSample = tuner.take(6).map { "  ${it.number} ${it.name}: agora ${it.nowTitle ?: "—"} · depois ${it.nextTitle ?: "—"}" }
+        val epgSample = tuner.filter { it.isBroadcast }.take(8).map { "  ${it.number} ${it.name}: agora ${it.nowTitle ?: "—"} · depois ${it.nextTitle ?: "—"}" }
         return Loaded(
             all, tuner,
             Diagnostics(
@@ -57,7 +57,7 @@ class TvContentRepository(private val context: Context) {
                 programsByApp = programs.groupingBy { it.packageName }.eachCount(),
                 byType = all.groupingBy { Classifier.typeName(it.type) }.eachCount(),
                 genresSeen = all.flatMap { it.genres }.toSet(),
-                tunerChannels = tuner.map { "${it.number} ${it.name} (${it.inputId.substringBefore('/')})" },
+                tunerChannels = tuner.map { "${it.number} ${it.name} (${it.inputId.substringBefore('/')}, ${it.type}${if (it.isBroadcast) ", TV aberta" else ", internet"})" },
                 epgSample = epgSample,
                 error = error,
             ),
@@ -129,15 +129,20 @@ class TvContentRepository(private val context: Context) {
         TvContract.PreviewPrograms.COLUMN_EPISODE_TITLE,
     )
 
+    /**
+     * Programas de prévia, canal a canal: a listagem geral devolve vazio para
+     * apps comuns; com "?channel=<id>" (parâmetro de URI permitido) funciona.
+     */
     private fun queryPreviewPrograms(channels: Map<Long, Channel>): List<MediaItem> {
         val out = ArrayList<MediaItem>()
-        resolver.query(TvContract.PreviewPrograms.CONTENT_URI, programProjection, null, null, null)?.use { c ->
-            while (c.moveToNext()) {
-                if (c.getIntOrZero(TvContract.PreviewPrograms.COLUMN_BROWSABLE) == 0) continue
-                val channelId = c.getLong(c.getColumnIndexOrThrow(TvContract.PreviewPrograms.COLUMN_CHANNEL_ID))
-                val channel = channels[channelId] ?: continue   // canal escondido ou inexistente
-                if (!channel.browsable) continue                 // escondido pelo usuário na home do Google
-                out += c.toMediaItem(isWatchNext = false, channelName = channel.displayName, lastEngagement = 0L)
+        for (channel in channels.values) {
+            if (!channel.browsable) continue                     // escondido pelo usuário na home do Google
+            val uri = TvContract.buildPreviewProgramsUriForChannel(channel.id)
+            resolver.query(uri, programProjection, null, null, null)?.use { c ->
+                while (c.moveToNext()) {
+                    if (c.getIntOrZero(TvContract.PreviewPrograms.COLUMN_BROWSABLE) == 0) continue
+                    out += c.toMediaItem(isWatchNext = false, channelName = channel.displayName, lastEngagement = 0L)
+                }
             }
         }
         return out

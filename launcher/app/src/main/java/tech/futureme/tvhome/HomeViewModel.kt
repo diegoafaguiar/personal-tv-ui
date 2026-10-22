@@ -62,10 +62,24 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 val apps = appsRepo.apps()
                 val inputs = appsRepo.inputs()
                 val loaded = tvRepo.load()
-                val grouped = loaded.items.groupBy { Classifier.section(it) }
-                    .mapValues { (section, items) -> dedupe(if (section == Section.CONTINUE) items.sortedByDescending { it.lastEngagementMs } else items) }
+                val opens = settings.value.recents.groupingBy { it.packageName }.eachCount()
+
+                // Continuar assistindo: agrupado por app, apps mais abertos primeiro
+                // (empate: quem tem mais itens), no máximo 5 por app, mais recentes primeiro.
+                val watchNext = dedupe(loaded.items.filter { it.isWatchNext }.sortedByDescending { it.lastEngagementMs })
+                val continueRow = watchNext.groupBy { it.packageName }.entries
+                    .sortedWith(compareByDescending<Map.Entry<String, List<MediaItem>>> { opens[it.key] ?: 0 }.thenByDescending { it.value.size })
+                    .flatMap { it.value.take(5) }
+
+                // Seções temáticas: tudo que os apps publicam (inclusive o que você já começou)
+                val thematic = dedupe(loaded.items).groupBy { Classifier.section(it) }
+                val grouped = mapOf(Section.CONTINUE to continueRow) + thematic.filterKeys { it != Section.CONTINUE }
                 val perApp = loaded.items.filter { !it.isWatchNext }.groupBy { it.packageName }.mapValues { dedupe(it.value) }
-                HomeContent(apps, inputs, grouped, perApp, loaded.tuner, tvRepo.hasPermission(), loaded.diagnostics, statusRepo.read())
+
+                val broadcast = loaded.tuner.filter { it.isBroadcast }
+                val fast = loaded.tuner.filter { !it.isBroadcast }
+                val sports = (broadcast + fast).filter { Classifier.isSportsChannel(it) }
+                HomeContent(apps, inputs, grouped, perApp, broadcast, fast, sports, tvRepo.hasPermission(), loaded.diagnostics, statusRepo.read())
             }
             _content.value = result
             _loading.value = false

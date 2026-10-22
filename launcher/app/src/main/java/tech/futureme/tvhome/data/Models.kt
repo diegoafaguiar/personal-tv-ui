@@ -46,12 +46,16 @@ data class MediaItem(
 data class TunerChannel(
     val id: Long,
     val number: String,
-    val name: String,
+    override val name: String,
     val inputId: String,
-    val nowTitle: String? = null,
+    val type: String = "",
+    override val nowTitle: String? = null,
     val nowEnd: Long = 0L,
     val nextTitle: String? = null,
-)
+) : Classifier.MediaChannelLike {
+    /** TV aberta de verdade (ISDB-T, DVB, ATSC…); o resto são canais por internet (FAST). */
+    val isBroadcast: Boolean get() = type.startsWith("TYPE_ISDB") || type.startsWith("TYPE_DVB") || type.startsWith("TYPE_ATSC") || type.startsWith("TYPE_NTSC") || type.startsWith("TYPE_PAL") || type == "TYPE_OTHER" && inputId.contains("Tuner", ignoreCase = true)
+}
 
 /** Seções da home. A ordem aqui é a ordem na tela. */
 enum class Section(val title: String) {
@@ -76,7 +80,9 @@ data class HomeContent(
     val inputs: List<InputEntry> = emptyList(),
     val sections: Map<Section, List<MediaItem>> = emptyMap(),
     val perApp: Map<String, List<MediaItem>> = emptyMap(),
-    val tunerChannels: List<TunerChannel> = emptyList(),
+    val tunerChannels: List<TunerChannel> = emptyList(),    // TV aberta
+    val fastChannels: List<TunerChannel> = emptyList(),     // canais por internet (TCL Channel+ etc.)
+    val sportsChannels: List<TunerChannel> = emptyList(),   // os de esporte, para a seção Futebol
     val hasPermission: Boolean = false,
     val diagnostics: Diagnostics = Diagnostics(),
     val status: DeviceStatus = DeviceStatus(),

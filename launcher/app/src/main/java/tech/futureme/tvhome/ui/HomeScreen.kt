@@ -13,6 +13,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Apps
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.SettingsInputHdmi
+import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -71,8 +76,12 @@ fun HomeScreen(
     val byPkg = visibleApps.associateBy { it.packageName }
     val dock = settings.dock.mapNotNull { byPkg[it] }.ifEmpty { visibleApps.take(8) }
     val gap = LocalDims.current.gap
+    val tuner = content.inputs.firstOrNull { it.isTuner }
+    val hdmi = content.inputs.filter { !it.isTuner }
+    // Globo primeiro, depois os demais canais abertos pela numeração
+    val broadcast = content.tunerChannels.sortedBy { if (it.name.contains("globo", true)) -1 else 0 }
 
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 24.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = 36.dp, bottom = 48.dp)) {
         item {
             Hero(
                 rates = if (settings.showRates) rates else emptyList(),
@@ -83,24 +92,21 @@ fun HomeScreen(
             )
         }
 
-        // Dock: busca, TV ao vivo + apps favoritos
+        // Menu nativo: só ícones. Busca, TV, HDMI 1/2/3, rede, Bluetooth, som, imagem, configurações, todos os apps.
         item {
-            LazyRow(contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(gap)) {
-                item { PillCard("Buscar", onOpenSearch, sub = "em todos os apps") }
-                items(content.inputs.filter { it.isTuner }, key = { it.id }) { InputCard(it) { onOpenInput(it) } }
-                items(dock, key = { it.packageName }) { AppCard(it) { onOpenApp(it) } }
-                item { PillCard("Todos os apps", onOpenAllApps, sub = "${visibleApps.size} instalados") }
+            LazyRow(contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(bottom = 18.dp)) {
+                item { IconButton(Icons.Rounded.Search, "Buscar", onOpenSearch) }
+                if (tuner != null) item { IconButton(Icons.Rounded.Tv, tuner.label, { onOpenInput(tuner) }) }
+                if (settings.showInputs) items(hdmi, key = { it.id }) { IconButton(Icons.Rounded.SettingsInputHdmi, it.label, { onOpenInput(it) }) }
+                items(QuickAction.entries.filter { it in settings.quick }, key = { it.name }) { IconButton(it.icon, it.label, { onQuick(it) }) }
+                item { IconButton(Icons.Rounded.Apps, "Todos os apps", onOpenAllApps) }
             }
         }
 
-        // Atalhos: HDMI 1/2/3 e funções rápidas
-        if (settings.showInputs || settings.quick.isNotEmpty()) {
-            item { Spacer(Modifier.height(gap)) }
-            item {
-                LazyRow(contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(gap)) {
-                    if (settings.showInputs) items(content.inputs.filter { !it.isTuner }, key = { it.id }) { InputCard(it) { onOpenInput(it) } }
-                    items(QuickAction.entries.filter { it in settings.quick }, key = { it.name }) { PillCard(it.label, { onQuick(it) }) }
-                }
+        // Dock: seus apps
+        item {
+            LazyRow(contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(gap)) {
+                items(dock, key = { it.packageName }) { AppCard(it) { onOpenApp(it) } }
             }
         }
 
@@ -111,16 +117,43 @@ fun HomeScreen(
             }
         }
 
-        // TV aberta: canais do sintonizador com o programa de agora
-        if (content.tunerChannels.isNotEmpty()) {
-            item(key = "title-tv") { RowTitle("TV aberta", "${content.tunerChannels.size} canais · toque para sintonizar") }
-            item(key = "row-tv") {
+        // Continuar assistindo: por app mais aberto, 5 por app
+        val cont = content.sections[Section.CONTINUE].orEmpty()
+        if (cont.isNotEmpty() && Section.CONTINUE.name !in settings.disabledSections) {
+            item(key = "title-continue") { RowTitle(Section.CONTINUE.title, "${cont.map { it.packageName }.distinct().size} apps · até 5 por app, os mais usados primeiro") }
+            item(key = "row-continue") { MediaRow(cont, appLabel, onOpenItem, onFocused) }
+        }
+
+        // Futebol: canais de esporte ao vivo + o que os apps publicam com cara de futebol
+        val fut = content.sections[Section.FUTEBOL].orEmpty()
+        if ((fut.isNotEmpty() || content.sportsChannels.isNotEmpty()) && Section.FUTEBOL.name !in settings.disabledSections) {
+            item(key = "title-futebol") { RowTitle("Futebol", "${content.sportsChannels.size} canais ao vivo · ${fut.size} conteúdos") }
+            item(key = "row-futebol") {
                 LazyRow(contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(gap)) {
-                    items(content.tunerChannels, key = { it.id }) { ch ->
-                        PillCard("${ch.number} ${ch.name}", { onOpenChannel(ch) }, sub = ch.nowTitle ?: "sem grade")
-                    }
+                    items(content.sportsChannels, key = { "ch-" + it.id }) { ChannelCard(it) { onOpenChannel(it) } }
+                    items(fut, key = { "${it.packageName}:${it.id}:${it.isWatchNext}" }) { MediaCard(it, appLabel(it.packageName), onFocused) { onOpenItem(it) } }
                 }
             }
+        }
+
+        // TV aberta: Globo primeiro, com o programa de agora
+        if (broadcast.isNotEmpty()) {
+            item(key = "title-tv") { RowTitle("TV aberta", "${broadcast.size} canais · com a grade de agora quando a emissora envia") }
+            item(key = "row-tv") {
+                LazyRow(contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(gap)) {
+                    items(broadcast, key = { it.id }) { ChannelCard(it) { onOpenChannel(it) } }
+                }
+            }
+        }
+
+        for (section in listOf(Section.FILMES, Section.SERIES, Section.OUTROS)) {
+            if (section.name in settings.disabledSections) continue
+            val sectionItems = content.sections[section].orEmpty()
+            if (sectionItems.isEmpty()) continue
+            item(key = "title-${section.name}") {
+                RowTitle(section.title, "${sectionItems.size} títulos de ${sectionItems.map { it.packageName }.distinct().size} apps")
+            }
+            item(key = "row-${section.name}") { MediaRow(sectionItems, appLabel, onOpenItem, onFocused) }
         }
 
         if (settings.recents.isNotEmpty()) {
@@ -134,16 +167,6 @@ fun HomeScreen(
             }
         }
 
-        for (section in Section.entries) {
-            if (section.name in settings.disabledSections) continue
-            val sectionItems = content.sections[section].orEmpty()
-            if (sectionItems.isEmpty()) continue
-            item(key = "title-${section.name}") {
-                RowTitle(section.title, "${sectionItems.size} itens de ${sectionItems.map { it.packageName }.distinct().size} apps")
-            }
-            item(key = "row-${section.name}") { MediaRow(sectionItems, appLabel, onOpenItem, onFocused) }
-        }
-
         // Sugestões por app, para descoberta dentro de cada serviço
         val perApp = content.perApp.entries.sortedByDescending { it.value.size }
         for ((pkg, appItems) in perApp) {
@@ -152,18 +175,26 @@ fun HomeScreen(
             item(key = "row-app-$pkg") { MediaRow(appItems.take(30), appLabel, onOpenItem, onFocused) }
         }
 
+        if (settings.showFast && content.fastChannels.isNotEmpty()) {
+            item(key = "title-fast") { RowTitle("Canais pela internet", "${content.fastChannels.size} canais do TCL Channel+") }
+            item(key = "row-fast") {
+                LazyRow(contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(gap)) {
+                    items(content.fastChannels, key = { it.id }) { ChannelCard(it) { onOpenChannel(it) } }
+                }
+            }
+        }
+
         item {
             RowTitle("Esta home")
             LazyRow(contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(gap)) {
                 item { PillCard("Ajustes da home", onOpenSettings) }
                 item { PillCard("Diagnóstico", onOpenDiagnostics) }
             }
-            Spacer(Modifier.height(40.dp))
         }
     }
 }
 
-/** Saudação, hora, data, estado da TV; à direita clima e cotações; abaixo, o item focado. */
+/** Saudação, hora, data, estado da TV; à direita clima e cotações; abaixo, o item focado. Com respiro. */
 @Composable
 private fun Hero(
     rates: List<RatesRepository.Rate>,
@@ -186,28 +217,30 @@ private fun Hero(
             status.bluetoothOn?.let { add(if (it) "Bluetooth ligado" else "Bluetooth desligado") }
             if (status.freeRamMb > 0) add("${status.freeRamMb} MB livres")
             if (status.freeStorageGb > 0) add(String.format(locale, "%.1f GB de espaço", status.freeStorageGb))
-        }.joinToString("  ·  ")
+        }.joinToString("   ·   ")
     }
-    Column(Modifier.fillMaxWidth().padding(rowPadding()).padding(bottom = 10.dp)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
+    Column(Modifier.fillMaxWidth().padding(rowPadding()).padding(bottom = 26.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
             Column {
-                Text(greeting, fontSize = 18.sp, color = TvColors.textDim)
-                Text(time, fontSize = 48.sp, fontWeight = FontWeight.Light, color = TvColors.text)
-                Text(date, fontSize = 17.sp, color = TvColors.textDim)
+                Text(greeting, fontSize = 20.sp, color = TvColors.textDim)
+                Text(time, fontSize = 64.sp, fontWeight = FontWeight.Light, color = TvColors.text)
+                Text(date, fontSize = 18.sp, color = TvColors.textDim)
+                Spacer(Modifier.height(10.dp))
                 Text(statusLine, fontSize = 13.sp, color = TvColors.textDim)
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.Bottom) {
+            Row(horizontalArrangement = Arrangement.spacedBy(36.dp), verticalAlignment = Alignment.Top, modifier = Modifier.padding(top = 12.dp)) {
                 if (weather != null) WeatherChip(weather)
                 for (r in rates) RateChip(r)
             }
         }
         if (focused != null) {
-            Spacer(Modifier.height(10.dp))
-            Column(Modifier.width(620.dp)) {
-                Text(focused.title, fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = TvColors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                val meta = listOfNotNull(appLabel(focused.packageName), focused.episodeTitle, focused.genres.firstOrNull()).joinToString(" · ")
+            Spacer(Modifier.height(22.dp))
+            Column(Modifier.width(680.dp)) {
+                Text(focused.title, fontSize = 26.sp, fontWeight = FontWeight.SemiBold, color = TvColors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                val meta = listOfNotNull(appLabel(focused.packageName), focused.episodeTitle, focused.genres.firstOrNull()).joinToString("  ·  ")
                 Text(meta, fontSize = 14.sp, color = TvColors.accent)
                 if (!focused.description.isNullOrBlank()) {
+                    Spacer(Modifier.height(4.dp))
                     Text(focused.description, fontSize = 15.sp, color = TvColors.textDim, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
             }
@@ -219,7 +252,7 @@ private fun Hero(
 private fun WeatherChip(w: WeatherRepository.Weather) {
     Column(horizontalAlignment = Alignment.End) {
         Text("Recreio · ${w.label}", fontSize = 14.sp, color = TvColors.textDim)
-        Text("${w.icon} ${w.tempC.toInt()}°", fontSize = 26.sp, fontWeight = FontWeight.Medium, color = TvColors.text)
+        Text("${w.icon} ${w.tempC.toInt()}°", fontSize = 30.sp, fontWeight = FontWeight.Medium, color = TvColors.text)
         Text("${w.minC.toInt()}° / ${w.maxC.toInt()}°  ·  chuva ${w.rainPct}%", fontSize = 14.sp, color = TvColors.textDim)
     }
 }
@@ -231,7 +264,7 @@ private fun RateChip(rate: RatesRepository.Rate) {
     val color = if (rate.pctChange > 0) Color(0xFFE57373) else if (rate.pctChange < 0) Color(0xFF81C784) else TvColors.textDim
     Column(horizontalAlignment = Alignment.End) {
         Text(if (rate.code == "USD") "Dólar" else if (rate.code == "EUR") "Euro" else rate.code, fontSize = 14.sp, color = TvColors.textDim)
-        Text(money, fontSize = 26.sp, fontWeight = FontWeight.Medium, color = TvColors.text)
+        Text(money, fontSize = 30.sp, fontWeight = FontWeight.Medium, color = TvColors.text)
         Text(pct, fontSize = 14.sp, color = color)
     }
 }

@@ -51,6 +51,28 @@ publicou (é o mesmo deep link que a home do Google usa).
 - **Abertos recentemente**: últimos 12 apps/conteúdos abertos pela home, local.
 - **Modo noturno automático**: das 21h às 6h o fundo escurece mais.
 
+## v0.4: calibrado com o diagnóstico real da TV
+
+Diagnóstico de 22/10: 49 itens de Watch Next (Globoplay 14, Apple TV 13,
+Disney+ 11, Netflix 4, Prime 4, HBO Max 2), canais de prévia de 14 apps mas
+zero programas na listagem geral, nenhum gênero publicado, 25 canais de TV
+aberta (Globo 4.1 com grade) e ~200 canais do TCL Channel+ na mesma tabela.
+
+- **Sugestões canal a canal**: `buildPreviewProgramsUriForChannel(id)`; a
+  listagem geral de `preview_program` volta vazia para apps comuns.
+- **Continuar assistindo**: agrupado por app, apps mais abertos pela home
+  primeiro (contagem de "recentes"), até 5 por app.
+- **TV aberta vs internet**: pelo tipo do canal (`TYPE_ISDB_T` = aberta);
+  os FAST do Channel+ ficam numa linha opcional. Globo vem primeiro.
+- **Futebol sem gênero**: canais de esporte ao vivo (CazéTV, GE TV, FIFA+,
+  GOAT, Desimpedidos, Nsports, SportyNet…) por nome, mais o que a Globo
+  estiver passando de futebol e títulos com palavras do `Classifier`.
+- **Filmes e Séries** também a partir do Watch Next (tipo MOVIE / EPISODE).
+- **Menu nativo só com ícones** (busca, TV, HDMI 1/2/3, rede, Bluetooth, som,
+  imagem, configurações, apps), rótulo só no foco. Hero com mais respiro.
+- **Placeholders**: gradiente estável derivado do nome (app, canal) quando
+  não há imagem; cards de canal com número grande e "Agora: …".
+
 ## Por que isso funciona sem scraping
 
 No Android TV os apps publicam "Watch Next" e "canais de prévia" num banco do

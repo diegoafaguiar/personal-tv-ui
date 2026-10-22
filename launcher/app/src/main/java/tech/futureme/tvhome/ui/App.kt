@@ -101,6 +101,7 @@ fun App(
                     onToggleWeather = { scope.launch { vm.prefs.toggleWeather() } },
                     onToggleNight = { scope.launch { vm.prefs.toggleNight() } },
                     onClearRecents = { scope.launch { vm.prefs.clearRecents() } },
+                    onToggleFast = { scope.launch { vm.prefs.toggleFast() } },
                 )
                 Screen.DIAGNOSTICS -> DiagnosticsScreen(content, appLabel)
                 Screen.SEARCH -> SearchScreen(

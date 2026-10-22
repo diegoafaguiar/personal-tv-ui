@@ -41,6 +41,8 @@ fun DiagnosticsScreen(content: HomeContent, appLabel: (String) -> String) {
         add("— Grade (agora / depois) —")
         if (d.epgSample.isEmpty()) add("  (nenhuma)")
         d.epgSample.forEach { add(it) }
+        add("— Canais de esporte detectados (seção Futebol) —")
+        content.sportsChannels.forEach { add("  ${it.number} ${it.name}") }
         add("— Seções —")
         content.sections.forEach { (s, items) -> add("  ${s.title}: ${items.size}") }
         add("— Amostra de títulos por seção (para calibrar o Classifier) —")

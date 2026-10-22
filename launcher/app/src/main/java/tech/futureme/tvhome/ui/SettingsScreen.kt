@@ -40,6 +40,7 @@ fun SettingsScreen(
     onToggleWeather: () -> Unit,
     onToggleNight: () -> Unit,
     onClearRecents: () -> Unit,
+    onToggleFast: () -> Unit,
 ) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 24.dp)) {
         item { RowTitle("Ajustes da home", "Voltar sai desta tela. As mudanças valem na hora.") }
@@ -49,14 +50,15 @@ fun SettingsScreen(
         item { SettingRow("Cotações no topo (dólar e euro)", if (settings.showRates) "ligado" else "desligado") { onToggleRates() } }
         item { SettingRow("Clima no topo (Recreio dos Bandeirantes)", if (settings.showWeather) "ligado" else "desligado") { onToggleWeather() } }
         item { SettingRow("Modo noturno automático (escurece das 21h às 6h)", if (settings.nightMode) "ligado" else "desligado") { onToggleNight() } }
-        item { SettingRow("Atalhos de HDMI", if (settings.showInputs) "ligado" else "desligado") { onToggleInputs() } }
+        item { SettingRow("Ícones de HDMI no menu", if (settings.showInputs) "ligado" else "desligado") { onToggleInputs() } }
+        item { SettingRow("Linha \"Canais pela internet\" (TCL Channel+)", if (settings.showFast) "ligada" else "desligada") { onToggleFast() } }
         item { SettingRow("Limpar \"Abertos recentemente\"", "${settings.recents.size} itens") { onClearRecents() } }
         item { RowTitle("Fundo", "Para \"Minha imagem\": scripts/58-launcher-wallpaper.sh foto.jpg") }
         items(Background.entries, key = { "bg-" + it.name }) { bg ->
             SettingRow(bg.label, if (settings.background == bg) "● em uso" else "") { onSetBackground(bg) }
         }
 
-        item { RowTitle("Botões rápidos") }
+        item { RowTitle("Ícones do menu nativo") }
         items(QuickAction.entries, key = { "quick-" + it.name }) { q ->
             SettingRow(q.label, if (q in settings.quick) "visível" else "oculto") { onToggleQuick(q) }
         }

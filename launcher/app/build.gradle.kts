@@ -12,8 +12,8 @@ android {
         applicationId = "tech.futureme.tvhome"
         minSdk = 28          // Android TV 9+
         targetSdk = 34
-        versionCode = 4
-        versionName = "0.3.1"
+        versionCode = 5
+        versionName = "0.4.0"
     }
 
     // Chave FIXA versionada no repositório, para que todo build (CI ou local)
@@ -56,6 +56,7 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation("androidx.compose.material:material-icons-extended")   // ícones do menu nativo (R8 remove o que não é usado)
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     // Compose for TV: Surface/Card com foco e escala, tema para 10-foot UI
