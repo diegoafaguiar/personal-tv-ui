@@ -150,17 +150,17 @@ stock_launcher_pkg() {
   fi
 }
 
-# Quem responde ao botão HOME hoje. Primeira entrada = quem o Android abre.
-home_owner() {
-  tv_shell "cmd package query-activities -a android.intent.action.MAIN -c android.intent.category.HOME" \
-    | tr -d '\r' | grep -E '^[[:space:]]+name=' | head -n1 | sed -E 's/^[[:space:]]+name=//' || true
-}
-
-# Todos os candidatos a HOME (pacote/atividade), em ordem de prioridade.
+# Candidatos a HOME como "pacote/Classe", em ordem de prioridade. O dump traz
+# "name=<classe completa>" e, logo abaixo, "packageName=<pacote>"; pareamos os dois.
 home_candidates() {
   tv_shell "cmd package query-activities -a android.intent.action.MAIN -c android.intent.category.HOME" \
-    | tr -d '\r' | grep -E '^[[:space:]]+name=' | sed -E 's/^[[:space:]]+name=//' || true
+    | tr -d '\r' \
+    | awk '/^[[:space:]]+name=/ {sub(/^[[:space:]]+name=/, ""); n=$0}
+           /^[[:space:]]+packageName=/ {sub(/^[[:space:]]+packageName=/, ""); print $0 "/" n}' || true
 }
+
+# Quem responde ao botão HOME hoje. Primeira entrada = quem o Android abre.
+home_owner() { home_candidates | head -n1; }
 
 # Dono da rede Wi-Fi salva (o pacote que criou a configuração). Importa porque
 # se for o setupwraith, desabilitá-lo derruba a rede.

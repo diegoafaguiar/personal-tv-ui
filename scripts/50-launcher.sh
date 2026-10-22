@@ -95,6 +95,7 @@ cmd_set_default() {
   log_step "Pré-verificações"
   [[ "$(pkg_state "$pkg")" == "enabled" ]] || die "$pkg não está instalado e habilitado."
   if ! home_candidates | grep -q "^$pkg/"; then
+    log_info "Candidatos a HOME hoje:"; home_candidates | sed 's/^/      /' >&2
     die "$pkg não aparece como candidato a HOME. Abra-o na TV e conclua o onboarding primeiro."
   fi
   log_ok "$pkg é candidato a HOME."
@@ -148,7 +149,10 @@ main() {
   case "$cmd" in
     -h|--help|"") usage; exit 0 ;;
   esac
-  if [[ "${1:-}" == "--dry-run" ]]; then export DRY_RUN=1; shift; fi
+  # --dry-run em qualquer posição
+  local -a rest=()
+  local a; for a in "$@"; do [[ "$a" == "--dry-run" ]] && export DRY_RUN=1 || rest+=("$a"); done
+  set -- ${rest[@]+"${rest[@]}"}
   load_config
   ensure_connected
   case "$cmd" in

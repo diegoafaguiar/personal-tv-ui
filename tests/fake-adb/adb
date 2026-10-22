@@ -59,8 +59,10 @@ case "$cmd" in
     while IFS= read -r comp; do
       p="${comp%%/*}"
       if has installed "$p" && ! has disabled "$p"; then
-        echo "  ActivityInfo:"
-        echo "    name=$comp"
+        # formato real: name=<classe completa>, depois packageName=<pacote>
+        echo "    ActivityInfo:"
+        echo "      name=$p${comp#*/}"
+        echo "      packageName=$p"
       fi
     done < "$S/home" ;;
   "cmd package resolve-activity"*) echo "${cmd##* }/.MainActivity" ;;
