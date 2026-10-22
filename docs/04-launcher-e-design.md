@@ -44,6 +44,11 @@ para serem o Home de verdade (desabilitar `launcherx` + `setupwraith`); só o
   Como o TV Detox é MIT, Java puro, uma Activity e sem Gradle, um fork em
   `launcher/` é o caminho mais curto.
 
+**Estado em 22/10/2026:** pendente. Na unidade de referência, `VIEW channel/<id>`
+não tem quem atenda, o shell não enxerga o TvContract e `keys 4` ainda não
+sintonizou de forma confiável. A home usa o tile `com.tcl.tv` (abre no último
+canal). Retomar com a saída de `70-live-tv.sh doctor` (itens 6 a 8).
+
 ## Princípios de 10-foot UI (o que faz uma home de TV parecer "limpa")
 
 Baseado nas diretrizes do Android TV e no que os launchers acima acertam:
