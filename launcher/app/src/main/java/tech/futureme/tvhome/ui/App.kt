@@ -31,9 +31,12 @@ import tech.futureme.tvhome.data.Background
 import tech.futureme.tvhome.data.InputEntry
 import tech.futureme.tvhome.data.MediaItem
 import tech.futureme.tvhome.data.QuickAction
+import tech.futureme.tvhome.data.RecentEntry
+import tech.futureme.tvhome.data.TunerChannel
 import java.io.File
+import java.util.Calendar
 
-private enum class Screen { HOME, ALL_APPS, SETTINGS, DIAGNOSTICS }
+private enum class Screen { HOME, ALL_APPS, SETTINGS, DIAGNOSTICS, SEARCH }
 
 @Composable
 fun App(
@@ -41,13 +44,17 @@ fun App(
     onOpenItem: (MediaItem) -> Unit,
     onOpenApp: (AppEntry) -> Unit,
     onOpenInput: (InputEntry) -> Unit,
+    onOpenRecent: (RecentEntry) -> Unit,
+    onOpenChannel: (TunerChannel) -> Unit,
     onQuick: (QuickAction) -> Unit,
     onRequestPermission: () -> Unit,
 ) {
     val content by vm.content.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle()
     val rates by vm.rates.collectAsStateWithLifecycle()
+    val weather by vm.weather.collectAsStateWithLifecycle()
     var screen by remember { mutableStateOf(Screen.HOME) }
+    var focused by remember { mutableStateOf<MediaItem?>(null) }
     val scope = rememberCoroutineScope()
     val appLabel: (String) -> String = { pkg -> content.apps.firstOrNull { it.packageName == pkg }?.label ?: vm.appsRepo.label(pkg) }
 
@@ -55,11 +62,14 @@ fun App(
 
     CompositionLocalProvider(LocalDims provides Dims.of(settings.density)) {
         Box(Modifier.fillMaxSize()) {
-            BackgroundLayer(settings.background)
+            BackgroundLayer(settings.background, if (screen == Screen.HOME) focused?.imageUri else null, settings.nightMode)
             when (screen) {
                 Screen.HOME -> HomeScreen(
-                    content = content, settings = settings, rates = rates, appLabel = appLabel,
-                    onOpenItem = onOpenItem, onOpenApp = onOpenApp, onOpenInput = onOpenInput, onQuick = onQuick,
+                    content = content, settings = settings, rates = rates, weather = weather,
+                    focused = focused, onFocused = { focused = it }, appLabel = appLabel,
+                    onOpenItem = onOpenItem, onOpenApp = onOpenApp, onOpenInput = onOpenInput,
+                    onOpenRecent = onOpenRecent, onOpenChannel = onOpenChannel, onQuick = onQuick,
+                    onOpenSearch = { screen = Screen.SEARCH },
                     onOpenAllApps = { screen = Screen.ALL_APPS },
                     onOpenSettings = { screen = Screen.SETTINGS },
                     onOpenDiagnostics = { screen = Screen.DIAGNOSTICS },
@@ -88,16 +98,26 @@ fun App(
                     onToggleQuick = { scope.launch { vm.prefs.toggleQuick(it) } },
                     onToggleRates = { scope.launch { vm.prefs.toggleRates() } },
                     onToggleInputs = { scope.launch { vm.prefs.toggleInputs() } },
+                    onToggleWeather = { scope.launch { vm.prefs.toggleWeather() } },
+                    onToggleNight = { scope.launch { vm.prefs.toggleNight() } },
+                    onClearRecents = { scope.launch { vm.prefs.clearRecents() } },
                 )
                 Screen.DIAGNOSTICS -> DiagnosticsScreen(content, appLabel)
+                Screen.SEARCH -> SearchScreen(
+                    items = content.allItems, apps = content.apps.filter { it.packageName !in settings.hidden },
+                    appLabel = appLabel, onOpenItem = onOpenItem, onOpenApp = onOpenApp,
+                )
             }
         }
     }
 }
 
-/** Fundo da home: cor, gradiente ou a imagem em files/wallpaper.jpg (enviada por adb). */
+/**
+ * Fundo da home: cor, gradiente ou a imagem em files/wallpaper.jpg (enviada por adb).
+ * Com um item focado, a arte dele aparece por cima, escurecida. À noite, escurece mais.
+ */
 @Composable
-private fun BackgroundLayer(bg: Background) {
+private fun BackgroundLayer(bg: Background, focusedImage: String?, nightMode: Boolean) {
     val context = LocalContext.current
     when (bg) {
         Background.PRETO -> Box(Modifier.fillMaxSize().background(Color.Black))
@@ -115,4 +135,10 @@ private fun BackgroundLayer(bg: Background) {
             }
         }
     }
+    if (focusedImage != null) {
+        AsyncImage(model = focusedImage, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alpha = 0.35f)
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color(0x66000000), 1f to Color(0xEE0B0F14))))
+    }
+    val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+    if (nightMode && (hour >= 21 || hour < 6)) Box(Modifier.fillMaxSize().background(Color(0x55000000)))
 }

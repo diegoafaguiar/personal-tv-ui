@@ -17,6 +17,9 @@ import tech.futureme.tvhome.data.HomeContent
 import tech.futureme.tvhome.data.MediaItem
 import tech.futureme.tvhome.data.Prefs
 import tech.futureme.tvhome.data.RatesRepository
+import tech.futureme.tvhome.data.RecentEntry
+import tech.futureme.tvhome.data.StatusRepository
+import tech.futureme.tvhome.data.WeatherRepository
 import tech.futureme.tvhome.data.Section
 import tech.futureme.tvhome.data.Settings
 import tech.futureme.tvhome.data.TvContentRepository
@@ -26,6 +29,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     val appsRepo = AppsRepository(app)
     private val tvRepo = TvContentRepository(app)
     private val ratesRepo = RatesRepository()
+    private val weatherRepo = WeatherRepository()
+    private val statusRepo = StatusRepository(app)
 
     private val _content = MutableStateFlow(HomeContent())
     val content: StateFlow<HomeContent> = _content
@@ -35,13 +40,17 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     val rates: StateFlow<List<RatesRepository.Rate>> = _rates
     private var ratesFetchedAt = 0L
 
+    private val _weather = MutableStateFlow<WeatherRepository.Weather?>(null)
+    val weather: StateFlow<WeatherRepository.Weather?> = _weather
+    private var weatherFetchedAt = 0L
+
     private val _loading = MutableStateFlow(false)
     val loading: StateFlow<Boolean> = _loading
 
     init {
         // Cotações: a cada 30 min enquanto a home existir (sem serviço em background).
         viewModelScope.launch {
-            while (true) { refreshRates(force = false); delay(30 * 60 * 1000L) }
+            while (true) { refreshRates(force = false); refreshWeather(force = false); delay(30 * 60 * 1000L) }
         }
     }
 
@@ -56,12 +65,24 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 val grouped = loaded.items.groupBy { Classifier.section(it) }
                     .mapValues { (section, items) -> dedupe(if (section == Section.CONTINUE) items.sortedByDescending { it.lastEngagementMs } else items) }
                 val perApp = loaded.items.filter { !it.isWatchNext }.groupBy { it.packageName }.mapValues { dedupe(it.value) }
-                HomeContent(apps, inputs, grouped, perApp, tvRepo.hasPermission(), loaded.diagnostics)
+                HomeContent(apps, inputs, grouped, perApp, loaded.tuner, tvRepo.hasPermission(), loaded.diagnostics, statusRepo.read())
             }
             _content.value = result
             _loading.value = false
         }
-        viewModelScope.launch { refreshRates(force = false) }
+        viewModelScope.launch { refreshRates(force = false); refreshWeather(force = false) }
+    }
+
+    fun recordRecent(packageName: String, title: String, intentUri: String?) {
+        viewModelScope.launch { prefs.recordRecent(RecentEntry(packageName, title, intentUri, System.currentTimeMillis())) }
+    }
+
+    private suspend fun refreshWeather(force: Boolean) {
+        val now = System.currentTimeMillis()
+        if (!force && now - weatherFetchedAt < 25 * 60 * 1000L) return
+        val s = settings.value
+        val w = withContext(Dispatchers.IO) { weatherRepo.fetch(s.latitude, s.longitude) }
+        if (w != null) { _weather.value = w; weatherFetchedAt = now }
     }
 
     private suspend fun refreshRates(force: Boolean) {

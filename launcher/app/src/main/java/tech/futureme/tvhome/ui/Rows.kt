@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -71,18 +72,21 @@ fun RowTitle(text: String, subtitle: String? = null) {
 }
 
 @Composable
-fun MediaRow(items: List<MediaItem>, appLabel: (String) -> String, onClick: (MediaItem) -> Unit) {
+fun MediaRow(items: List<MediaItem>, appLabel: (String) -> String, onClick: (MediaItem) -> Unit, onFocused: (MediaItem?) -> Unit = {}) {
     LazyRow(contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(LocalDims.current.gap)) {
         items(items, key = { "${it.packageName}:${it.id}:${it.isWatchNext}" }) { item ->
-            MediaCard(item, appLabel(item.packageName)) { onClick(item) }
+            MediaCard(item, appLabel(item.packageName), onFocused = onFocused) { onClick(item) }
         }
     }
 }
 
 @Composable
-fun MediaCard(item: MediaItem, appLabel: String, onClick: () -> Unit) {
+fun MediaCard(item: MediaItem, appLabel: String, onFocused: (MediaItem?) -> Unit = {}, onClick: () -> Unit) {
     val d = LocalDims.current
-    FocusSurface(onClick = onClick, modifier = Modifier.width(d.mediaW).height(d.mediaH)) {
+    FocusSurface(
+        onClick = onClick,
+        modifier = Modifier.width(d.mediaW).height(d.mediaH).onFocusChanged { if (it.isFocused) onFocused(item) },
+    ) {
         Box(Modifier.fillMaxSize()) {
             if (item.imageUri != null) {
                 AsyncImage(

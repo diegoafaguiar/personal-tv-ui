@@ -37,6 +37,9 @@ fun SettingsScreen(
     onToggleQuick: (QuickAction) -> Unit,
     onToggleRates: () -> Unit,
     onToggleInputs: () -> Unit,
+    onToggleWeather: () -> Unit,
+    onToggleNight: () -> Unit,
+    onClearRecents: () -> Unit,
 ) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 24.dp)) {
         item { RowTitle("Ajustes da home", "Voltar sai desta tela. As mudanças valem na hora.") }
@@ -44,7 +47,10 @@ fun SettingsScreen(
         item { RowTitle("Aparência") }
         item { SettingRow("Densidade dos cards", if (settings.density == "normal") "normal (~4 por linha)" else "compacta (~6 por linha)") { onToggleDensity() } }
         item { SettingRow("Cotações no topo (dólar e euro)", if (settings.showRates) "ligado" else "desligado") { onToggleRates() } }
+        item { SettingRow("Clima no topo (Recreio dos Bandeirantes)", if (settings.showWeather) "ligado" else "desligado") { onToggleWeather() } }
+        item { SettingRow("Modo noturno automático (escurece das 21h às 6h)", if (settings.nightMode) "ligado" else "desligado") { onToggleNight() } }
         item { SettingRow("Atalhos de HDMI", if (settings.showInputs) "ligado" else "desligado") { onToggleInputs() } }
+        item { SettingRow("Limpar \"Abertos recentemente\"", "${settings.recents.size} itens") { onClearRecents() } }
         item { RowTitle("Fundo", "Para \"Minha imagem\": scripts/58-launcher-wallpaper.sh foto.jpg") }
         items(Background.entries, key = { "bg-" + it.name }) { bg ->
             SettingRow(bg.label, if (settings.background == bg) "● em uso" else "") { onSetBackground(bg) }

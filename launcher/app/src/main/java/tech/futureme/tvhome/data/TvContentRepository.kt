@@ -7,74 +7,111 @@ import android.database.Cursor
 import android.media.tv.TvContract
 import android.util.Log
 import androidx.core.content.ContextCompat
+import tech.futureme.tvhome.READ_TV_LISTINGS
 
 /**
  * Lê o que os apps publicam no TvProvider (content://android.media.tv/...):
  *  - watch_next_program: "continuar assistindo" de cada app;
- *  - channel (TYPE_PREVIEW) + preview_program: as linhas de sugestões.
- * Sem READ_TV_LISTINGS o provedor devolve só as linhas do próprio app (nada),
- * sem erro: por isso o diagnóstico mostra a permissão explicitamente.
+ *  - channel (TYPE_PREVIEW) + preview_program: as linhas de sugestões;
+ *  - channel (demais tipos) + program: canais do sintonizador e a grade (EPG).
+ *
+ * Regra do TvProvider para apps sem permissão de sistema: NENHUMA cláusula
+ * "selection" é aceita ("Selection not allowed"); só filtros por parâmetros
+ * de URI. Por isso tudo aqui consulta sem selection e filtra em memória.
+ * Sem READ_TV_LISTINGS o provedor devolve só as linhas do próprio app.
  */
 class TvContentRepository(private val context: Context) {
 
     private val resolver: ContentResolver get() = context.contentResolver
 
     fun hasPermission(): Boolean =
-        ContextCompat.checkSelfPermission(context, tech.futureme.tvhome.READ_TV_LISTINGS) ==
-            PackageManager.PERMISSION_GRANTED
+        ContextCompat.checkSelfPermission(context, READ_TV_LISTINGS) == PackageManager.PERMISSION_GRANTED
 
-    data class Loaded(val items: List<MediaItem>, val diagnostics: Diagnostics)
+    data class Loaded(val items: List<MediaItem>, val tuner: List<TunerChannel>, val diagnostics: Diagnostics)
 
     fun load(): Loaded {
-        val diag = Diagnostics()
-        if (!hasPermission()) return Loaded(emptyList(), diag.copy(error = "Sem READ_TV_LISTINGS"))
-        return try {
-            val watchNext = queryWatchNext()
-            val channels = queryPreviewChannels()
-            val programs = queryPreviewPrograms(channels)
-            val all = watchNext + programs
-            Loaded(
-                all,
-                Diagnostics(
-                    watchNextByApp = watchNext.groupingBy { it.packageName }.eachCount(),
-                    channelsByApp = channels.values.groupingBy { it.packageName }.eachCount(),
-                    programsByApp = programs.groupingBy { it.packageName }.eachCount(),
-                    byType = all.groupingBy { Classifier.typeName(it.type) }.eachCount(),
-                    genresSeen = all.flatMap { it.genres }.toSet(),
-                ),
-            )
-        } catch (e: Exception) {
-            Log.w(TAG, "Falha lendo TvContract", e)
-            Loaded(emptyList(), diag.copy(error = e.toString()))
-        }
+        if (!hasPermission()) return Loaded(emptyList(), emptyList(), Diagnostics(error = "Sem READ_TV_LISTINGS"))
+        var error: String? = null
+        var watchNext = emptyList<MediaItem>()
+        var channels = emptyMap<Long, Channel>()
+        var programs = emptyList<MediaItem>()
+        var tuner = emptyList<TunerChannel>()
+        try { watchNext = queryWatchNext() } catch (e: Exception) { error = "watch_next: $e"; Log.w(TAG, "Falha lendo Watch Next", e) }
+        try { channels = queryChannels() } catch (e: Exception) { error = "channel: $e"; Log.w(TAG, "Falha lendo canais", e) }
+        val preview = channels.filterValues { it.isPreview }
+        try { programs = queryPreviewPrograms(preview) } catch (e: Exception) { error = "preview_program: $e"; Log.w(TAG, "Falha lendo programas de prévia", e) }
+        try {
+            tuner = channels.values.filter { !it.isPreview && it.browsable }
+                .map { c -> TunerChannel(c.id, c.number ?: "", c.displayName ?: "", c.inputId ?: "") }
+                .sortedWith(compareBy({ it.number.substringBefore('.').toIntOrNull() ?: 9999 }, { it.number }))
+                .map { withNowNext(it) }
+        } catch (e: Exception) { error = "program: $e"; Log.w(TAG, "Falha lendo EPG", e) }
+
+        val all = watchNext + programs
+        val epgSample = tuner.take(6).map { "  ${it.number} ${it.name}: agora ${it.nowTitle ?: "—"} · depois ${it.nextTitle ?: "—"}" }
+        return Loaded(
+            all, tuner,
+            Diagnostics(
+                watchNextByApp = watchNext.groupingBy { it.packageName }.eachCount(),
+                channelsByApp = preview.values.groupingBy { it.packageName }.eachCount(),
+                programsByApp = programs.groupingBy { it.packageName }.eachCount(),
+                byType = all.groupingBy { Classifier.typeName(it.type) }.eachCount(),
+                genresSeen = all.flatMap { it.genres }.toSet(),
+                tunerChannels = tuner.map { "${it.number} ${it.name} (${it.inputId.substringBefore('/')})" },
+                epgSample = epgSample,
+                error = error,
+            ),
+        )
     }
 
-    private data class PreviewChannel(val id: Long, val packageName: String, val displayName: String?)
+    private data class Channel(
+        val id: Long, val packageName: String, val displayName: String?, val number: String?,
+        val type: String?, val inputId: String?, val browsable: Boolean,
+    ) { val isPreview get() = type == TvContract.Channels.TYPE_PREVIEW }
 
-    private fun queryPreviewChannels(): Map<Long, PreviewChannel> {
-        val out = HashMap<Long, PreviewChannel>()
+    private fun queryChannels(): Map<Long, Channel> {
+        val out = HashMap<Long, Channel>()
         val projection = arrayOf(
-            TvContract.Channels._ID,
-            TvContract.Channels.COLUMN_PACKAGE_NAME,
-            TvContract.Channels.COLUMN_DISPLAY_NAME,
+            TvContract.Channels._ID, TvContract.Channels.COLUMN_PACKAGE_NAME, TvContract.Channels.COLUMN_DISPLAY_NAME,
+            TvContract.Channels.COLUMN_DISPLAY_NUMBER, TvContract.Channels.COLUMN_TYPE, TvContract.Channels.COLUMN_INPUT_ID,
             TvContract.Channels.COLUMN_BROWSABLE,
         )
-        resolver.query(
-            TvContract.Channels.CONTENT_URI, projection,
-            "${TvContract.Channels.COLUMN_TYPE}=?", arrayOf(TvContract.Channels.TYPE_PREVIEW), null,
-        )?.use { c ->
+        resolver.query(TvContract.Channels.CONTENT_URI, projection, null, null, null)?.use { c ->
             while (c.moveToNext()) {
-                // Canais não "browsable" foram escondidos pelo usuário na home do Google; respeitamos.
-                if (c.getIntOrZero(TvContract.Channels.COLUMN_BROWSABLE) == 0) continue
                 val id = c.getLong(c.getColumnIndexOrThrow(TvContract.Channels._ID))
-                out[id] = PreviewChannel(
+                out[id] = Channel(
                     id,
                     c.getStringOrNull(TvContract.Channels.COLUMN_PACKAGE_NAME) ?: "",
                     c.getStringOrNull(TvContract.Channels.COLUMN_DISPLAY_NAME),
+                    c.getStringOrNull(TvContract.Channels.COLUMN_DISPLAY_NUMBER),
+                    c.getStringOrNull(TvContract.Channels.COLUMN_TYPE),
+                    c.getStringOrNull(TvContract.Channels.COLUMN_INPUT_ID),
+                    c.getIntOrZero(TvContract.Channels.COLUMN_BROWSABLE) != 0,
                 )
             }
         }
         return out
+    }
+
+    /** Programa de agora e o seguinte, pela URI com intervalo (parâmetros são permitidos). */
+    fun withNowNext(ch: TunerChannel): TunerChannel {
+        val now = System.currentTimeMillis()
+        val uri = TvContract.buildProgramsUriForChannel(ch.id, now - 5 * 60_000L, now + 6 * 3600_000L)
+        val projection = arrayOf(TvContract.Programs.COLUMN_TITLE, TvContract.Programs.COLUMN_START_TIME_UTC_MILLIS, TvContract.Programs.COLUMN_END_TIME_UTC_MILLIS)
+        val progs = ArrayList<Triple<String, Long, Long>>()
+        resolver.query(uri, projection, null, null, null)?.use { c ->
+            while (c.moveToNext()) {
+                progs += Triple(
+                    c.getStringOrNull(TvContract.Programs.COLUMN_TITLE) ?: "",
+                    c.getLongOrZero(TvContract.Programs.COLUMN_START_TIME_UTC_MILLIS),
+                    c.getLongOrZero(TvContract.Programs.COLUMN_END_TIME_UTC_MILLIS),
+                )
+            }
+        }
+        progs.sortBy { it.second }
+        val current = progs.firstOrNull { it.second <= now && it.third > now }
+        val next = progs.firstOrNull { it.second > now }
+        return ch.copy(nowTitle = current?.first, nowEnd = current?.third ?: 0L, nextTitle = next?.first)
     }
 
     private val programProjection = arrayOf(
@@ -92,13 +129,14 @@ class TvContentRepository(private val context: Context) {
         TvContract.PreviewPrograms.COLUMN_EPISODE_TITLE,
     )
 
-    private fun queryPreviewPrograms(channels: Map<Long, PreviewChannel>): List<MediaItem> {
+    private fun queryPreviewPrograms(channels: Map<Long, Channel>): List<MediaItem> {
         val out = ArrayList<MediaItem>()
         resolver.query(TvContract.PreviewPrograms.CONTENT_URI, programProjection, null, null, null)?.use { c ->
             while (c.moveToNext()) {
                 if (c.getIntOrZero(TvContract.PreviewPrograms.COLUMN_BROWSABLE) == 0) continue
                 val channelId = c.getLong(c.getColumnIndexOrThrow(TvContract.PreviewPrograms.COLUMN_CHANNEL_ID))
                 val channel = channels[channelId] ?: continue   // canal escondido ou inexistente
+                if (!channel.browsable) continue                 // escondido pelo usuário na home do Google
                 out += c.toMediaItem(isWatchNext = false, channelName = channel.displayName, lastEngagement = 0L)
             }
         }
@@ -122,17 +160,14 @@ class TvContentRepository(private val context: Context) {
 
     private fun queryWatchNext(): List<MediaItem> {
         val out = ArrayList<MediaItem>()
-        resolver.query(
-            TvContract.WatchNextPrograms.CONTENT_URI, watchNextProjection, null, null,
-            "${TvContract.WatchNextPrograms.COLUMN_LAST_ENGAGEMENT_TIME_UTC_MILLIS} DESC",
-        )?.use { c ->
+        resolver.query(TvContract.WatchNextPrograms.CONTENT_URI, watchNextProjection, null, null, null)?.use { c ->
             while (c.moveToNext()) {
                 if (c.getIntOrZero(TvContract.WatchNextPrograms.COLUMN_BROWSABLE) == 0) continue
                 val last = c.getLongOrZero(TvContract.WatchNextPrograms.COLUMN_LAST_ENGAGEMENT_TIME_UTC_MILLIS)
                 out += c.toMediaItem(isWatchNext = true, channelName = null, lastEngagement = last)
             }
         }
-        return out
+        return out.sortedByDescending { it.lastEngagementMs }
     }
 
     private fun Cursor.toMediaItem(isWatchNext: Boolean, channelName: String?, lastEngagement: Long): MediaItem {

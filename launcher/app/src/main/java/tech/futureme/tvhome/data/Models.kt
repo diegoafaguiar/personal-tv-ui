@@ -42,6 +42,17 @@ data class MediaItem(
     val imageUri: String? get() = thumbnailUri ?: posterUri
 }
 
+/** Canal do sintonizador (TV aberta) gravado no TvContract pelo app de TV ao vivo. */
+data class TunerChannel(
+    val id: Long,
+    val number: String,
+    val name: String,
+    val inputId: String,
+    val nowTitle: String? = null,
+    val nowEnd: Long = 0L,
+    val nextTitle: String? = null,
+)
+
 /** Seções da home. A ordem aqui é a ordem na tela. */
 enum class Section(val title: String) {
     CONTINUE("Continuar assistindo"),
@@ -51,15 +62,27 @@ enum class Section(val title: String) {
     OUTROS("Para você"),
 }
 
+/** Estado da TV para o widget do hero. */
+data class DeviceStatus(
+    val network: String = "",        // "Wi-Fi", "Ethernet" ou "Sem rede"
+    val bluetoothOn: Boolean? = null,
+    val freeRamMb: Long = 0,
+    val freeStorageGb: Double = 0.0,
+)
+
 /** Tudo que a home precisa, carregado de uma vez. */
 data class HomeContent(
     val apps: List<AppEntry> = emptyList(),
     val inputs: List<InputEntry> = emptyList(),
     val sections: Map<Section, List<MediaItem>> = emptyMap(),
     val perApp: Map<String, List<MediaItem>> = emptyMap(),
+    val tunerChannels: List<TunerChannel> = emptyList(),
     val hasPermission: Boolean = false,
     val diagnostics: Diagnostics = Diagnostics(),
-)
+    val status: DeviceStatus = DeviceStatus(),
+) {
+    val allItems: List<MediaItem> get() = sections.values.flatten() + perApp.values.flatten()
+}
 
 /** Contagens para a tela de diagnóstico: o que cada app publica de fato. */
 data class Diagnostics(
@@ -68,5 +91,7 @@ data class Diagnostics(
     val programsByApp: Map<String, Int> = emptyMap(),
     val byType: Map<String, Int> = emptyMap(),
     val genresSeen: Set<String> = emptySet(),
+    val tunerChannels: List<String> = emptyList(),
+    val epgSample: List<String> = emptyList(),
     val error: String? = null,
 )

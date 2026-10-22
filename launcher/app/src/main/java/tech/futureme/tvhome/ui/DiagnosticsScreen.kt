@@ -35,6 +35,12 @@ fun DiagnosticsScreen(content: HomeContent, appLabel: (String) -> String) {
         d.byType.entries.sortedByDescending { it.value }.forEach { add("  ${it.key}: ${it.value}") }
         add("— Gêneros vistos —")
         add("  " + (d.genresSeen.sorted().joinToString(", ").ifBlank { "(nenhum)" }))
+        add("— Canais do sintonizador (TV aberta) visíveis ao launcher —")
+        if (d.tunerChannels.isEmpty()) add("  (nenhum: o app de TV ao vivo não gravou canais no TvContract, ou a busca de canais não rodou)")
+        d.tunerChannels.forEach { add("  $it") }
+        add("— Grade (agora / depois) —")
+        if (d.epgSample.isEmpty()) add("  (nenhuma)")
+        d.epgSample.forEach { add(it) }
         add("— Seções —")
         content.sections.forEach { (s, items) -> add("  ${s.title}: ${items.size}") }
         add("— Amostra de títulos por seção (para calibrar o Classifier) —")

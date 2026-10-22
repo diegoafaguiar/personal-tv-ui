@@ -31,6 +31,26 @@ publicou (é o mesmo deep link que a home do Google usa).
   Bluetooth, Rede, Som, Imagem, Configurações; cada um liga/desliga nos ajustes.
 - Cards semitransparentes para o fundo aparecer.
 
+## v0.3: a regra do TvProvider, TV aberta, clima, busca, recentes, hero focado
+
+- **"Selection not allowed"**: para apps sem permissão de sistema o TvProvider
+  recusa qualquer cláusula `WHERE`; só aceita filtros por parâmetros de URI.
+  Tudo agora consulta sem selection e filtra em memória; a grade (EPG) usa
+  `buildProgramsUriForChannel(id, início, fim)`, que é parâmetro de URI.
+- **TV aberta**: com `READ_TV_LISTINGS` o launcher enxerga os canais do
+  sintonizador que o `adb shell` não via. Linha "TV aberta" com número, nome e
+  o programa de agora; clicar tenta `VIEW` no canal e, sem quem atenda, abre o
+  app de TV ao vivo. O diagnóstico lista canais e grade encontrados.
+- **Clima** (Open-Meteo, sem chave) ao lado das cotações; coordenadas do
+  Recreio dos Bandeirantes por padrão (`Prefs`).
+- **Widget de estado** no hero: rede, Bluetooth, RAM livre, espaço livre.
+- **Hero reage ao foco**: título, app, gênero e sinopse do item focado, com a
+  arte dele ao fundo, escurecida.
+- **Busca unificada** (pílula "Buscar"): títulos e sinopses de todos os apps e
+  os próprios apps, sem acentos/maiúsculas.
+- **Abertos recentemente**: últimos 12 apps/conteúdos abertos pela home, local.
+- **Modo noturno automático**: das 21h às 6h o fundo escurece mais.
+
 ## Por que isso funciona sem scraping
 
 No Android TV os apps publicam "Watch Next" e "canais de prévia" num banco do

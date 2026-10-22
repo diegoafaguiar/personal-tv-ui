@@ -29,6 +29,11 @@ data class Settings(
     val quick: Set<QuickAction> = QuickAction.DEFAULT,
     val showRates: Boolean = true,
     val showInputs: Boolean = true,
+    val showWeather: Boolean = true,
+    val nightMode: Boolean = true,          // escurece após as 21h
+    val recents: List<RecentEntry> = emptyList(),
+    val latitude: Double = -23.0185,        // Recreio dos Bandeirantes, RJ
+    val longitude: Double = -43.4620,
 ) {
     companion object {
         val DEFAULT_DOCK = listOf(
@@ -53,6 +58,11 @@ class Prefs(private val context: Context) {
     private val quickKey = stringSetPreferencesKey("quick")
     private val ratesKey = booleanPreferencesKey("show_rates")
     private val inputsKey = booleanPreferencesKey("show_inputs")
+    private val weatherKey = booleanPreferencesKey("show_weather")
+    private val nightKey = booleanPreferencesKey("night_mode")
+    private val recentsKey = stringPreferencesKey("recents")
+    private val latKey = stringPreferencesKey("lat")
+    private val lonKey = stringPreferencesKey("lon")
 
     val settings: Flow<Settings> = context.dataStore.data.map { p ->
         Settings(
@@ -65,6 +75,11 @@ class Prefs(private val context: Context) {
             quick = p[quickKey]?.mapNotNull { v -> QuickAction.entries.firstOrNull { it.name == v } }?.toSet() ?: QuickAction.DEFAULT,
             showRates = p[ratesKey] ?: true,
             showInputs = p[inputsKey] ?: true,
+            showWeather = p[weatherKey] ?: true,
+            nightMode = p[nightKey] ?: true,
+            recents = p[recentsKey]?.split('\n')?.mapNotNull { RecentEntry.decode(it) } ?: emptyList(),
+            latitude = p[latKey]?.toDoubleOrNull() ?: -23.0185,
+            longitude = p[lonKey]?.toDoubleOrNull() ?: -43.4620,
         )
     }
 
@@ -104,5 +119,16 @@ class Prefs(private val context: Context) {
     }
 
     suspend fun toggleRates() = context.dataStore.edit { p -> p[ratesKey] = !(p[ratesKey] ?: true) }
+    suspend fun toggleWeather() = context.dataStore.edit { p -> p[weatherKey] = !(p[weatherKey] ?: true) }
+    suspend fun toggleNight() = context.dataStore.edit { p -> p[nightKey] = !(p[nightKey] ?: true) }
+
+    /** Registra um app/conteúdo aberto; mantém os últimos MAX, sem repetidos. */
+    suspend fun recordRecent(entry: RecentEntry) = context.dataStore.edit { p ->
+        val cur = p[recentsKey]?.split('\n')?.mapNotNull { RecentEntry.decode(it) } ?: emptyList()
+        val key = entry.packageName + "|" + (entry.intentUri ?: "")
+        val next = listOf(entry) + cur.filter { it.packageName + "|" + (it.intentUri ?: "") != key }
+        p[recentsKey] = next.take(RecentEntry.MAX).joinToString("\n") { it.encode() }
+    }
+    suspend fun clearRecents() = context.dataStore.edit { p -> p[recentsKey] = "" }
     suspend fun toggleInputs() = context.dataStore.edit { p -> p[inputsKey] = !(p[inputsKey] ?: true) }
 }

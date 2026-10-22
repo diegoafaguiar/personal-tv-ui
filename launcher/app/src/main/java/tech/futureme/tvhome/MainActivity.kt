@@ -32,7 +32,9 @@ class MainActivity : ComponentActivity() {
                 App(
                     vm = vm,
                     onOpenItem = ::openItem,
-                    onOpenApp = { startSafely(it.launchIntent) },
+                    onOpenApp = { vm.recordRecent(it.packageName, it.label, null); startSafely(it.launchIntent) },
+                    onOpenRecent = ::openRecent,
+                    onOpenChannel = ::openChannel,
                     onOpenInput = ::openInput,
                     onQuick = { startSafely(it.intent()) },
                     onRequestPermission = { askPermission.launch(READ_TV_LISTINGS) },
@@ -63,7 +65,23 @@ class MainActivity : ComponentActivity() {
         return super.onKeyDown(keyCode, event)
     }
 
+    private fun openRecent(entry: tech.futureme.tvhome.data.RecentEntry) {
+        vm.recordRecent(entry.packageName, entry.title, entry.intentUri)
+        val uri = entry.intentUri
+        if (uri.isNullOrBlank()) { openApp(entry.packageName); return }
+        try { startActivity(Intent.parseUri(uri, Intent.URI_INTENT_SCHEME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        catch (e: Exception) { openApp(entry.packageName) }
+    }
+
+    /** Sintoniza: VIEW no canal (quem atende é o app de TV ao vivo); sem quem atenda, abre o app de TV. */
+    private fun openChannel(ch: tech.futureme.tvhome.data.TunerChannel) {
+        val view = Intent(Intent.ACTION_VIEW, android.media.tv.TvContract.buildChannelUri(ch.id)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (view.resolveActivity(packageManager) != null) startSafely(view)
+        else { Toast.makeText(this, "Abrindo a TV ao vivo; mude para o canal ${ch.number}", Toast.LENGTH_SHORT).show(); openApp(vm.settings.value.liveTvPackage) }
+    }
+
     private fun openItem(item: MediaItem) {
+        vm.recordRecent(item.packageName, item.title, item.intentUri)
         val uri = item.intentUri
         if (uri.isNullOrBlank()) { openApp(item.packageName); return }
         try {
