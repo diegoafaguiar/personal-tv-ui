@@ -36,6 +36,7 @@ scripts/10-backup.sh                       # 2. fotografa o estado original  ←
 scripts/20-inventory.sh                    # 3. classifica cada pacote em reports/
 scripts/30-debloat.sh --dry-run tcl-telemetry tcl-promo-ads tcl-retail-demo   # 4. veja o plano
 scripts/30-debloat.sh tcl-telemetry tcl-promo-ads tcl-retail-demo --reboot    #    aplique
+scripts/35-verify.sh                       #    ~2 min após o boot: confere se tudo continua desabilitado
 scripts/40-tune.sh --recommended           # 5. animações 0.5x + caches
 scripts/50-launcher.sh install             # 6. Projectivy pela Play Store; abra-o na TV, conclua o onboarding
 scripts/50-launcher.sh grant

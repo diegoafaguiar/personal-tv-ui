@@ -86,8 +86,10 @@ require_cmd() {
 # Wrappers de ADB
 # --------------------------------------------------------------------------
 # Leitura: sempre executa.
-tv_adb()   { adb -s "$TV_SERIAL" "$@"; }
-tv_shell() { adb -s "$TV_SERIAL" shell "$@"; }
+# "</dev/null" é essencial: adb repassa o stdin do processo para a TV e, dentro
+# de um loop "while read", isso engole o resto da lista que está sendo lida.
+tv_adb()   { adb -s "$TV_SERIAL" "$@" </dev/null; }
+tv_shell() { adb -s "$TV_SERIAL" shell "$@" </dev/null; }
 
 # Escrita: respeita DRY_RUN. Use para tudo que muda estado na TV.
 tv_run() {
@@ -96,15 +98,15 @@ tv_run() {
     return 0
   fi
   log_dim "adb shell $*"
-  adb -s "$TV_SERIAL" shell "$@"
+  adb -s "$TV_SERIAL" shell "$@" </dev/null
 }
 
 # Conecta (idempotente) e garante que a TV responde a "shell echo".
 ensure_connected() {
   require_cmd adb "Instale o Android platform-tools: https://developer.android.com/tools/releases/platform-tools"
-  adb start-server >/dev/null 2>&1 || true   # evita o ruído "daemon not running" na primeira chamada
+  adb start-server >/dev/null 2>&1 </dev/null || true   # evita o ruído "daemon not running" na primeira chamada
   local out
-  out="$(adb connect "$TV_SERIAL" 2>&1 || true)"
+  out="$(adb connect "$TV_SERIAL" 2>&1 </dev/null || true)"
   case "$out" in
     *"connected to"*|*"already connected"*) ;;
     *)
@@ -114,7 +116,7 @@ ensure_connected() {
       exit 1 ;;
   esac
   local state
-  state="$(adb -s "$TV_SERIAL" get-state 2>&1 || true)"
+  state="$(adb -s "$TV_SERIAL" get-state 2>&1 </dev/null || true)"
   case "$state" in
     device) ;;
     *unauthorized*) die "TV respondeu 'unauthorized'. Aceite o prompt de depuração na tela da TV (marque 'sempre permitir').";;
@@ -151,13 +153,13 @@ stock_launcher_pkg() {
 # Quem responde ao botão HOME hoje. Primeira entrada = quem o Android abre.
 home_owner() {
   tv_shell "cmd package query-activities -a android.intent.action.MAIN -c android.intent.category.HOME" \
-    | tr -d '\r' | grep -E '^\s+name=' | head -n1 | sed -E 's/^\s+name=//' || true
+    | tr -d '\r' | grep -E '^[[:space:]]+name=' | head -n1 | sed -E 's/^[[:space:]]+name=//' || true
 }
 
 # Todos os candidatos a HOME (pacote/atividade), em ordem de prioridade.
 home_candidates() {
   tv_shell "cmd package query-activities -a android.intent.action.MAIN -c android.intent.category.HOME" \
-    | tr -d '\r' | grep -E '^\s+name=' | sed -E 's/^\s+name=//' || true
+    | tr -d '\r' | grep -E '^[[:space:]]+name=' | sed -E 's/^[[:space:]]+name=//' || true
 }
 
 # Dono da rede Wi-Fi salva (o pacote que criou a configuração). Importa porque

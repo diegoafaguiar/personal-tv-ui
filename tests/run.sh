@@ -4,6 +4,7 @@
 # e as proteções (never-disable, HOME guard, Wi-Fi do setup wizard).
 # shellcheck disable=SC2016,SC2034  # as asserções são strings avaliadas por "check" via eval
 set -euo pipefail
+exec </dev/null   # stdin fechado: o adb falso (como o real) consome stdin, e aqui não há terminal
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
@@ -31,6 +32,7 @@ com.tcl.tv
 com.tcl.tvinput
 com.tcl.ttvs
 com.tcl.logkit
+com.tcl.usercenter
 com.tcl.waterfall.overseas
 com.tcl.exhibit
 com.tcl.smartalexa
@@ -106,6 +108,8 @@ echo "== 30-debloat aplica"
 "$ROOT/scripts/30-debloat.sh" tcl-telemetry tcl-promo-ads tcl-retail-demo >/dev/null 2>&1
 check "desabilita com.tcl.ttvs" 'has disabled com.tcl.ttvs'
 check "desabilita com.tcl.waterfall.overseas" 'has disabled com.tcl.waterfall.overseas'
+check "desabilita com.tcl.logkit (3ª linha da lista: regressão do stdin engolido pelo adb)" 'has disabled com.tcl.logkit'
+check "desabilita com.tcl.usercenter (última linha de outra lista)" 'has disabled com.tcl.usercenter'
 check "não toca com.tcl.tv" '! has disabled com.tcl.tv'
 check "um pacote por chamada" 'grep -q "shell pm disable-user --user 0 com.tcl.ttvs$" "$FAKE_ADB_STATE/calls.log"'
 check "gera log de auditoria" 'grep -q "^disable com.tcl.ttvs" "$REPORTS_DIR"/*-debloat.log'
@@ -114,6 +118,14 @@ echo "== 30-debloat --uninstall app de terceiros"
 printf '# risk: optional\norg.example.userapp\n' > "$WORK/apps.list"
 out="$("$ROOT/scripts/30-debloat.sh" --uninstall "$WORK/apps.list" 2>&1)"
 check "app de terceiros desinstalado conta como aplicado" '[[ "$out" == *"Aplicados: 1"* ]]'
+
+echo "== 35-verify"
+out="$("$ROOT/scripts/35-verify.sh" 2>&1)"
+check "tudo persistiu" '[[ "$out" == *"Voltaram: 0"* ]]'
+printf 'com.tcl.exhibit\n' > "$FAKE_ADB_STATE/disabled"    # simula firmware reabilitando tudo no boot
+out="$("$ROOT/scripts/35-verify.sh" 2>&1 || true)"
+check "detecta pacotes que voltaram" '[[ "$out" == *"com.tcl.ttvs VOLTOU"* ]]'
+"$ROOT/scripts/30-debloat.sh" tcl-telemetry tcl-promo-ads tcl-retail-demo >/dev/null 2>&1   # reaplica para o resto dos testes
 
 echo "== 40-tune"
 "$ROOT/scripts/40-tune.sh" --animations 0.5 --screensaver basic --private-dns dns.adguard.com >/dev/null 2>&1

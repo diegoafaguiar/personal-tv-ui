@@ -92,7 +92,7 @@ main() {
       fi
     fi
     if [[ "$details" == "1" && "$state" != "uninstalled" ]]; then
-      version="$(tv_shell dumpsys package "$pkg" 2>/dev/null | tr -d '\r' | sed -nE 's/^\s*versionName=(.*)$/\1/p' | head -n1 || true)"
+      version="$(tv_shell dumpsys package "$pkg" 2>/dev/null | tr -d '\r' | sed -nE 's/^[[:space:]]*versionName=(.*)$/\1/p' | head -n1 || true)"
       note="${note:+$note }${version:+(v$version)}"
     fi
     printf '%s,%s,%s,%s,"%s"\n' "$pkg" "$state" "$class" "$profile" "${note//\"/\'}" >> "$out_csv"

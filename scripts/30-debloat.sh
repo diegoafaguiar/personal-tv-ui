@@ -77,8 +77,10 @@ main() {
     done < <(read_list "$file")
   done
 
-  # Dedup mantendo ordem
-  mapfile -t todo < <(printf '%s\n' "${todo[@]}" | awk '!seen[$0]++')
+  # Dedup mantendo ordem (só se houver algo; printf de array vazio gera uma linha vazia)
+  if [[ ${#todo[@]} -gt 0 ]]; then
+    mapfile -t todo < <(printf '%s\n' "${todo[@]}" | awk '!seen[$0]++')
+  fi
 
   echo >&2
   if [[ ${#refused[@]} -gt 0 ]]; then
@@ -93,7 +95,8 @@ main() {
     log_ok "Nada a fazer."
     exit 0
   fi
-  log_info "Serão ${mode}d: ${#todo[@]} pacotes, em lotes de $batch:"
+  local verb="desabilitados"; [[ "$mode" == "uninstall" ]] && verb="desinstalados"
+  log_info "Serão $verb: ${#todo[@]} pacotes, em lotes de $batch:"
   for pkg in "${todo[@]}"; do log_info "  $pkg"; done
   echo >&2
 
@@ -109,10 +112,11 @@ main() {
   mkdir -p "$REPORTS_DIR"
   local log_file
   log_file="$REPORTS_DIR/$(timestamp)_$(device_slug)-debloat.log"
+  # ">>" e não ">": duas execuções no mesmo segundo compartilham o arquivo
   {
     echo "# $(date -Iseconds) mode=$mode backup=$backup_dir"
     echo "# profiles: ${profiles[*]}"
-  } > "$log_file"
+  } >> "$log_file"
 
   for pkg in "${todo[@]}"; do
     i=$((i + 1))
@@ -160,6 +164,7 @@ main() {
   else
     log_info "Reinicie quando puder: adb -s $TV_SERIAL reboot  (ou --reboot)"
   fi
+  log_info "Após o boot (espere ~2 min): scripts/35-verify.sh confere se tudo continua desabilitado."
   log_info "Depois, meça: scripts/60-benchmark.sh"
 }
 

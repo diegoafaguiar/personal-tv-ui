@@ -18,6 +18,8 @@ Modos de falha reais, coletados dos projetos que fizeram isso em TCL.
 | Desabilitou 24, só 1 mudou | zsh não faz word-split em variáveis sem aspas; `pm` ignora argumentos extras em silêncio | use os scripts (bash, um pacote por chamada) |
 | RAM igual depois do debloat | não reiniciou; ou está olhando "Free RAM" | `adb reboot`; compare `Used PSS` e `Cached kernel` em `60-benchmark.sh` |
 | `com.tcl.esticker` voltou sozinho | firmware reabilita (visto em BeyondTV2) | ignore; inofensivo |
+| Vários pacotes voltaram após o reboot (`35-verify.sh` acusa) | firmware restaura estados no boot | para esses, use `30-debloat.sh --uninstall <perfil>`: a "desinstalação para o usuário 0" é outro mecanismo e costuma persistir. Confira de novo com `35-verify.sh` após outro reboot |
+| O debloat só pegou o primeiro pacote de cada lista | versão antiga dos scripts: `adb shell` consumia o stdin do loop | `git pull`; corrigido com `</dev/null` em todo adb (lib/common.sh) |
 | `com.tcl.tv` loga `tias_sdk getService failure` | `com.tcl.interactive` desabilitado | cosmético; para por si; CPU igual |
 | Configurações trava (Android TV 9 antigo) | `com.google.android.tvrecommendations` desabilitado | `pm enable --user 0 com.google.android.tvrecommendations` |
 | App sideloaded fecha ao abrir | ABI errada | `adb shell getprop ro.product.cpu.abi` e `adb logcat -d -b crash \| tail -30`; baixe o APK da ABI certa |

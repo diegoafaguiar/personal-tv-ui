@@ -18,15 +18,20 @@ snapshot() {
   echo "# $(date -Iseconds) $(device_slug) uptime=$(tv_shell cat /proc/uptime | tr -d '\r' | cut -d' ' -f1)s"
   echo
   echo "## Memória (dumpsys meminfo)"
-  tv_shell dumpsys meminfo 2>/dev/null | tr -d '\r' | grep -E 'Total (RAM|PSS)|Free RAM|Used RAM|Lost RAM|Cached kernel|Used PSS' || true
+  local mem
+  mem="$(tv_shell dumpsys meminfo 2>/dev/null | tr -d '\r')"
+  if [[ -z "$mem" ]]; then
+    echo "(dumpsys meminfo não respondeu: a TV provavelmente ainda está inicializando; repita em 1-2 min)"
+  fi
+  grep -E 'Total (RAM|PSS)|Free RAM|Used RAM|Lost RAM|Cached kernel|Used PSS' <<<"$mem" || true
   echo
   echo "## Top 15 processos por PSS"
-  tv_shell dumpsys meminfo 2>/dev/null | tr -d '\r' | sed -n '/Total PSS by process/,/Total PSS by OOM/p' | grep -E '^\s+[0-9,]+K:' | head -n 15 || true
+  sed -n '/Total PSS by process/,/Total PSS by OOM/p' <<<"$mem" | grep -E '^[[:space:]]+[0-9,]+K:' | head -n 15 || true
   echo
   echo "## Contadores"
-  echo "processos           : $(tv_shell ps -A 2>/dev/null | tr -d '\r' | wc -l)"
-  echo "pacotes instalados  : $(pm_list | wc -l)"
-  echo "pacotes desabilitados: $(pm_list -d | wc -l)"
+  echo "processos            : $(tv_shell ps -A 2>/dev/null | tr -d '\r' | wc -l | tr -d ' ')"
+  echo "pacotes instalados   : $(pm_list | wc -l | tr -d ' ')"
+  echo "pacotes desabilitados: $(pm_list -d | wc -l | tr -d ' ')"
   echo "loadavg             : $(tv_shell cat /proc/loadavg | tr -d '\r')"
 }
 
@@ -62,7 +67,7 @@ main() {
   log_ok "Salvo em $out"
   if [[ -n "$compare" ]]; then
     log_step "Diferença em relação a $compare"
-    diff --color=auto -u "$compare" "$out" || true
+    diff -u "$compare" "$out" || true
   fi
 }
 

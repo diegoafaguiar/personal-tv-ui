@@ -24,6 +24,9 @@ debloat-plan: ## Mostra o plano (dry-run) para PROFILES
 debloat: ## Aplica PROFILES (padrão: telemetria, anúncios, modo loja)
 	@scripts/30-debloat.sh $(PROFILES)
 
+verify: ## Após reboot: confere se o debloat persistiu
+	@scripts/35-verify.sh
+
 tune: ## Animações 0.5x + limpar caches
 	@scripts/40-tune.sh --recommended
 
@@ -46,4 +49,4 @@ lint: ## shellcheck + bash -n
 	@for f in $(SCRIPTS); do bash -n "$$f" || exit 1; done
 	@shellcheck -x $(SCRIPTS)
 
-.PHONY: help connect backup inventory debloat-plan debloat tune launcher-status benchmark rollback-plan rollback test lint
+.PHONY: help connect backup inventory debloat-plan debloat verify tune launcher-status benchmark rollback-plan rollback test lint
