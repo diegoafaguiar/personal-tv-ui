@@ -205,9 +205,13 @@ check "resolve por nome e marca o programa atual" '[[ "$out" == *"▶"*"Jornal N
 check "sintoniza via VIEW content://.../channel/12" 'grep -q "am start -a android.intent.action.VIEW -d content://android.media.tv/channel/12" "$FAKE_ADB_STATE/calls.log"'
 
 out="$("$ROOT/scripts/70-live-tv.sh" doctor 2>&1)"
-check "doctor mostra inputs, apps e quem atende canal" '[[ "$out" == *"Há canais"* && "$out" == *"type=TUNER"* && "$out" == *"com.tcl.tv/.TVActivity"* ]]'
-"$ROOT/scripts/70-live-tv.sh" keys 4 >/dev/null 2>&1
-check "keys 4 manda antena, dígito e OK" 'grep -q "input keyevent KEYCODE_4" "$FAKE_ADB_STATE/calls.log" && grep -q "input keyevent KEYCODE_DPAD_CENTER" "$FAKE_ADB_STATE/calls.log"'
+check "doctor mostra inputs, apps, intents e provedores" '[[ "$out" == *"Há canais visíveis"* && "$out" == *"type=TUNER"* && "$out" == *"Scheme: \"tcltv\""* && "$out" == *"ChannelProvider"* ]]'
+echo com.google.android.apps.tv.launcherx > "$FAKE_ADB_STATE/top"
+TV_OPEN_WAIT=0 "$ROOT/scripts/70-live-tv.sh" keys 4 >/dev/null 2>&1
+check "keys 4 abre a TV (KEYCODE_TV) quando ela não está na tela, depois dígito e OK" 'grep -q "input keyevent KEYCODE_TV$" "$FAKE_ADB_STATE/calls.log" && grep -q "input keyevent KEYCODE_4" "$FAKE_ADB_STATE/calls.log" && grep -q "input keyevent KEYCODE_DPAD_CENTER" "$FAKE_ADB_STATE/calls.log"'
+: > "$FAKE_ADB_STATE/calls.log"; echo com.tcl.tv > "$FAKE_ADB_STATE/top"
+TV_OPEN_WAIT=0 "$ROOT/scripts/70-live-tv.sh" keys 4 >/dev/null 2>&1
+check "keys 4 não reabre a TV se ela já está na tela" '! grep -q "input keyevent KEYCODE_TV$" "$FAKE_ADB_STATE/calls.log"'
 
 echo "== 60-benchmark"
 "$ROOT/scripts/60-benchmark.sh" >/dev/null 2>&1

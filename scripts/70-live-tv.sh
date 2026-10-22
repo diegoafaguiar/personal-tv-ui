@@ -105,13 +105,14 @@ tune() {
 
 doctor() {
   log_step "1. Banco de canais (TvContract), resposta bruta"
-  local raw; raw="$(raw_query "$CHANNEL_URI" | head -n 5)"
-  if [[ -z "$raw" ]]; then
-    log_warn "Vazio: nenhum canal gravado no TvContract. O app que faz a TV aberta nesta TV não usa o banco padrão, ou a busca de canais ainda não rodou."
-  elif grep -qi 'permission\|denial\|SecurityException' <<<"$raw"; then
-    log_warn "Permissão negada ao usuário shell: $raw"
+  local raw rows; raw="$(raw_query "$CHANNEL_URI")"; rows="$(grep -c '^Row:' <<<"$raw" || true)"
+  if grep -qi 'permission\|denial\|SecurityException' <<<"$raw"; then
+    log_warn "Permissão negada ao usuário shell: $(head -n1 <<<"$raw")"
+  elif [[ "$rows" -eq 0 ]]; then
+    log_warn "0 linhas visíveis ($(head -n1 <<<"$raw")). Sem READ_TV_LISTINGS o Android só mostra canais do próprio chamador, e o shell não tem nenhum."
+    log_info "Isso NÃO prova que o banco está vazio. Um launcher com 'pm grant <pkg> android.permission.READ_TV_LISTINGS' enxerga tudo."
   else
-    log_ok "Há canais: $(raw_query "$CHANNEL_URI" | grep -c '^Row:') linhas. Veja 'channels'."
+    log_ok "Há canais visíveis: $rows. Veja 'channels'."
   fi
   log_step "2. Entradas de TV registradas (dumpsys tv_input)"
   tv_shell dumpsys tv_input 2>/dev/null | tr -d '\r' | grep -oE 'id=[^,} ]+|type=[A-Z_0-9]+|TvInputInfo\{[^}]*\}' | sed 's/^/    /' | head -n 40
@@ -119,17 +120,32 @@ doctor() {
   pm_list | grep -iE 'tv|dtv|isdb|ginga|tuner|broadcast|channel|canal' | grep -vE 'settings|tvinput$' | sed 's/^/    /'
   log_step "4. Quem atende um canal (ACTION_VIEW content://android.media.tv/channel)"
   tv_shell "cmd package query-activities -a android.intent.action.VIEW -d content://android.media.tv/channel/1 --brief" 2>/dev/null | tr -d '\r' | grep '/' | sed 's/^/    /'
-  log_step "5. Último app de TV aberto (para identificar o pacote da 'TV aberta')"
+  log_step "5. App em primeiro plano (abra a TV aberta antes de rodar)"
   tv_shell dumpsys activity activities 2>/dev/null | tr -d '\r' | grep -oE 'topResumedActivity=.*|mResumedActivity=.*' | head -n 2 | sed 's/^/    /'
-  log_info "Abra a TV aberta na TV e rode 'doctor' de novo: o item 5 mostra o pacote dela."
+  log_step "6. Atalhos que o app de TV ao vivo aceita (intents e esquemas de URL)"
+  local tvapp="${LIVE_TV_PKG:-com.tcl.tv}"
+  tv_shell dumpsys package "$tvapp" 2>/dev/null | tr -d '\r' \
+    | sed -n '/Activity Resolver Table/,/Receiver Resolver Table/p' \
+    | grep -E 'Action:|Scheme:|Authority:|^\s+[0-9a-f]+ '"$tvapp" | sed -E 's/^\s+//' | sort -u | head -n 60 | sed 's/^/    /'
+  log_step "7. Provedores de conteúdo de $tvapp e com.tcl.tvinput (canais/EPG exportados?)"
+  tv_shell dumpsys package providers 2>/dev/null | tr -d '\r' | grep -E 'com\.tcl\.tv' | sed -E 's/^\s+//' | sort -u | head -n 20 | sed 's/^/    /'
+  log_step "8. Atividade principal de $tvapp"
+  tv_shell cmd package resolve-activity --brief -c android.intent.category.LEANBACK_LAUNCHER "$tvapp" 2>/dev/null | tr -d '\r' | tail -n1 | sed 's/^/    /'
+  log_info "Me envie tudo isso: é com os itens 6 e 7 que descubro se dá para abrir direto no canal 4 e ler a grade."
 }
 
 # Sintonia pelo controle: funciona com qualquer app de TV ao vivo, sem banco.
+# Primeiro garante que o app de TV está na tela (botão TV = KEYCODE_TV), como
+# no controle; só então os dígitos valem como número de canal.
 tune_keys() {
-  local ch="${1:?informe o canal}" d
-  log_step "Teclas: antena → ${ch} → OK"
-  tv_run input keyevent KEYCODE_TV_ANTENNA_CABLE    # 242: entrada de antena/cabo (alguns firmwares ignoram)
-  sleep 3
+  local ch="${1:?informe o canal}" d top
+  top="$(tv_shell dumpsys activity activities 2>/dev/null | tr -d '\r' | grep -oE 'topResumedActivity=[^ ]+ [^ ]+ [^ /]+' | head -n1 || true)"
+  if [[ "$top" != *"${LIVE_TV_PKG:-com.tcl.tv}"* ]]; then
+    log_step "Abrindo a TV ao vivo (botão TV do controle)"
+    tv_run input keyevent KEYCODE_TV            # 170
+    sleep "${TV_OPEN_WAIT:-5}"
+  fi
+  log_step "Teclas: ${ch} → OK"
   for (( d=0; d<${#ch}; d++ )); do
     tv_run input keyevent "KEYCODE_${ch:$d:1}"       # KEYCODE_0..KEYCODE_9
     sleep 0.3

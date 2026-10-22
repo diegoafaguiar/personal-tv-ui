@@ -70,7 +70,9 @@ case "$cmd" in
     now=$(( $(date +%s) * 1000 ))
     echo "Row: 0 title=Jornal Nacional, short_description=As notícias do dia., start_time_utc_millis=$(( now - 600000 )), end_time_utc_millis=$(( now + 1800000 )), episode_title=NULL"
     echo "Row: 1 title=Novela das Nove, short_description=Capítulo 42., start_time_utc_millis=$(( now + 1800000 )), end_time_utc_millis=$(( now + 5400000 )), episode_title=NULL" ;;
-  "dumpsys activity activities") echo "    topResumedActivity=ActivityRecord{abc u0 com.tcl.tv/.TVActivity}" ;;
+  "dumpsys activity activities") echo "    topResumedActivity=ActivityRecord{abc u0 $(cat "$S/top" 2>/dev/null || echo com.tcl.tv)/.TVActivity t12}" ;;
+  "dumpsys package providers") echo "    com.tcl.tv.provider/.ChannelProvider exported=true" ;;
+  "dumpsys package com.tcl.tv") printf 'Activity Resolver Table:\n  Schemes:\n    tcltv:\n      Action: "android.intent.action.VIEW"\n      Scheme: "tcltv"\nReceiver Resolver Table:\n' ;;
   "dumpsys tv_input") echo "  TvInputInfo{id=com.tcl.tv/.Tuner, type=TUNER}"; echo "  TvInputInfo{id=com.tcl.tvinput/.HDMI1, type=HDMI}" ;;
   "dumpsys wifi") echo "  cname=$(cat "$S/wifi-owner" 2>/dev/null || echo com.android.tv.settings)" ;;
   "dumpsys meminfo") printf 'Total RAM: 1,900,000K\n Used RAM: 1,200,000K\n Cached kernel: 300,000K\n' ;;
