@@ -19,6 +19,8 @@ pacote.exemplo          # comentário livre (vai para o inventário)
 | `streaming-optional.list` | optional | apague o que assina |
 | `sideload-tools.list` | optional | |
 | `launcher-stock.list` | launcher | só `50-launcher.sh set-default` |
+| `tcl-smart-tv-pro-br.list` | optional | perfil da unidade de referência (Amlogic, Brasil) |
+| `tcl-smart-tv-pro-br-apps.list` | optional | apps de terceiros dela; `30-debloat.sh --uninstall` |
 
 Para a sua TV, crie um perfil próprio a partir do inventário
 (`reports/*-inventory.md`), por exemplo `config/profiles/minha-tv.list`, e

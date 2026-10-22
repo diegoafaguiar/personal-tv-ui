@@ -110,6 +110,11 @@ check "não toca com.tcl.tv" '! has disabled com.tcl.tv'
 check "um pacote por chamada" 'grep -q "shell pm disable-user --user 0 com.tcl.ttvs$" "$FAKE_ADB_STATE/calls.log"'
 check "gera log de auditoria" 'grep -q "^disable com.tcl.ttvs" "$REPORTS_DIR"/*-debloat.log'
 
+echo "== 30-debloat --uninstall app de terceiros"
+printf '# risk: optional\norg.example.userapp\n' > "$WORK/apps.list"
+out="$("$ROOT/scripts/30-debloat.sh" --uninstall "$WORK/apps.list" 2>&1)"
+check "app de terceiros desinstalado conta como aplicado" '[[ "$out" == *"Aplicados: 1"* ]]'
+
 echo "== 40-tune"
 "$ROOT/scripts/40-tune.sh" --animations 0.5 --screensaver basic --private-dns dns.adguard.com >/dev/null 2>&1
 check "animações 0.5" 'grep -q "^global:animator_duration_scale=0.5" "$FAKE_ADB_STATE/settings"'

@@ -1,0 +1,41 @@
+# risk: optional
+# Perfil da unidade do Diego: TCL "Smart TV Pro", Google TV (Android 14), chipset
+# Amlogic (com.droidlogic.*), Brasil. Inventário de 22/10/2026: 152 pacotes.
+# TV aberta via AstroTV (com.mirakulo.astrotv.service), não via tv.mopa.ginga.
+#
+# Os pacotes SAFE (telemetria, anúncios, modo loja) já são cobertos por
+# tcl-telemetry, tcl-promo-ads e tcl-retail-demo. Este arquivo só reúne as
+# escolhas OPTIONAL desta TV. Comente o que você usa.
+#
+# Ordem:
+#   scripts/40-tune.sh --screensaver basic           # antes de desligar o dreamx
+#   scripts/30-debloat.sh --dry-run tcl-telemetry tcl-promo-ads tcl-retail-demo tcl-smart-tv-pro-br
+#   scripts/30-debloat.sh --reboot tcl-telemetry tcl-promo-ads tcl-retail-demo tcl-smart-tv-pro-br
+
+# Google: zero perda
+com.google.android.play.games
+com.google.android.youtube.tvmusic
+com.google.android.videos              # loja de filmes do Google TV
+com.google.android.syncadapters.calendar
+com.google.android.onetimeinitializer
+com.android.printspooler
+com.google.android.apps.tv.dreamx      # screensaver "Ambiente" com promoções; troque o screensaver ANTES
+
+# TCL: recursos que um Mac/iPhone não usa (AirPlay fica)
+com.tcl.smartalexa                     # Alexa
+com.tcl.guard                          # "limpador" da TCL (gera os avisos de memória)
+com.tcl.magiconnectfree                # T-Cast (espelhamento TCL)
+com.tcl.hearaid                        # teste auditivo / caixas TCL
+com.tcl.UpdatePeripheral               # firmware de soundbar TCL
+com.tcl.ui_mediaCenter                 # player USB/DLNA
+
+# Mantidos (descomente para desabilitar)
+# com.google.android.katniss           # Assistente / botão do mic (~90 MB). Sem ele o mic abre a busca da Play Store
+# com.google.android.apps.mediashell   # Chromecast
+# com.tcl.airplay2                     # AirPlay
+# com.tcl.miracast                     # Miracast (notebooks Windows / Android)
+# com.tcl.gamebar                      # modo jogo / VRR para consoles
+# com.google.android.marvin.talkback   # acessibilidade
+# com.google.android.tts               # acessibilidade / Assistente
+# com.netflix.ninja                    # Netflix (de fábrica) + com.netflix.tokenmanager
+# com.amazon.amazonvideo.livingroom    # Prime Video (de fábrica)

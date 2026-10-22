@@ -76,8 +76,46 @@ tv.mopa.ginga              # middleware Ginga da TV aberta brasileira (interativ
 com.realtek.*
 com.mediatek.*
 com.amlogic.*
+com.droidlogic*            # framework Android da Amlogic (com.droidlogic, .overlay, .imageplayer, ...)
 com.dolby.*
 com.tpa.kb
+
+# --- TV aberta brasileira (Ginga / DTVi) ---
+com.mirakulo.*             # AstroTV: middleware Ginga da Mirakulo (TV aberta interativa)
+
+# --- TCL: setup e WebView próprio ---
+com.tcl.useragreement      # tela de termos do setup; mantido em todas as listas G08
+com.tcl.android.webview    # WebView da TCL usado por apps do sistema
+
+# --- AOSP: sem ganho em desabilitar e com risco de crash/OTA. Classificados KEEP
+#     para você não gastar tempo pesquisando. Nenhum roda em background relevante.
+android.auto_generated_rro_*   # overlays de recursos gerados no build
+com.android.backupconfirm
+com.android.captiveportallogin # login em Wi-Fi com portal (hotel, aeroporto)
+com.android.companiondevicemanager  # pareamento de dispositivos companheiros (controle BT)
+com.android.connectivity.resources
+com.android.cts.*              # shims de compatibilidade, vazios
+com.android.dynsystem          # Dynamic System Updates
+com.android.hotspot2.osulogin  # Passpoint
+com.android.htmlviewer
+com.android.inputdevices       # layouts de teclado/controle
+com.android.localtransport     # transporte de backup
+com.android.location.fused
+com.android.managedprovisioning
+com.android.mtp                # USB
+com.android.pacprocessor       # proxy
+com.android.proxyhandler
+com.android.providers.calendar
+com.android.providers.contacts
+com.android.providers.userdictionary
+com.android.sharedstoragebackup
+com.android.soundpicker
+com.android.statementservice   # verificação de App Links
+com.android.systemui.*
+com.android.tv.frameworkpackagestubs  # responde intents sem app; evita crashes "No Activity found"
+com.android.tv.overlay.*
+com.android.vpndialogs
+com.android.wallpaperbackup
 
 # --- Seu launcher substituto ---
 com.spocky.projengmenu     # Projectivy Launcher

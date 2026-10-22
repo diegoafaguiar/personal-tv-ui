@@ -1,0 +1,25 @@
+# risk: optional
+# Apps de TERCEIROS instalados nesta TV (pm list packages -3). A maioria chegou
+# pelo android.autoinstalls.config.google.gtvpai (parceiros instalados sem
+# perguntar). Como não ficam em /system, aqui o certo é desinstalar de vez:
+#
+#   scripts/30-debloat.sh --dry-run --uninstall tcl-smart-tv-pro-br-apps
+#   scripts/30-debloat.sh --uninstall tcl-smart-tv-pro-br-apps
+#
+# Volta pela Play Store (o rollback não cobre estes). Apague as linhas do que
+# você usa ANTES de rodar.
+
+com.FDGEntertainment.redball4.gp       # jogo Red Ball 4 (instalado pelo gtvpai)
+tv.pluto.android                       # Pluto TV (FAST)
+com.cbs.ca                             # CBS / Paramount (Canadá)
+tv.twitch.android.app                  # Twitch
+com.mobilus.recordplay.tv              # Record Play
+br.com.claro.now.smarttvclient         # Claro TV+
+com.mercadolibre.android.mplay_tv      # Mercado Play
+
+# Provavelmente você usa; apague a linha ou mantenha comentado
+# com.spotify.tv.android
+# com.disney.disneyplus
+# com.wbd.stream                       # HBO Max
+# com.apple.atve.androidtv.appletv     # Apple TV+
+# com.globo.globotv                    # Globoplay

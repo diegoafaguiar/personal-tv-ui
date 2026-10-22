@@ -71,7 +71,8 @@ Os perfis abaixo são aplicados pelo `30-debloat.sh`; o `20-inventory.sh` diz qu
 | `tcl-extras` | Alexa, T-Cast, Miracast, AirPlay, game bar, player USB, galeria, soundbar updater… | depende do seu uso |
 | `google-extras` | Assistente (`katniss`), screensaver Ambiente (`dreamx`), Chromecast (`mediashell`), Play Games, YouTube Music… | depende do seu uso |
 | `streaming-optional` | Netflix, Prime, Disney+, Claro TV+, Mercado Play… | apague o que assina |
-| `never-disable` | `com.tcl.tv`, `com.tcl.tvinput`, `com.tcl.suspension`, `*.autopair`, `*.remote.service`, `com.mediatek.*`, `tv.mopa.ginga` (TV aberta), Play Services… | **o script recusa** |
+| `tcl-smart-tv-pro-br` / `-apps` | perfil da unidade de referência (Amlogic, Brasil): escolhas opcionais e apps de terceiros a desinstalar | depende do seu uso |
+| `never-disable` | `com.tcl.tv`, `com.tcl.tvinput`, `com.tcl.suspension`, `*.autopair`, `*.remote.service`, `com.mediatek.*`, `com.droidlogic*`, `tv.mopa.ginga` / `com.mirakulo.*` (TV aberta), Play Services… | **o script recusa** |
 
 ## Estrutura
 

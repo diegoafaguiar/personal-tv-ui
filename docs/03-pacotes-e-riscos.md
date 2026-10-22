@@ -108,6 +108,30 @@ voltou a ficar habilitado sozinho na mesma noite. Inofensivo; não insista.
 `streaming-optional.list` (Netflix, Prime, Disney+, Claro TV+, Mercado Play,
 Speedtest…) e `sideload-tools.list` (Aptoide, Downloader…). Edite antes de aplicar.
 
+## Unidade de referência deste repositório: TCL "Smart TV Pro" (Amlogic, Brasil)
+
+Inventário de 22/10/2026, Google TV / Android 14, 152 pacotes. Diferenças em
+relação ao 65C7K da literatura:
+
+- **Chipset Amlogic**, não MediaTek: `com.droidlogic`, `com.droidlogic.overlay`,
+  `com.droidlogic.imageplayer`, `com.droidlogic.wifitetheringoverlay`. Todos KEEP
+  (`com.droidlogic*` em `never-disable.list`).
+- **TV aberta via AstroTV** (`com.mirakulo.astrotv.service`), middleware Ginga da
+  Mirakulo, no lugar do `tv.mopa.ginga`. KEEP.
+- `com.tcl.android.webview`: WebView próprio da TCL. KEEP.
+- Sem AirPlay da MediaTek: só `com.tcl.airplay2`.
+- 12 apps de terceiros, a maioria instalada pelo `gtvpai` (Red Ball 4, Pluto TV,
+  CBS, Twitch, Record Play). Esses não ficam em /system: o certo é
+  `30-debloat.sh --uninstall tcl-smart-tv-pro-br-apps`, e o rollback não os
+  cobre (voltam pela Play Store).
+- 30 pacotes AOSP que o inventário marcava UNKNOWN (`com.android.cts.*`,
+  `providers.calendar/contacts`, `frameworkpackagestubs`, overlays…) agora
+  são KEEP: não rodam nada relevante em background e desabilitar só traz
+  risco de crash ("No Activity found") ou de OTA.
+
+Perfis desta unidade: `tcl-smart-tv-pro-br.list` (escolhas OPTIONAL) e
+`tcl-smart-tv-pro-br-apps.list` (terceiros a desinstalar).
+
 ## UNKNOWN: como investigar um pacote
 
 ```bash

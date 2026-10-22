@@ -6,6 +6,7 @@
 #   scripts/30-debloat.sh tcl-telemetry tcl-promo-ads tcl-retail-demo
 #   scripts/30-debloat.sh --yes --batch 5 tcl-extras google-extras
 #   scripts/30-debloat.sh --uninstall tcl-promo-ads     # "pm uninstall -k --user 0" em vez de disable
+#   scripts/30-debloat.sh --uninstall minha-tv-apps      # apps de terceiros: remove de vez (volta pela Play Store)
 #   scripts/30-debloat.sh --reboot ...                  # reinicia ao final (necessário para liberar RAM)
 #
 # Perfis são arquivos em config/profiles/*.list (nome sem .list) ou caminhos.
@@ -120,8 +121,10 @@ main() {
     if [[ "$mode" == "uninstall" ]]; then
       tv_run pm uninstall -k --user 0 "$pkg" || true
       state="$(pkg_state "$pkg")"
-      if [[ "$state" == "uninstalled" ]]; then
-        applied+=("$pkg"); echo "uninstall $pkg" >> "$log_file"; log_ok "desinstalado (user 0)"
+      # Apps de fábrica ficam "uninstalled" (APK segue em /system); apps de terceiros
+      # somem de vez ("absent") e só voltam pela Play Store.
+      if [[ "$state" == "uninstalled" || "$state" == "absent" ]]; then
+        applied+=("$pkg"); echo "uninstall $pkg" >> "$log_file"; log_ok "desinstalado ($state)"
       else
         failed+=("$pkg"); log_warn "estado após o comando: $state (não mudou)"
       fi

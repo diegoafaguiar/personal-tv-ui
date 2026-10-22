@@ -35,7 +35,9 @@ case "$cmd" in
   "pm list packages -f -u") sed 's|^|package:/system/app/x.apk=|' "$S/known" ;;
   "pm disable-user --user 0 "*) p="${cmd##* }"; has installed "$p" && add disabled "$p"; echo "Package $p new state: disabled-user" ;;
   "pm enable --user 0 "*) p="${cmd##* }"; del disabled "$p"; echo "Package $p new state: enabled" ;;
-  "pm uninstall -k --user 0 "*) p="${cmd##* }"; del installed "$p"; del disabled "$p"; echo Success ;;
+  "pm uninstall -k --user 0 "*) p="${cmd##* }"; del installed "$p"; del disabled "$p"
+      # app de terceiros (sem APK em /system) some também da lista -u
+      if has third "$p"; then del known "$p"; del third "$p"; fi; echo Success ;;
   "cmd package install-existing --user 0 "*) p="${cmd##* }"; has known "$p" && add installed "$p"; echo "Package $p installed for user: 0" ;;
   "am start -W "*) echo "TotalTime: 812"; echo "WaitTime: 820" ;;
   "pm grant "*|"am force-stop "*|"am start "*|"input keyevent "*|"pm trim-caches "*|"cmd package bg-dexopt-job"|"reboot") : ;;

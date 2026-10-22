@@ -2,6 +2,7 @@
 # Apps de streaming pré-instalados. NÃO aplicado por padrão.
 # Apague as linhas dos serviços que você assina ANTES de aplicar.
 
+com.google.android.youtube.tv  # YouTube (de fábrica; quase todo mundo mantém)
 com.netflix.ninja              # Netflix (junto com a próxima linha)
 com.netflix.tokenmanager
 com.amazon.amazonvideo.livingroom   # Prime Video

@@ -19,4 +19,3 @@ com.tcl.t_solo                 # "ouvir sozinho" via Bluetooth
 com.tcl.UpdatePeripheral       # atualização de firmware de soundbar TCL
 com.tcl.MultiScreenInteraction_TV   # interação multi-tela
 com.tcl.copydatatotv           # migração de dados
-com.tcl.useragreement          # termos de uso (tela de setup; mantenha se for refazer o setup)
