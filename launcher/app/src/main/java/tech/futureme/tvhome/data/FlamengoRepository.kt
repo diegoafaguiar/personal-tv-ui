@@ -2,6 +2,7 @@ package tech.futureme.tvhome.data
 
 import android.util.Log
 import android.util.Xml
+import org.json.JSONArray
 import org.json.JSONObject
 import org.xmlpull.v1.XmlPullParser
 import java.net.HttpURLConnection
@@ -75,11 +76,11 @@ class FlamengoRepository {
     /** Agenda e tabela do time na ESPN. */
     private fun espn(teamId: String, league: String): TeamInfo {
         val sched = JSONObject(get("https://site.api.espn.com/apis/site/v2/sports/soccer/$league/teams/$teamId/schedule"))
-        val events = sched.optJSONArray("events")
+        val events: JSONArray = sched.optJSONArray("events") ?: JSONArray()
         val now = System.currentTimeMillis()
         val matches = ArrayList<Match>()
         val iso = SimpleDateFormat("yyyy-MM-dd'T'HH:mm'Z'", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }
-        for (i in 0 until (events?.length() ?: 0)) {
+        for (i in 0 until events.length()) {
             val e = events.getJSONObject(i)
             val comp = e.getJSONArray("competitions").getJSONObject(0)
             val competitors = comp.getJSONArray("competitors")
@@ -107,12 +108,12 @@ class FlamengoRepository {
         var position: Int? = null; var points: Int? = null; var played: Int? = null; var form: String? = null
         try {
             val st = JSONObject(get("https://site.api.espn.com/apis/v2/sports/soccer/$league/standings"))
-            val entries = st.optJSONArray("children")?.optJSONObject(0)?.optJSONObject("standings")?.optJSONArray("entries")
-            for (i in 0 until (entries?.length() ?: 0)) {
+            val entries: JSONArray = st.optJSONArray("children")?.optJSONObject(0)?.optJSONObject("standings")?.optJSONArray("entries") ?: JSONArray()
+            for (i in 0 until entries.length()) {
                 val en = entries.getJSONObject(i)
                 if (en.optJSONObject("team")?.optString("id") != teamId) continue
-                val stats = en.optJSONArray("stats")
-                for (k in 0 until (stats?.length() ?: 0)) {
+                val stats: JSONArray = en.optJSONArray("stats") ?: JSONArray()
+                for (k in 0 until stats.length()) {
                     val s = stats.getJSONObject(k)
                     when (s.optString("name")) {
                         "rank" -> position = s.optInt("value")
