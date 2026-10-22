@@ -1,0 +1,19 @@
+# risk: optional
+# Extras do Google TV / Android TV. Nenhum é necessário para o boot ou para o
+# controle remoto, mas alguns são úteis. Comente o que você usa.
+
+com.google.android.katniss            # Google Assistente + busca por voz (~90 MB). Sem ele o botão do mic abre a busca da Play Store
+com.google.android.katniss.tv
+com.google.android.apps.tv.dreamx     # screensaver "Ambiente" com promoções (~40 MB). Troque o screensaver ANTES (scripts/40-tune.sh)
+com.google.android.apps.mediashell    # Chromecast embutido. MANTENHA se você faz cast
+com.google.android.videos             # loja de filmes do Google TV
+com.google.android.play.games
+com.google.android.youtube.tvmusic    # YouTube Music
+com.google.android.youtube.tvunplugged # YouTube TV (só EUA)
+com.google.android.syncadapters.calendar
+com.google.android.onetimeinitializer
+com.google.android.tvrecommendations  # linha de recomendações (Android TV 9); cuidado: crash de Settings em alguns firmwares TCL
+com.google.android.tts                # MANTENHA se usa TalkBack ou Assistente
+com.google.android.marvin.talkback    # leitor de tela. MANTENHA se precisa de acessibilidade
+com.android.printspooler
+com.android.dreams.basic              # screensaver básico AOSP. MANTENHA se usar como fallback de screensaver

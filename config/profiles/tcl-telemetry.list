@@ -1,0 +1,20 @@
+# risk: safe
+# Telemetria, ACR (reconhecimento automático de conteúdo) e analytics da TCL.
+# ACR amostra o que está na tela, inclusive entradas HDMI, e vende o perfil a
+# anunciantes. Desabilitar não custa nenhuma função.
+#
+# Fonte: listas testadas em TCL 65C7K (Brasil, Android 14), TCL G10 (Android 12)
+# e TCL BeyondTV2 (LatAm, Android TV 9). Veja docs/03-pacotes-e-riscos.md.
+
+com.tcl.ttvs                   # "TTVSCore": Samba TV ACR + analytics "BI"; observa BOOT/PACKAGE_ADDED
+com.tcl.bi                     # analytics (Android TV 9)
+com.tcl.logkit                 # captura e upload de logs
+tv.samba.ssm.ui                # Samba TV ACR
+com.samba.tv                   # Samba TV ACR
+com.inscape.tv                 # Inscape ACR
+com.alphonso.service           # Alphonso ACR de áudio
+com.google.android.feedback    # envio de feedback ao Google
+com.android.tv.feedbackconsent # consentimento de feedback
+com.android.adservices.api     # Privacy Sandbox / ads (Android 13+)
+com.android.ondevicepersonalization.services
+com.android.federatedcompute.services

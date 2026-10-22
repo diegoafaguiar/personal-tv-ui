@@ -1,0 +1,15 @@
+# risk: safe
+# Conteúdo promocional, anúncios e "linhas patrocinadas" que a TCL injeta na
+# home. É o maior ganho de RAM e de limpeza visual.
+
+com.tcl.waterfall.overseas     # motor de anúncios / recomendações da TCL. Maior ganho.
+com.tcl.tv.tclhome_passive     # empurra conteúdo TCL para a home no boot
+com.tcl.partnercustomizer      # altera linhas da home do Google TV (remove o tile "TV" da linha; TV continua em Apps)
+com.tcl.messagebox             # push de mensagens e promoções
+com.tcl.channelplus            # loja de canais FAST da TCL (TCL Channel)
+com.tcl.tv.plus                # app de conteúdo TCL TV+
+com.tcl.interactive            # serviço de fundo TIAS (gera logs ruidosos ao desligar; sem impacto de CPU medido)
+com.tcl.usercenter             # conta TCL e avisos para logar
+com.tcl.smartlink.core         # inclui um instalador silencioso de apps (CustomInstallService)
+android.autoinstalls.config.google.gtvpai   # instala apps "parceiros" em silêncio
+com.google.android.partnersetup             # atribuição de parceiros

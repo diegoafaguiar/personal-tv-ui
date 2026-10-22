@@ -1,0 +1,84 @@
+# 4. Launcher e design de UI para TV
+
+## O que a comunidade está fazendo (exemplos clean)
+
+| Abordagem | O que é | Quando escolher |
+|---|---|---|
+| **Projectivy Launcher** (`com.spocky.projengmenu`) | o launcher de terceiros mais usado em Android/Google TV. Remove anúncios e linhas patrocinadas; categorias, ícones e tamanhos configuráveis; "Override current launcher" nas configurações; remapeia botões via serviço de acessibilidade. Gratuito; wallpapers e ícones custom são premium | **padrão deste kit**: melhor relação esforço/resultado, mantido ativamente |
+| **FLauncher** (`me.efesser.flauncher`) | open source (Flutter), minimalista, grade de apps e wallpaper. Relatos: "mais parecido com o que eu quero" e "tosco nas bordas" | você quer o mínimo absoluto e aceita arestas |
+| **Wolf Launcher** (`com.wolf.launcher`) | simples, lembra o Android TV clássico | nostalgia do layout em linhas |
+| **Clean Your TV launcher** (`com.gathin.tvhome`) | launcher nativo em Java puro (~445 KB, sem permissão de rede, sem serviços em background) com **estilo Apple TV**: fundo preto, dock de 4 favoritos numa faixa arredondada, "shelf" no topo com o nome do app focado e brilho ambiente na cor da capa, grade de apps que sobe no D-pad, destaque de vidro flutuante, botões de Inputs/rede/Settings, relógio em Outfit. Config via `config.xml` e temas via `config.json` | você quer **codar o seu** e tem JDK 17 + Gradle. É o melhor ponto de partida para uma fase 2 deste repositório |
+| TV Box Tools | app open source que grava a mesma chave que *Configurações › Apps padrão › Home* por ADB e restaura o stock com um toque | só para quem não quer linha de comando |
+
+Nota de quem testou: em Google TV o Projectivy e o FLauncher precisam de ADB
+para serem o Home de verdade (desabilitar `launcherx` + `setupwraith`); só o
+"Override" do Projectivy, sem ADB, funciona interceptando o botão.
+
+## Princípios de 10-foot UI (o que faz uma home de TV parecer "limpa")
+
+Baseado nas diretrizes do Android TV e no que os launchers acima acertam:
+
+1. **Uma decisão por tela.** A home existe para abrir 4 a 8 apps. Tudo que não
+   é isso (recomendações, "canais", notícias) compete por atenção a 3 metros.
+2. **Foco sempre visível.** Navegação é por D-pad; o item focado precisa de
+   escala (~1.1x), borda ou brilho, nunca só mudança de cor. Transições de
+   foco curtas (≤150 ms); é por isso que animação 0.5x "parece mais rápida".
+3. **Fundo escuro, contraste alto.** Preto/cinza-escuro reduz brilho à noite,
+   esconde o overscan e faz os ícones coloridos virarem a hierarquia visual.
+4. **Zona segura de 5%.** Nada a menos de 5% das bordas (48 px em 1080p);
+   TVs ainda cortam.
+5. **Tipografia grande e pouca.** Mínimo 24 sp para texto de leitura, 16 sp
+   para legendas. Uma fonte, dois pesos. Relógio e nome do app focado bastam.
+6. **Grade por frequência, não por categoria.** Dock com os 4–6 que você abre
+   todo dia; o resto numa grade escondida que sobe no "baixo". Categorias
+   fixas (Filmes / Jogos / Utilidades) viram ruído rápido.
+7. **Nada carrega rede na home.** Capas dinâmicas e "continuar assistindo"
+   custam RAM e segundos no boot numa TV de 2 GB. Se quiser, só para 1 app.
+8. **Inputs e Settings a um clique.** Os dois atalhos que o launcher stock
+   enterra. Pílulas discretas no canto.
+
+## Configuração recomendada do Projectivy
+
+Depois de `scripts/50-launcher.sh install`, na TV:
+
+1. Abra o Projectivy, conclua o onboarding (se ficar preso em permissões,
+   rode `scripts/50-launcher.sh grant` e abra de novo).
+2. **Configurações › Geral › Override current launcher: ligado** (funciona
+   mesmo antes do `set-default`).
+3. **Aparência:** wallpaper escuro sólido ou foto escura; tamanho de ícone
+   médio; "mostrar nome do app" só no foco; relógio ligado.
+4. **Categorias:** apague todas menos "Favoritos"; marque 4–6 favoritos;
+   ponha o resto em "Todos os apps" (colapsado).
+5. **Recomendações / canais:** desligue tudo (Google TV "Para você" não existe
+   mais aqui, mas o Projectivy pode mostrar canais Leanback; desligue).
+6. **Controle remoto › Botões:** remapeie YouTube/Netflix/Prime se eles
+   pararem de funcionar após o `set-default` (acontece em controles
+   BT_RC833 da TCL, que enviam keycodes 4062/4065/4099). Mapeie o botão de
+   engrenagem (keycode 83) para Configurações se ele morrer.
+7. **Screensaver:** o do Projectivy (relógio) ou `scripts/40-tune.sh --screensaver basic`.
+
+Então:
+
+```bash
+scripts/50-launcher.sh status        # confirme que com.spocky.projengmenu/... está entre os candidatos
+scripts/50-launcher.sh set-default   # desabilita launcherx + setupwraith, confere HOME, reverte se falhar
+```
+
+Teste na TV: Home, Voltar, Input, botão do mic, YouTube. Se algo falhar:
+`scripts/50-launcher.sh restore`.
+
+## Quando (e como) construir o próprio launcher
+
+Se a fase 1 (Projectivy) não for "limpa" o bastante, a fase 2 é um launcher
+nativo seu. Diretrizes para esse repositório, quando chegar lá:
+
+- Kotlin ou Java puro + Leanback *não* (pesado); use `RecyclerView` com
+  `FocusFinder` ou Compose for TV. Sem permissão de rede. Sem serviço em
+  background. Mínimo API 28 cobre Android TV 9+.
+- Resolve `LEANBACK_LAUNCHER` para listar apps; `PackageManager.getLaunchIntentForPackage`
+  como fallback.
+- Declare `<category android:name="android.intent.category.HOME"/>` com
+  `android:priority` alto e trate `KEYCODE_TV_INPUT`, `KEYCODE_SETTINGS`.
+- Instale com `adb install`, verifique com `50-launcher.sh status`, só então
+  `set-default`. O script já faz o rollback automático.
+- Referência de arquitetura e de visual: o launcher do projeto Clean Your TV.

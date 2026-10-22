@@ -1,0 +1,18 @@
+# Configuração local com o IP da sua TV (não versionar: é específico da sua rede)
+config/tv.env
+
+# Backups e relatórios gerados a partir da TV.
+# Contêm dumps de settings que podem incluir SSID de Wi-Fi, contas Google e
+# identificadores do aparelho. Versione conscientemente: remova o "!" abaixo
+# se quiser guardar um backup específico no repositório.
+backups/*
+!backups/.gitkeep
+reports/*
+!reports/.gitkeep
+
+# Artefatos de teste
+tests/.state/
+
+# Sistema
+.DS_Store
+*.log

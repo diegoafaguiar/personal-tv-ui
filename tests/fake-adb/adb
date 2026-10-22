@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# adb falso para os testes. Simula só o subconjunto que os scripts usam e
+# guarda o estado em arquivos dentro de $FAKE_ADB_STATE:
+#   installed  disabled  known  third  settings  home  props  calls.log
+# Cada chamada é registrada em calls.log para as asserções.
+set -euo pipefail
+S="${FAKE_ADB_STATE:?defina FAKE_ADB_STATE}"
+printf '%s\n' "$*" >> "$S/calls.log"
+
+has() { grep -qx "$2" "$S/$1"; }
+add() { has "$1" "$2" || printf '%s\n' "$2" >> "$S/$1"; }
+del() { grep -vx "$2" "$S/$1" > "$S/$1.tmp" || true; mv "$S/$1.tmp" "$S/$1"; }
+
+# Descarta "-s serial"
+if [[ "${1:-}" == "-s" ]]; then shift 2; fi
+
+case "${1:-}" in
+  connect) echo "connected to $2"; exit 0 ;;
+  disconnect) exit 0 ;;
+  get-state) echo device; exit 0 ;;
+  install) echo "Success"; exit 0 ;;
+  shell) shift ;;
+  *) echo "fake-adb: comando não suportado: $*" >&2; exit 1 ;;
+esac
+
+cmd="$*"
+# shellcheck disable=SC2086  # "set -- $cmd" faz word splitting de propósito: vira $1..$n
+case "$cmd" in
+  "echo ok") echo ok ;;
+  "pm list packages") sed 's/^/package:/' "$S/installed" ;;
+  "pm list packages -e") grep -vxFf "$S/disabled" "$S/installed" | sed 's/^/package:/' || true ;;
+  "pm list packages -d") sed 's/^/package:/' "$S/disabled" ;;
+  "pm list packages -u") sed 's/^/package:/' "$S/known" ;;
+  "pm list packages -3") sed 's/^/package:/' "$S/third" ;;
+  "pm list packages -f -u") sed 's|^|package:/system/app/x.apk=|' "$S/known" ;;
+  "pm disable-user --user 0 "*) p="${cmd##* }"; has installed "$p" && add disabled "$p"; echo "Package $p new state: disabled-user" ;;
+  "pm enable --user 0 "*) p="${cmd##* }"; del disabled "$p"; echo "Package $p new state: enabled" ;;
+  "pm uninstall -k --user 0 "*) p="${cmd##* }"; del installed "$p"; del disabled "$p"; echo Success ;;
+  "cmd package install-existing --user 0 "*) p="${cmd##* }"; has known "$p" && add installed "$p"; echo "Package $p installed for user: 0" ;;
+  "am start -W "*) echo "TotalTime: 812"; echo "WaitTime: 820" ;;
+  "pm grant "*|"am force-stop "*|"am start "*|"input keyevent "*|"pm trim-caches "*|"cmd package bg-dexopt-job"|"reboot") : ;;
+  "getprop") cat "$S/props" ;;
+  "getprop "*) k="${cmd#getprop }"; sed -n "s/^\[$k\]: \[\(.*\)\]$/\1/p" "$S/props" ;;
+  "settings get "*) set -- $cmd; v="$(sed -n "s/^$3:$4=//p" "$S/settings")"; echo "${v:-null}" ;;
+  "settings put "*) set -- $cmd; grep -v "^$3:$4=" "$S/settings" > "$S/settings.tmp" || true; mv "$S/settings.tmp" "$S/settings"; printf '%s:%s=%s\n' "$3" "$4" "$5" >> "$S/settings" ;;
+  "settings delete "*) set -- $cmd; grep -v "^$3:$4=" "$S/settings" > "$S/settings.tmp" || true; mv "$S/settings.tmp" "$S/settings" ;;
+  "settings list "*) set -- $cmd; sed -n "s/^$3://p" "$S/settings" ;;
+  "cmd package query-activities"*)
+    # $S/home: linhas "pkg/Activity" em ordem de prioridade; só candidatos habilitados aparecem
+    while IFS= read -r comp; do
+      p="${comp%%/*}"
+      if has installed "$p" && ! has disabled "$p"; then
+        echo "  ActivityInfo:"
+        echo "    name=$comp"
+      fi
+    done < "$S/home" ;;
+  "cmd package resolve-activity"*) echo "${cmd##* }/.MainActivity" ;;
+  "dumpsys wifi") echo "  cname=$(cat "$S/wifi-owner" 2>/dev/null || echo com.android.tv.settings)" ;;
+  "dumpsys meminfo") printf 'Total RAM: 1,900,000K\n Used RAM: 1,200,000K\n Cached kernel: 300,000K\n' ;;
+  "dumpsys package "*) echo "    versionName=1.2.3" ;;
+  "cat /proc/uptime") echo "1234.56 5678.90" ;;
+  "cat /proc/loadavg") echo "0.50 0.40 0.30 1/200 999" ;;
+  "ps -A") printf 'a\nb\nc\n' ;;
+  *) echo "fake-adb: shell não suportado: $cmd" >&2; exit 1 ;;
+esac

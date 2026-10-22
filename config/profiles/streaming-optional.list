@@ -1,0 +1,21 @@
+# risk: optional
+# Apps de streaming pré-instalados. NÃO aplicado por padrão.
+# Apague as linhas dos serviços que você assina ANTES de aplicar.
+
+com.netflix.ninja              # Netflix (junto com a próxima linha)
+com.netflix.tokenmanager
+com.amazon.amazonvideo.livingroom   # Prime Video
+com.disney.disneyplus
+com.wbd.stream                 # HBO Max
+com.apple.atve.androidtv.appletv
+com.dazn
+tv.twitch.android.app
+br.com.claro.now.smarttvclient # Claro TV+
+com.mercadolibre.android.mplay_tv   # Mercado Play
+com.rma.speedtesttv            # Speedtest
+com.plexapp.android
+au.com.stan.and                # Stan (Austrália)
+com.hulu.livingroomplus        # Hulu (EUA)
+com.tubitv                     # Tubi (EUA)
+tv.wuaki.apptv                 # Rakuten TV
+com.linecorp.linetv

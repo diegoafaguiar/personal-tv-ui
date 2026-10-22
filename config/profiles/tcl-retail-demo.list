@@ -1,0 +1,11 @@
+# risk: safe
+# Modo loja / demonstração / hotel. Inútil em casa.
+#
+# Nota: com.tcl.esticker voltou a ficar habilitado sozinho num BeyondTV2
+# (Android TV 9). Se voltar na sua, não insista; é inofensivo.
+
+com.tcl.exhibit                # modo demonstração de loja
+com.tcl.esticker               # etiqueta de energia / adesivo de loja
+com.tcl.hotelmenu              # modo hotel
+com.tcl.repairguide            # autodiagnóstico
+com.tcl.ocean.instructions     # manual eletrônico

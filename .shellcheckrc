@@ -1,0 +1,5 @@
+# Scripts são bash puro; sourcing de lib/common.sh é resolvido via source-path.
+shell=bash
+source-path=SCRIPTDIR
+source-path=SCRIPTDIR/..
+external-sources=true

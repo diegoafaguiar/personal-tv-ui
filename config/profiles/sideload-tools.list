@@ -1,0 +1,9 @@
+# risk: optional
+# Ferramentas de sideload. Se você opera a TV por ADB, são redundantes e todas
+# iniciam no boot. Mantenha o Downloader se quiser instalar sem computador.
+
+cm.aptoidetv.pt                # Aptoide TV: APKs não verificados; sequestra links market://
+com.apkmirror.helper.prod
+com.alphainventor.filemanager
+eu.chainfire.tv.sideloadlauncher
+# com.esaba.downloader

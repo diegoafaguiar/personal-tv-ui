@@ -1,0 +1,13 @@
+# risk: launcher
+# O launcher de fábrica e o assistente de configuração. Só desabilite DEPOIS
+# que um launcher substituto estiver instalado, aberto e respondendo ao
+# controle. Use scripts/50-launcher.sh set-default, que faz as verificações.
+#
+# Armadilha: com o launcherx desabilitado, a RecoveryActivity do setupwraith
+# assume o HOME e mostra uma tela preta/recovery. Por isso os dois vão juntos.
+# Segunda armadilha: o setupwraith pode ser o "dono" da rede Wi-Fi salva;
+# desabilitá-lo nesse caso derruba o Wi-Fi. O script verifica isso.
+
+com.google.android.apps.tv.launcherx       # Google TV home (Android 12+)
+com.google.android.tvlauncher              # Android TV home (Android 9-11)
+com.google.android.tungsten.setupwraith    # assistente de configuração (reivindica HOME)

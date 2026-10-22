@@ -1,0 +1,22 @@
+# risk: optional
+# Recursos TCL que podem ser úteis para algumas pessoas. Leia cada linha e
+# comente (#) o que você usa. Nada aqui é necessário para o sistema.
+
+com.tcl.smartalexa             # Alexa embutida
+com.tcl.guard                  # "limpador" / gerenciador de apps da TCL
+com.tcl.magiconnectfree        # T-Cast / MagiConnect (espelhamento do celular)
+com.tcl.miracast               # Miracast
+com.tcl.airplay2               # AirPlay (junto com as duas linhas seguintes)
+com.mediatek.AirplayAPK        # AirPlay (MediaTek)
+com.mediatek.airplaydaemon     # AirPlay (MediaTek)
+com.tcl.gamebar                # overlay de modo jogo / VRR para consoles
+com.tcl.ui_mediaCenter         # player de mídia USB / DLNA
+com.tcl.gallery                # galeria de fotos USB + screensavers TCL
+com.tcl.audioplayer            # player de áudio
+com.tcl.notereminder           # lembretes
+com.tcl.hearaid                # teste auditivo + caixas TCL sem fio
+com.tcl.t_solo                 # "ouvir sozinho" via Bluetooth
+com.tcl.UpdatePeripheral       # atualização de firmware de soundbar TCL
+com.tcl.MultiScreenInteraction_TV   # interação multi-tela
+com.tcl.copydatatotv           # migração de dados
+com.tcl.useragreement          # termos de uso (tela de setup; mantenha se for refazer o setup)
