@@ -155,8 +155,9 @@ stock_launcher_pkg() {
 home_candidates() {
   tv_shell "cmd package query-activities -a android.intent.action.MAIN -c android.intent.category.HOME" \
     | tr -d '\r' \
-    | awk '/^[[:space:]]+name=/ {sub(/^[[:space:]]+name=/, ""); n=$0}
-           /^[[:space:]]+packageName=/ {sub(/^[[:space:]]+packageName=/, ""); print $0 "/" n}' || true
+    | awk '/ActivityInfo:/ {act=1; next} /ApplicationInfo:/ {act=0; next}
+           act && /^[[:space:]]+name=/ {sub(/^[[:space:]]+name=/, ""); n=$0}
+           act && /^[[:space:]]+packageName=/ {sub(/^[[:space:]]+packageName=/, ""); print $0 "/" n; act=0}' || true
 }
 
 # Quem responde ao botão HOME hoje. Primeira entrada = quem o Android abre.

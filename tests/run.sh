@@ -143,6 +143,9 @@ check "suspender após 5 min" 'grep -q "^system:screen_off_timeout=300000" "$FAK
 check "screensaver básico" 'grep -q "^secure:screensaver_components=com.android.dreams.basic/.Colors" "$FAKE_ADB_STATE/settings"'
 check "private dns" 'grep -q "^global:private_dns_specifier=dns.adguard.com" "$FAKE_ADB_STATE/settings"'
 
+out="$("$ROOT/scripts/50-launcher.sh" status 2>&1)"
+check "candidatos a HOME sem duplicar pelo bloco ApplicationInfo" '[[ "$(grep -c "com.spocky.projengmenu/" <<<"$out")" -eq 1 ]]'
+
 echo "== 50-launcher guardas (com ALLOW_STOCK_LAUNCHER_DISABLE=1, só para testar as guardas)"
 export ALLOW_STOCK_LAUNCHER_DISABLE=1
 echo com.google.android.tungsten.setupwraith > "$FAKE_ADB_STATE/wifi-owner"
