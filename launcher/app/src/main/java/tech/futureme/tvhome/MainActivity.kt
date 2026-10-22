@@ -34,7 +34,7 @@ class MainActivity : ComponentActivity() {
                     onOpenItem = ::openItem,
                     onOpenApp = { vm.recordRecent(it.packageName, it.label, null); startSafely(it.launchIntent) },
                     onOpenRecent = ::openRecent,
-                    onOpenChannel = ::openChannel,
+                    onTuneFailed = ::tuneFailed,
                     onOpenInput = ::openInput,
                     onQuick = { startSafely(it.intent()) },
                     onRequestPermission = { askPermission.launch(READ_TV_LISTINGS) },
@@ -73,11 +73,12 @@ class MainActivity : ComponentActivity() {
         catch (e: Exception) { openApp(entry.packageName) }
     }
 
-    /** Sintoniza: VIEW no canal (quem atende é o app de TV ao vivo); sem quem atenda, abre o app de TV. */
-    private fun openChannel(ch: tech.futureme.tvhome.data.TunerChannel) {
+    /** O TvView não conseguiu: tenta o app de TV ao vivo da TV pelo canal, senão abre o app. */
+    private fun tuneFailed(ch: tech.futureme.tvhome.data.TunerChannel, why: String) {
+        Log.w("TvHome", "Sintonia falhou para ${ch.number} ${ch.name}: $why")
+        Toast.makeText(this, "$why. Abrindo o app de TV.", Toast.LENGTH_LONG).show()
         val view = Intent(Intent.ACTION_VIEW, android.media.tv.TvContract.buildChannelUri(ch.id)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        if (view.resolveActivity(packageManager) != null) startSafely(view)
-        else { Toast.makeText(this, "Abrindo a TV ao vivo; mude para o canal ${ch.number}", Toast.LENGTH_SHORT).show(); openApp(vm.settings.value.liveTvPackage) }
+        if (view.resolveActivity(packageManager) != null) startSafely(view) else openApp(vm.settings.value.liveTvPackage)
     }
 
     private fun openItem(item: MediaItem) {

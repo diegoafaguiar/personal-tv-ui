@@ -36,7 +36,7 @@ import tech.futureme.tvhome.data.TunerChannel
 import java.io.File
 import java.util.Calendar
 
-private enum class Screen { HOME, ALL_APPS, SETTINGS, DIAGNOSTICS, SEARCH }
+private enum class Screen { HOME, ALL_APPS, SETTINGS, DIAGNOSTICS, SEARCH, LIVE_TV }
 
 @Composable
 fun App(
@@ -45,7 +45,7 @@ fun App(
     onOpenApp: (AppEntry) -> Unit,
     onOpenInput: (InputEntry) -> Unit,
     onOpenRecent: (RecentEntry) -> Unit,
-    onOpenChannel: (TunerChannel) -> Unit,
+    onTuneFailed: (TunerChannel, String) -> Unit,
     onQuick: (QuickAction) -> Unit,
     onRequestPermission: () -> Unit,
 ) {
@@ -53,8 +53,12 @@ fun App(
     val settings by vm.settings.collectAsStateWithLifecycle()
     val rates by vm.rates.collectAsStateWithLifecycle()
     val weather by vm.weather.collectAsStateWithLifecycle()
+    val team by vm.team.collectAsStateWithLifecycle()
     var screen by remember { mutableStateOf(Screen.HOME) }
     var focused by remember { mutableStateOf<MediaItem?>(null) }
+    var liveChannel by remember { mutableStateOf<TunerChannel?>(null) }
+    val allChannels = content.tunerChannels + content.fastChannels
+    fun openChannel(ch: TunerChannel) { liveChannel = ch; screen = Screen.LIVE_TV }
     val scope = rememberCoroutineScope()
     val appLabel: (String) -> String = { pkg -> content.apps.firstOrNull { it.packageName == pkg }?.label ?: vm.appsRepo.label(pkg) }
 
@@ -62,13 +66,19 @@ fun App(
 
     CompositionLocalProvider(LocalDims provides Dims.of(settings.density)) {
         Box(Modifier.fillMaxSize()) {
-            BackgroundLayer(settings.background, if (screen == Screen.HOME) focused?.imageUri else null, settings.nightMode)
+            if (screen != Screen.LIVE_TV) BackgroundLayer(settings.background, if (screen == Screen.HOME) focused?.imageUri else null, settings.nightMode)
             when (screen) {
                 Screen.HOME -> HomeScreen(
-                    content = content, settings = settings, rates = rates, weather = weather,
+                    content = content, settings = settings, rates = rates, weather = weather, team = team,
                     focused = focused, onFocused = { focused = it }, appLabel = appLabel,
                     onOpenItem = onOpenItem, onOpenApp = onOpenApp, onOpenInput = onOpenInput,
-                    onOpenRecent = onOpenRecent, onOpenChannel = onOpenChannel, onQuick = onQuick,
+                    onOpenRecent = onOpenRecent, onOpenChannel = ::openChannel,
+                    onOpenTuner = {
+                        val last = content.tunerChannels.firstOrNull { it.id == settings.lastChannelId }
+                        val ch = last ?: content.tunerChannels.firstOrNull { it.name.contains("globo", true) } ?: content.tunerChannels.firstOrNull()
+                        if (ch != null) openChannel(ch) else content.inputs.firstOrNull { it.isTuner }?.let(onOpenInput)
+                    },
+                    onQuick = onQuick,
                     onOpenSearch = { screen = Screen.SEARCH },
                     onOpenAllApps = { screen = Screen.ALL_APPS },
                     onOpenSettings = { screen = Screen.SETTINGS },
@@ -102,8 +112,22 @@ fun App(
                     onToggleNight = { scope.launch { vm.prefs.toggleNight() } },
                     onClearRecents = { scope.launch { vm.prefs.clearRecents() } },
                     onToggleFast = { scope.launch { vm.prefs.toggleFast() } },
+                    onToggleTeam = { scope.launch { vm.prefs.toggleTeam() } },
+                    onToggleStatus = { scope.launch { vm.prefs.toggleStatus() } },
+                    onToggleHeroCompact = { scope.launch { vm.prefs.toggleHeroCompact() } },
+                    onMoveOrder = { pkg, d -> scope.launch { vm.prefs.moveOrder(pkg, d) } },
                 )
-                Screen.DIAGNOSTICS -> DiagnosticsScreen(content, appLabel)
+                Screen.DIAGNOSTICS -> DiagnosticsScreen(content, team, appLabel)
+                Screen.LIVE_TV -> {
+                    val ch = liveChannel
+                    if (ch == null) screen = Screen.HOME
+                    else LiveTvScreen(
+                        channels = if (ch.isBroadcast) content.tunerChannels else allChannels,
+                        initial = ch,
+                        onFailed = { c, why -> screen = Screen.HOME; onTuneFailed(c, why) },
+                        onChannelChanged = { c -> if (c.isBroadcast) scope.launch { vm.prefs.setLastChannel(c.id) } },
+                    )
+                }
                 Screen.SEARCH -> SearchScreen(
                     items = content.allItems, apps = content.apps.filter { it.packageName !in settings.hidden },
                     appLabel = appLabel, onOpenItem = onOpenItem, onOpenApp = onOpenApp,

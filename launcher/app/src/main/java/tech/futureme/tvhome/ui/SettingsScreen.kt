@@ -41,12 +41,19 @@ fun SettingsScreen(
     onToggleNight: () -> Unit,
     onClearRecents: () -> Unit,
     onToggleFast: () -> Unit,
+    onToggleTeam: () -> Unit,
+    onToggleStatus: () -> Unit,
+    onToggleHeroCompact: () -> Unit,
+    onMoveOrder: (String, Int) -> Unit,
 ) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 24.dp)) {
         item { RowTitle("Ajustes da home", "Voltar sai desta tela. As mudanças valem na hora.") }
 
         item { RowTitle("Aparência") }
         item { SettingRow("Densidade dos cards", if (settings.density == "normal") "normal (~4 por linha)" else "compacta (~6 por linha)") { onToggleDensity() } }
+        item { SettingRow("Hero sempre compacto (uma linha)", if (settings.heroCompact) "ligado" else "desligado") { onToggleHeroCompact() } }
+        item { SettingRow("Estado da TV no hero (rede, Bluetooth, memória)", if (settings.showStatus) "ligado" else "desligado") { onToggleStatus() } }
+        item { SettingRow("Seção ${settings.teamName}", if (settings.showTeam) "ligada" else "desligada") { onToggleTeam() } }
         item { SettingRow("Cotações no topo (dólar e euro)", if (settings.showRates) "ligado" else "desligado") { onToggleRates() } }
         item { SettingRow("Clima no topo (Recreio dos Bandeirantes)", if (settings.showWeather) "ligado" else "desligado") { onToggleWeather() } }
         item { SettingRow("Modo noturno automático (escurece das 21h às 6h)", if (settings.nightMode) "ligado" else "desligado") { onToggleNight() } }
@@ -61,6 +68,20 @@ fun SettingsScreen(
         item { RowTitle("Ícones do menu nativo") }
         items(QuickAction.entries, key = { "quick-" + it.name }) { q ->
             SettingRow(q.label, if (q in settings.quick) "visível" else "oculto") { onToggleQuick(q) }
+        }
+
+        item { RowTitle("Ordem dos apps nas seções", "Vale para continuar assistindo, filmes, séries e sugestões") }
+        items(apps.sortedBy { settings.appRank(it.packageName) }, key = { "order-" + it.packageName }) { app ->
+            val pos = settings.appOrder.indexOf(app.packageName)
+            Row(
+                Modifier.fillMaxWidth().padding(rowPadding()).padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                SettingRow(app.label, if (pos >= 0) "${pos + 1}º" else "sem posição", modifier = Modifier.width(520.dp)) { onMoveOrder(app.packageName, 0) }
+                PillSmall("▲") { onMoveOrder(app.packageName, -1) }
+                PillSmall("▼") { onMoveOrder(app.packageName, +1) }
+            }
         }
 
         item { RowTitle("Seções") }

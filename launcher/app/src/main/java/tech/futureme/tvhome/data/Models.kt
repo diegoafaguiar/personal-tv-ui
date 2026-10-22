@@ -74,6 +74,15 @@ data class DeviceStatus(
     val freeStorageGb: Double = 0.0,
 )
 
+/** Seção do time: próximo jogo, último resultado, tabela e vídeos. */
+data class TeamContent(
+    val info: FlamengoRepository.TeamInfo? = null,
+    val videos: List<MediaItem> = emptyList(),
+    val related: List<MediaItem> = emptyList(),   // o que os apps publicam com o nome do time
+    val errors: List<String> = emptyList(),
+    val fetchedAt: Long = 0L,
+)
+
 /** Tudo que a home precisa, carregado de uma vez. */
 data class HomeContent(
     val apps: List<AppEntry> = emptyList(),

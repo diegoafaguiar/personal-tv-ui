@@ -38,6 +38,7 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import coil.compose.AsyncImage
+import android.media.tv.TvContract
 import tech.futureme.tvhome.data.AppEntry
 import tech.futureme.tvhome.data.InputEntry
 import tech.futureme.tvhome.data.MediaItem
@@ -152,13 +153,25 @@ fun PillCard(label: String, onClick: () -> Unit, sub: String? = null) {
 fun InputCard(input: InputEntry, onClick: () -> Unit) =
     PillCard(label = input.label, onClick = onClick, sub = if (input.isTuner) "TV ao vivo" else "entrada")
 
-/** Canal de TV: número grande, nome, e "agora" quando há grade; fundo com a cor do canal. */
+/**
+ * Canal de TV: logo do canal (o TvProvider guarda em channel/<id>/logo; o Channel+
+ * costuma preencher, as emissoras abertas nem sempre), senão número grande sobre a cor do canal.
+ */
 @Composable
 fun ChannelCard(ch: TunerChannel, onClick: () -> Unit) {
     val d = LocalDims.current
+    var logoFailed by remember(ch.id) { mutableStateOf(false) }
     FocusSurface(onClick = onClick, modifier = Modifier.width(d.mediaW).height(d.mediaH)) {
         Box(Modifier.fillMaxSize().background(placeholderBrush(ch.name))) {
-            Text(ch.number, fontSize = 34.sp, fontWeight = FontWeight.Bold, color = Color(0x55FFFFFF), modifier = Modifier.align(Alignment.TopEnd).padding(10.dp))
+            if (!logoFailed) {
+                AsyncImage(
+                    model = TvContract.buildChannelLogoUri(ch.id), contentDescription = ch.name,
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 36.dp, vertical = 22.dp), contentScale = ContentScale.Fit,
+                    onError = { logoFailed = true },
+                )
+            }
+            if (logoFailed) Text(ch.number, fontSize = 34.sp, fontWeight = FontWeight.Bold, color = Color(0x55FFFFFF), modifier = Modifier.align(Alignment.TopEnd).padding(10.dp))
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.55f to Color.Transparent, 1f to Color(0xCC000000))))
             Column(Modifier.align(Alignment.BottomStart).padding(10.dp)) {
                 Text(ch.name, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = TvColors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
@@ -171,16 +184,56 @@ fun ChannelCard(ch: TunerChannel, onClick: () -> Unit) {
     }
 }
 
-/** Botão redondo só com ícone; o rótulo aparece embaixo quando focado. */
+/** Ícone limpo: sem fundo em repouso; no foco vira um círculo claro com o ícone escuro e o rótulo embaixo. */
 @Composable
 fun IconButton(icon: ImageVector, label: String, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(72.dp)) {
-        FocusSurface(onClick = onClick, shape = RoundedCornerShape(50), modifier = Modifier.size(52.dp).clip(CircleShape).onFocusChanged { focused = it.isFocused }) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(64.dp)) {
+        Surface(
+            onClick = onClick,
+            modifier = Modifier.size(44.dp).clip(CircleShape).onFocusChanged { focused = it.isFocused },
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(50)),
+            colors = ClickableSurfaceDefaults.colors(
+                containerColor = Color.Transparent,
+                focusedContainerColor = TvColors.text,
+                contentColor = TvColors.textDim,
+                focusedContentColor = TvColors.background,
+            ),
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
+            border = ClickableSurfaceDefaults.border(),
+        ) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Icon(imageVector = icon, contentDescription = label, tint = TvColors.text, modifier = Modifier.size(26.dp))
+                Icon(imageVector = icon, contentDescription = label, tint = if (focused) TvColors.background else TvColors.textDim, modifier = Modifier.size(22.dp))
             }
         }
-        Text(if (focused) label else " ", fontSize = 12.sp, color = TvColors.textDim, maxLines = 1, modifier = Modifier.padding(top = 4.dp))
+        Text(if (focused) label else " ", fontSize = 11.sp, color = TvColors.textDim, maxLines = 1, modifier = Modifier.padding(top = 4.dp))
+    }
+}
+
+/** Card de informação do time: próximo jogo, último resultado, posição. */
+@Composable
+fun TeamInfoCard(name: String, info: tech.futureme.tvhome.data.FlamengoRepository.TeamInfo?, onClick: () -> Unit) {
+    val d = LocalDims.current
+    FocusSurface(onClick = onClick, modifier = Modifier.width(d.mediaW).height(d.mediaH)) {
+        Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF8B0000), Color(0xFF1A1A1A))))) {
+            Column(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.SpaceBetween) {
+                Text(name, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                if (info == null) {
+                    Text("Sem dados agora", fontSize = 13.sp, color = Color(0xAAFFFFFF))
+                } else {
+                    Column {
+                        val n = info.next
+                        if (n != null) {
+                            val f = java.text.SimpleDateFormat("EEE d/M HH:mm", java.util.Locale("pt", "BR")).format(java.util.Date(n.dateMs))
+                            Text("Próximo: ${if (n.home) "vs" else "@"} ${n.opponent}", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text("$f · ${n.competition}", fontSize = 12.sp, color = Color(0xAAFFFFFF), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                        val l = info.last
+                        if (l != null) Text("Último: ${l.score} ${if (l.home) "vs" else "@"} ${l.opponent}", fontSize = 12.sp, color = Color(0xAAFFFFFF), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        if (info.position != null) Text("${info.position}º · ${info.points ?: "-"} pts · ${info.played ?: "-"} jogos", fontSize = 12.sp, color = Color(0xAAFFFFFF))
+                    }
+                }
+            }
+        }
     }
 }

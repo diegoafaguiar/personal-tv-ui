@@ -35,8 +35,29 @@ data class Settings(
     val recents: List<RecentEntry> = emptyList(),
     val latitude: Double = -23.0185,        // Recreio dos Bandeirantes, RJ
     val longitude: Double = -43.4620,
+    /** Ordem de preferência dos apps em TODAS as seções (continuar, filmes, séries, sugestões). */
+    val appOrder: List<String> = DEFAULT_ORDER,
+    val showTeam: Boolean = true,
+    val showStatus: Boolean = true,
+    val heroCompact: Boolean = false,       // hero sempre no modo compacto
+    val lastChannelId: Long = 0L,
+    val teamYoutube: List<String> = listOf("UCOa-WaNwQaoyFHLCDk7qKIw"),   // Flamengo TV (canal oficial)
+    val teamEspnId: String = "819",
+    val teamLeague: String = "bra.1",
+    val teamName: String = "Flamengo",
 ) {
+    fun appRank(pkg: String): Int = appOrder.indexOf(pkg).let { if (it < 0) 999 else it }
     companion object {
+        val DEFAULT_ORDER = listOf(
+            "com.netflix.ninja",
+            "com.apple.atve.androidtv.appletv",
+            "com.google.android.youtube.tv",
+            "com.globo.globotv",
+            "com.amazon.amazonvideo.livingroom",
+            "com.wbd.stream",
+            "com.disney.disneyplus",
+            "com.spotify.tv.android",
+        )
         val DEFAULT_DOCK = listOf(
             "com.google.android.youtube.tv",
             "com.netflix.ninja",
@@ -65,6 +86,12 @@ class Prefs(private val context: Context) {
     private val recentsKey = stringPreferencesKey("recents")
     private val latKey = stringPreferencesKey("lat")
     private val lonKey = stringPreferencesKey("lon")
+    private val orderKey = stringPreferencesKey("app_order")
+    private val teamKey = booleanPreferencesKey("show_team")
+    private val statusKey = booleanPreferencesKey("show_status")
+    private val heroKey = booleanPreferencesKey("hero_compact")
+    private val lastChKey = stringPreferencesKey("last_channel")
+    private val teamYtKey = stringPreferencesKey("team_youtube")
 
     val settings: Flow<Settings> = context.dataStore.data.map { p ->
         Settings(
@@ -83,6 +110,12 @@ class Prefs(private val context: Context) {
             recents = p[recentsKey]?.split('\n')?.mapNotNull { RecentEntry.decode(it) } ?: emptyList(),
             latitude = p[latKey]?.toDoubleOrNull() ?: -23.0185,
             longitude = p[lonKey]?.toDoubleOrNull() ?: -43.4620,
+            appOrder = p[orderKey]?.split(',')?.filter { it.isNotBlank() } ?: Settings.DEFAULT_ORDER,
+            showTeam = p[teamKey] ?: true,
+            showStatus = p[statusKey] ?: true,
+            heroCompact = p[heroKey] ?: false,
+            lastChannelId = p[lastChKey]?.toLongOrNull() ?: 0L,
+            teamYoutube = p[teamYtKey]?.split(',')?.filter { it.isNotBlank() } ?: listOf("UCOa-WaNwQaoyFHLCDk7qKIw"),
         )
     }
 
@@ -134,5 +167,18 @@ class Prefs(private val context: Context) {
         p[recentsKey] = next.take(RecentEntry.MAX).joinToString("\n") { it.encode() }
     }
     suspend fun clearRecents() = context.dataStore.edit { p -> p[recentsKey] = "" }
+    suspend fun toggleTeam() = context.dataStore.edit { p -> p[teamKey] = !(p[teamKey] ?: true) }
+    suspend fun toggleStatus() = context.dataStore.edit { p -> p[statusKey] = !(p[statusKey] ?: true) }
+    suspend fun toggleHeroCompact() = context.dataStore.edit { p -> p[heroKey] = !(p[heroKey] ?: false) }
+    suspend fun setLastChannel(id: Long) = context.dataStore.edit { p -> p[lastChKey] = id.toString() }
+
+    /** Move um app na ordem de preferência; apps fora da lista entram no fim ao serem movidos. */
+    suspend fun moveOrder(pkg: String, delta: Int) = context.dataStore.edit { p ->
+        val cur = (p[orderKey]?.split(',')?.filter { it.isNotBlank() } ?: Settings.DEFAULT_ORDER).toMutableList()
+        if (pkg !in cur) cur += pkg
+        val i = cur.indexOf(pkg); val j = i + delta
+        if (j in cur.indices) { cur[i] = cur[j].also { cur[j] = cur[i] } }
+        p[orderKey] = cur.joinToString(",")
+    }
     suspend fun toggleInputs() = context.dataStore.edit { p -> p[inputsKey] = !(p[inputsKey] ?: true) }
 }

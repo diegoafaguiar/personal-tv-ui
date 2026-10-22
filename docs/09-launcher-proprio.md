@@ -73,6 +73,27 @@ aberta (Globo 4.1 com grade) e ~200 canais do TCL Channel+ na mesma tabela.
 - **Placeholders**: gradiente estável derivado do nome (app, canal) quando
   não há imagem; cards de canal com número grande e "Agora: …".
 
+## v0.5: hero fixo e minimalista, TV aberta dentro da home, Flamengo, ordem de apps
+
+- **Hero fixo** acima da lista: expandido com a lista no topo (hora grande,
+  data, clima e cotações à direita, item focado embaixo); ao rolar, colapsa
+  para uma linha; ao voltar ao topo, reexpande. "Hero sempre compacto" nos ajustes.
+- **Ícones limpos**: sem fundo em repouso; foco vira círculo claro com rótulo.
+- **TV aberta dentro do launcher** (`ui/LiveTvScreen.kt`): `TvView.tune(inputId,
+  canal)`, o mesmo mecanismo do app de TV, sem depender do app da TCL. Cima/baixo
+  trocam de canal, dígitos sintonizam, OK mostra a grade, Voltar sai. O ícone
+  "TV aberta" abre o último canal (ou a Globo). Se o sintonizador recusar a
+  sessão, cai no app da TCL.
+- **Seção Flamengo** (`data/FlamengoRepository.kt`): vídeos do canal oficial no
+  YouTube via RSS (sem chave; abre no app do YouTube), próximo jogo, último
+  resultado e posição pela API pública da ESPN (time 819, liga `bra.1`), e o que
+  os apps publicam com "Flamengo" no título. Canais do YouTube e time em `Prefs`.
+- **Logos dos canais**: `TvContract.buildChannelLogoUri(id)`; sem logo, número
+  grande sobre a cor do canal.
+- **Ordem de apps** em todas as seções (Netflix, Apple TV, YouTube, Globoplay,
+  Prime, HBO Max, Disney+, Spotify por padrão), editável nos ajustes com ▲▼.
+- Ajustes novos: hero compacto, estado da TV no hero, seção do time, ordem dos apps.
+
 ## Por que isso funciona sem scraping
 
 No Android TV os apps publicam "Watch Next" e "canais de prévia" num banco do

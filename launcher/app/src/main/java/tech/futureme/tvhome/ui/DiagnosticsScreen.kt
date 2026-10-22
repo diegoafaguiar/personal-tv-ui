@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
 import tech.futureme.tvhome.data.HomeContent
+import tech.futureme.tvhome.data.TeamContent
 
 /**
  * Mostra o que cada app publica de fato nesta TV. É com isso que ajustamos
@@ -19,9 +20,12 @@ import tech.futureme.tvhome.data.HomeContent
  *   adb logcat -d -s TvHome
  */
 @Composable
-fun DiagnosticsScreen(content: HomeContent, appLabel: (String) -> String) {
+fun DiagnosticsScreen(content: HomeContent, team: TeamContent, appLabel: (String) -> String) {
     val d = content.diagnostics
     val lines = buildList {
+        add("— Seção do time —")
+        add("  vídeos (YouTube RSS): ${team.videos.size}   relacionados nos apps: ${team.related.size}   ESPN: ${if (team.info != null) "ok (próximo: ${team.info.next?.opponent ?: "—"}, posição: ${team.info.position ?: "—"})" else "sem dados"}")
+        team.errors.forEach { add("  erro: $it") }
         add("Permissão READ_TV_LISTINGS: ${if (content.hasPermission) "concedida" else "NÃO concedida (adb shell pm grant tech.futureme.tvhome android.permission.READ_TV_LISTINGS)"}")
         if (d.error != null) add("Erro: ${d.error}")
         add("Apps instalados (Leanback): ${content.apps.size}   Entradas: ${content.inputs.joinToString { it.label }}")

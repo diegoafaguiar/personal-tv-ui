@@ -13,6 +13,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tech.futureme.tvhome.data.AppsRepository
 import tech.futureme.tvhome.data.Classifier
+import tech.futureme.tvhome.data.FlamengoRepository
+import tech.futureme.tvhome.data.TeamContent
 import tech.futureme.tvhome.data.HomeContent
 import tech.futureme.tvhome.data.MediaItem
 import tech.futureme.tvhome.data.Prefs
@@ -31,6 +33,10 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     private val ratesRepo = RatesRepository()
     private val weatherRepo = WeatherRepository()
     private val statusRepo = StatusRepository(app)
+    private val teamRepo = FlamengoRepository()
+
+    private val _team = MutableStateFlow(TeamContent())
+    val team: StateFlow<TeamContent> = _team
 
     private val _content = MutableStateFlow(HomeContent())
     val content: StateFlow<HomeContent> = _content
@@ -50,7 +56,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     init {
         // Cotações: a cada 30 min enquanto a home existir (sem serviço em background).
         viewModelScope.launch {
-            while (true) { refreshRates(force = false); refreshWeather(force = false); delay(30 * 60 * 1000L) }
+            while (true) { refreshRates(force = false); refreshWeather(force = false); refreshTeam(force = false); delay(30 * 60 * 1000L) }
         }
     }
 
@@ -62,19 +68,23 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 val apps = appsRepo.apps()
                 val inputs = appsRepo.inputs()
                 val loaded = tvRepo.load()
-                val opens = settings.value.recents.groupingBy { it.packageName }.eachCount()
+                val s = settings.value
+                val opens = s.recents.groupingBy { it.packageName }.eachCount()
+                // Ordem dos apps em todas as seções: a lista de preferência; empate pelos mais abertos.
+                val byApp = compareBy<String> { s.appRank(it) }.thenByDescending { opens[it] ?: 0 }
 
-                // Continuar assistindo: agrupado por app, apps mais abertos primeiro
-                // (empate: quem tem mais itens), no máximo 5 por app, mais recentes primeiro.
+                // Continuar assistindo: por app na ordem de preferência, no máximo 5 por app, mais recentes primeiro.
                 val watchNext = dedupe(loaded.items.filter { it.isWatchNext }.sortedByDescending { it.lastEngagementMs })
                 val continueRow = watchNext.groupBy { it.packageName }.entries
-                    .sortedWith(compareByDescending<Map.Entry<String, List<MediaItem>>> { opens[it.key] ?: 0 }.thenByDescending { it.value.size })
+                    .sortedWith(compareBy(byApp) { it.key })
                     .flatMap { it.value.take(5) }
 
-                // Seções temáticas: tudo que os apps publicam (inclusive o que você já começou)
+                // Seções temáticas: tudo que os apps publicam, na mesma ordem de apps.
                 val thematic = dedupe(loaded.items).groupBy { Classifier.section(it) }
+                    .mapValues { (_, items) -> items.sortedWith(compareBy(byApp) { it.packageName }) }
                 val grouped = mapOf(Section.CONTINUE to continueRow) + thematic.filterKeys { it != Section.CONTINUE }
                 val perApp = loaded.items.filter { !it.isWatchNext }.groupBy { it.packageName }.mapValues { dedupe(it.value) }
+                    .toSortedMap(byApp)
 
                 val broadcast = loaded.tuner.filter { it.isBroadcast }
                 val fast = loaded.tuner.filter { !it.isBroadcast }
@@ -84,11 +94,21 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             _content.value = result
             _loading.value = false
         }
-        viewModelScope.launch { refreshRates(force = false); refreshWeather(force = false) }
+        viewModelScope.launch { refreshRates(force = false); refreshWeather(force = false); refreshTeam(force = false) }
     }
 
     fun recordRecent(packageName: String, title: String, intentUri: String?) {
         viewModelScope.launch { prefs.recordRecent(RecentEntry(packageName, title, intentUri, System.currentTimeMillis())) }
+    }
+
+    private suspend fun refreshTeam(force: Boolean) {
+        val s = settings.value
+        if (!s.showTeam) return
+        if (!force && System.currentTimeMillis() - _team.value.fetchedAt < 25 * 60 * 1000L) return
+        val r = withContext(Dispatchers.IO) { teamRepo.fetch(s.teamEspnId, s.teamLeague, s.teamYoutube) }
+        val name = s.teamName.lowercase()
+        val related = _content.value.allItems.filter { (it.title + " " + (it.description ?: "")).lowercase().contains(name) }
+        _team.value = TeamContent(r.info, r.videos.take(20), related, r.errors, System.currentTimeMillis())
     }
 
     private suspend fun refreshWeather(force: Boolean) {
