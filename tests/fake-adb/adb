@@ -62,6 +62,14 @@ case "$cmd" in
       fi
     done < "$S/home" ;;
   "cmd package resolve-activity"*) echo "${cmd##* }/.MainActivity" ;;
+  "content query --uri content://android.media.tv/channel"*)
+    echo "Row: 0 _id=11, display_number=2.1, display_name=TV Cultura, type=TYPE_ISDB_T, browsable=1, input_id=com.tcl.tv/.Tuner"
+    echo "Row: 1 _id=12, display_number=4.1, display_name=Globo SP, type=TYPE_ISDB_T, browsable=1, input_id=com.tcl.tv/.Tuner" ;;
+  "content query --uri content://android.media.tv/program"*)
+    now=$(( $(date +%s) * 1000 ))
+    echo "Row: 0 title=Jornal Nacional, short_description=As notícias do dia., start_time_utc_millis=$(( now - 600000 )), end_time_utc_millis=$(( now + 1800000 )), episode_title=NULL"
+    echo "Row: 1 title=Novela das Nove, short_description=Capítulo 42., start_time_utc_millis=$(( now + 1800000 )), end_time_utc_millis=$(( now + 5400000 )), episode_title=NULL" ;;
+  "dumpsys tv_input") echo "  TvInputInfo{id=com.tcl.tv/.Tuner, type=TUNER}"; echo "  TvInputInfo{id=com.tcl.tvinput/.HDMI1, type=HDMI}" ;;
   "dumpsys wifi") echo "  cname=$(cat "$S/wifi-owner" 2>/dev/null || echo com.android.tv.settings)" ;;
   "dumpsys meminfo") printf 'Total RAM: 1,900,000K\n Used RAM: 1,200,000K\n Cached kernel: 300,000K\n' ;;
   "cat /proc/meminfo "*) : ;;

@@ -194,6 +194,16 @@ echo "== 95-finish --no-reboot"
 out="$("$ROOT/scripts/95-finish.sh" --no-reboot 2>&1 || true)"
 check "mostra memória antes/depois e HOME" '[[ "$out" == *"Memória livre:"* && "$out" == *"HOME abre:"* ]]'
 
+echo "== 70-live-tv"
+out="$("$ROOT/scripts/70-live-tv.sh" channels 2>&1)"
+check "lista canais do sintonizador" '[[ "$out" == *"4.1      Globo SP"*"id=12"* ]]'
+out="$("$ROOT/scripts/70-live-tv.sh" now 4 2>&1)"
+check "resolve canal 4 → 4.1 e mostra o programa de agora" '[[ "$out" == *"Jornal Nacional"* ]]'
+out="$("$ROOT/scripts/70-live-tv.sh" guide Globo 2>&1)"
+check "resolve por nome e marca o programa atual" '[[ "$out" == *"▶"*"Jornal Nacional"* && "$out" == *"Novela das Nove"* ]]'
+"$ROOT/scripts/70-live-tv.sh" tune 4 >/dev/null 2>&1
+check "sintoniza via VIEW content://.../channel/12" 'grep -q "am start -a android.intent.action.VIEW -d content://android.media.tv/channel/12" "$FAKE_ADB_STATE/calls.log"'
+
 echo "== 60-benchmark"
 "$ROOT/scripts/60-benchmark.sh" >/dev/null 2>&1
 check "salva relatório" 'ls "$REPORTS_DIR"/*-benchmark.txt >/dev/null'
