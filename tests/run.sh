@@ -214,6 +214,11 @@ check "keys 4 abre a TV (KEYCODE_TV) quando ela não está na tela, depois dígi
 TV_OPEN_WAIT=0 "$ROOT/scripts/70-live-tv.sh" keys 4 >/dev/null 2>&1
 check "keys 4 não reabre a TV se ela já está na tela" '! grep -q "input keyevent KEYCODE_TV$" "$FAKE_ADB_STATE/calls.log"'
 
+echo "== 55-tv-detox open/status (sem clonar: VENDOR_DIR falso)"
+mkdir -p "$WORK/vendor/.git"; : > "$WORK/vendor/install.sh"
+out="$(VENDOR_OVERRIDE="$WORK/vendor" "$ROOT/scripts/55-tv-detox.sh" open 2>&1 || true)"
+check "open avisa quando o TV Detox não está instalado" '[[ "$out" == *"não está instalado"* ]]'
+
 echo "== 60-benchmark"
 "$ROOT/scripts/60-benchmark.sh" >/dev/null 2>&1
 check "salva relatório" 'ls "$REPORTS_DIR"/*-benchmark.txt >/dev/null'

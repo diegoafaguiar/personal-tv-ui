@@ -5,6 +5,7 @@
 #   scripts/55-tv-detox.sh install "com.google.android.youtube.tv,com.netflix.ninja,..." ["bluetooth,sound,picture"]
 #   scripts/55-tv-detox.sh undo
 #   scripts/55-tv-detox.sh status
+#   scripts/55-tv-detox.sh open                     # abre a home do TV Detox agora (sem mexer no botão Home)
 #
 # O que é: uma home de uma tela só (pacote com.ansub.tvhome, Java puro, ~30 MB
 # de RAM) com seus apps, entradas HDMI, relógio e ícone de rede. MIT.
@@ -21,7 +22,7 @@
 
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
 
-VENDOR_DIR="$REPO_ROOT/vendor/tv-detox"
+VENDOR_DIR="${VENDOR_OVERRIDE:-$REPO_ROOT/vendor/tv-detox}"
 REPO_URL="https://github.com/Ansub/tv-detox.git"
 
 ensure_repo() {
@@ -50,6 +51,16 @@ main() {
       log_step "TV Detox"
       log_info "com.ansub.tvhome: $(pkg_state com.ansub.tvhome)"
       log_info "HOME abre: $(home_owner)"
+      log_info "Candidatos a HOME, em ordem:"
+      home_candidates | sed 's/^/      /' >&2
+      if [[ "$(home_owner)" != com.ansub.tvhome/* ]] && [[ "$(pkg_state com.ansub.tvhome)" == "enabled" ]]; then
+        log_warn "Instalado, mas o botão Home abre outro app. Num Google TV isso só muda desligando o launcherx (regra atual: não) ou com um app que intercepte o Home (Projectivy 'Override'). Veja docs/04."
+      fi
+      ;;
+    open)
+      [[ "$(pkg_state com.ansub.tvhome)" == "enabled" ]] || die "com.ansub.tvhome não está instalado. Rode: scripts/55-tv-detox.sh install \"apps\""
+      log_step "Abrindo o TV Detox"
+      tv_run am start -n com.ansub.tvhome/.MainActivity
       ;;
     install)
       local apps="${1:-}" quick="${2:-}"
