@@ -27,13 +27,17 @@ scan_subnet() {
   fi
   [[ -n "$subnet" ]] || die "Não consegui deduzir a subrede. Passe explicitamente: --scan 192.168.0"
   log_step "Procurando porta 5555 aberta em $subnet.0/24 (≈5 s)"
+  # Linux: /dev/tcp + timeout. macOS não tem "timeout" por padrão; usa nc (BSD).
+  if command -v timeout >/dev/null 2>&1; then
+    probe() { timeout 1 bash -c "exec 3<>/dev/tcp/$1/5555" 2>/dev/null; }
+  elif command -v nc >/dev/null 2>&1; then
+    probe() { nc -z -w 1 "$1" 5555 >/dev/null 2>&1; }
+  else
+    die "Preciso de 'timeout' (coreutils) ou 'nc' para o scan."
+  fi
   local i
   for i in $(seq 1 254); do
-    (
-      if timeout 1 bash -c "exec 3<>/dev/tcp/$subnet.$i/5555" 2>/dev/null; then
-        echo "$subnet.$i"
-      fi
-    ) &
+    ( probe "$subnet.$i" && echo "$subnet.$i  ← porta 5555 aberta" ) &
   done
   wait
   log_info "Se apareceu um IP acima, rode: scripts/00-connect.sh <ip>"

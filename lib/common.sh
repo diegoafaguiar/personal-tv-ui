@@ -59,6 +59,14 @@ load_config() {
   if [[ -z "$TV_HOST" ]]; then
     die "TV_HOST não definido. Copie config/tv.env.example para config/tv.env ou exporte TV_HOST=ip-da-tv."
   fi
+  # O exemplo traz um IP fictício; se ainda for ele, a pessoa esqueceu de editar.
+  local example_host
+  example_host="$(sed -n 's/^TV_HOST=//p' "$REPO_ROOT/config/tv.env.example" 2>/dev/null | head -n1)"
+  if [[ -n "$example_host" && "$TV_HOST" == "$example_host" && "${ALLOW_EXAMPLE_HOST:-0}" != "1" ]]; then
+    log_err "TV_HOST=$TV_HOST é o valor de exemplo. Edite config/tv.env com o IP real da TV"
+    log_err "(Configurações › Rede e Internet › sua rede) ou descubra com: scripts/00-connect.sh --scan"
+    exit 1
+  fi
   # adb identifica dispositivos de rede como ip:porta
   if [[ "$TV_HOST" != *:* ]]; then
     TV_SERIAL="$TV_HOST:5555"
@@ -94,11 +102,16 @@ tv_run() {
 # Conecta (idempotente) e garante que a TV responde a "shell echo".
 ensure_connected() {
   require_cmd adb "Instale o Android platform-tools: https://developer.android.com/tools/releases/platform-tools"
+  adb start-server >/dev/null 2>&1 || true   # evita o ruído "daemon not running" na primeira chamada
   local out
   out="$(adb connect "$TV_SERIAL" 2>&1 || true)"
   case "$out" in
     *"connected to"*|*"already connected"*) ;;
-    *) die "Falha ao conectar em $TV_SERIAL: $out (veja docs/02-conexao-adb.md)";;
+    *)
+      log_err "Falha ao conectar em $TV_SERIAL: $out"
+      log_info "Confira o IP na TV (Configurações › Rede e Internet), se a Depuração por rede está ligada,"
+      log_info "ou procure a TV na rede: scripts/00-connect.sh --scan   (docs/02-conexao-adb.md)"
+      exit 1 ;;
   esac
   local state
   state="$(adb -s "$TV_SERIAL" get-state 2>&1 || true)"
