@@ -52,6 +52,7 @@ case "$cmd" in
   "settings put "*) set -- $cmd; grep -v "^$3:$4=" "$S/settings" > "$S/settings.tmp" || true; mv "$S/settings.tmp" "$S/settings"; printf '%s:%s=%s\n' "$3" "$4" "$5" >> "$S/settings" ;;
   "settings delete "*) set -- $cmd; grep -v "^$3:$4=" "$S/settings" > "$S/settings.tmp" || true; mv "$S/settings.tmp" "$S/settings" ;;
   "settings list "*) set -- $cmd; sed -n "s/^$3://p" "$S/settings" ;;
+  "cmd package query-activities -a android.intent.action.VIEW"*) echo "  com.tcl.tv/.TVActivity" ;;
   "cmd package query-activities"*)
     # $S/home: linhas "pkg/Activity" em ordem de prioridade; só candidatos habilitados aparecem
     while IFS= read -r comp; do
@@ -69,6 +70,7 @@ case "$cmd" in
     now=$(( $(date +%s) * 1000 ))
     echo "Row: 0 title=Jornal Nacional, short_description=As notícias do dia., start_time_utc_millis=$(( now - 600000 )), end_time_utc_millis=$(( now + 1800000 )), episode_title=NULL"
     echo "Row: 1 title=Novela das Nove, short_description=Capítulo 42., start_time_utc_millis=$(( now + 1800000 )), end_time_utc_millis=$(( now + 5400000 )), episode_title=NULL" ;;
+  "dumpsys activity activities") echo "    topResumedActivity=ActivityRecord{abc u0 com.tcl.tv/.TVActivity}" ;;
   "dumpsys tv_input") echo "  TvInputInfo{id=com.tcl.tv/.Tuner, type=TUNER}"; echo "  TvInputInfo{id=com.tcl.tvinput/.HDMI1, type=HDMI}" ;;
   "dumpsys wifi") echo "  cname=$(cat "$S/wifi-owner" 2>/dev/null || echo com.android.tv.settings)" ;;
   "dumpsys meminfo") printf 'Total RAM: 1,900,000K\n Used RAM: 1,200,000K\n Cached kernel: 300,000K\n' ;;

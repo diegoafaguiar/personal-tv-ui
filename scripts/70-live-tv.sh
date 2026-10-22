@@ -8,6 +8,8 @@
 #   scripts/70-live-tv.sh guide [4] [horas]     # grade do canal 4 pelas próximas N horas (padrão 6)
 #   scripts/70-live-tv.sh tune 4                # liga a TV no canal 4
 #   scripts/70-live-tv.sh inputs                # entradas (HDMI, tuner) e seus ids
+#   scripts/70-live-tv.sh doctor                # diagnóstico: por que "channels" veio vazio
+#   scripts/70-live-tv.sh keys 4                # sintoniza pelo controle: antena, dígito 4, OK (não depende do banco)
 #
 # O que você aprende aqui: toda TV Android guarda canais e programação num
 # banco padrão, o TvContract (content://android.media.tv/...). O app de TV
@@ -28,9 +30,10 @@ PROGRAM_URI="content://android.media.tv/program"
 # Saída do "content query" vem como "Row: 0 _id=12, display_number=4.1, ..."
 # Convertemos para linhas "chave=valor<TAB>chave=valor".
 query() {
-  tv_shell content query --uri "$1" ${2:+--projection "$2"} ${3:+--where "\"$3\""} 2>/dev/null \
+  tv_shell content query --uri "$1" ${2:+--projection "$2"} ${3:+--where "\"$3\""} 2>&1 \
     | tr -d '\r' | sed -nE 's/^Row: [0-9]+ //p' | sed 's/, \([a-z_]*=\)/\t\1/g'
 }
+raw_query() { tv_shell content query --uri "$1" 2>&1 | tr -d '\r'; }
 field() { tr '\t' '\n' <<<"$1" | sed -nE "s/^$2=//p" | head -n1; }
 
 list_channels() {
@@ -100,6 +103,40 @@ tune() {
   tv_run am start -a android.intent.action.VIEW -d "$CHANNEL_URI/$id"
 }
 
+doctor() {
+  log_step "1. Banco de canais (TvContract), resposta bruta"
+  local raw; raw="$(raw_query "$CHANNEL_URI" | head -n 5)"
+  if [[ -z "$raw" ]]; then
+    log_warn "Vazio: nenhum canal gravado no TvContract. O app que faz a TV aberta nesta TV não usa o banco padrão, ou a busca de canais ainda não rodou."
+  elif grep -qi 'permission\|denial\|SecurityException' <<<"$raw"; then
+    log_warn "Permissão negada ao usuário shell: $raw"
+  else
+    log_ok "Há canais: $(raw_query "$CHANNEL_URI" | grep -c '^Row:') linhas. Veja 'channels'."
+  fi
+  log_step "2. Entradas de TV registradas (dumpsys tv_input)"
+  tv_shell dumpsys tv_input 2>/dev/null | tr -d '\r' | grep -oE 'id=[^,} ]+|type=[A-Z_0-9]+|TvInputInfo\{[^}]*\}' | sed 's/^/    /' | head -n 40
+  log_step "3. Apps que podem ser a 'TV aberta' nesta TV"
+  pm_list | grep -iE 'tv|dtv|isdb|ginga|tuner|broadcast|channel|canal' | grep -vE 'settings|tvinput$' | sed 's/^/    /'
+  log_step "4. Quem atende um canal (ACTION_VIEW content://android.media.tv/channel)"
+  tv_shell "cmd package query-activities -a android.intent.action.VIEW -d content://android.media.tv/channel/1 --brief" 2>/dev/null | tr -d '\r' | grep '/' | sed 's/^/    /'
+  log_step "5. Último app de TV aberto (para identificar o pacote da 'TV aberta')"
+  tv_shell dumpsys activity activities 2>/dev/null | tr -d '\r' | grep -oE 'topResumedActivity=.*|mResumedActivity=.*' | head -n 2 | sed 's/^/    /'
+  log_info "Abra a TV aberta na TV e rode 'doctor' de novo: o item 5 mostra o pacote dela."
+}
+
+# Sintonia pelo controle: funciona com qualquer app de TV ao vivo, sem banco.
+tune_keys() {
+  local ch="${1:?informe o canal}" d
+  log_step "Teclas: antena → ${ch} → OK"
+  tv_run input keyevent KEYCODE_TV_ANTENNA_CABLE    # 242: entrada de antena/cabo (alguns firmwares ignoram)
+  sleep 3
+  for (( d=0; d<${#ch}; d++ )); do
+    tv_run input keyevent "KEYCODE_${ch:$d:1}"       # KEYCODE_0..KEYCODE_9
+    sleep 0.3
+  done
+  tv_run input keyevent KEYCODE_DPAD_CENTER
+}
+
 list_inputs() {
   log_step "Entradas (dumpsys tv_input)"
   tv_shell dumpsys tv_input 2>/dev/null | tr -d '\r' | grep -E 'inputId=|TvInputInfo\{|type=' | sed 's/^ *//' | head -n 40
@@ -108,7 +145,7 @@ list_inputs() {
 main() {
   local cmd="${1:-}"; shift || true
   case "$cmd" in
-    -h|--help|"") sed -n '2,20p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help|"") sed -n '2,22p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
   esac
   load_config
   ensure_connected
@@ -118,6 +155,8 @@ main() {
     guide) show_guide "$@" ;;
     tune) tune "$@" ;;
     inputs) list_inputs ;;
+    doctor) doctor ;;
+    keys) tune_keys "$@" ;;
     *) die "Subcomando desconhecido: $cmd" ;;
   esac
 }
