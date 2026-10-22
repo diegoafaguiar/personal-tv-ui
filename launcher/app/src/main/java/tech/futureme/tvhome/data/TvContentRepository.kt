@@ -20,7 +20,7 @@ class TvContentRepository(private val context: Context) {
     private val resolver: ContentResolver get() = context.contentResolver
 
     fun hasPermission(): Boolean =
-        ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_TV_LISTINGS) ==
+        ContextCompat.checkSelfPermission(context, tech.futureme.tvhome.READ_TV_LISTINGS) ==
             PackageManager.PERMISSION_GRANTED
 
     data class Loaded(val items: List<MediaItem>, val diagnostics: Diagnostics)

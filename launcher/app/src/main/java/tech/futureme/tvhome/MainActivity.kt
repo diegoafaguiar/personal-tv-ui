@@ -1,6 +1,5 @@
 package tech.futureme.tvhome
 
-import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -16,6 +15,9 @@ import tech.futureme.tvhome.data.InputEntry
 import tech.futureme.tvhome.data.MediaItem
 import tech.futureme.tvhome.ui.App
 import tech.futureme.tvhome.ui.TvHomeTheme
+
+/** Declarada pelo TvProvider, não pelo SDK: por isso a string e não Manifest.permission. */
+const val READ_TV_LISTINGS = "android.permission.READ_TV_LISTINGS"
 
 class MainActivity : ComponentActivity() {
 
@@ -33,12 +35,12 @@ class MainActivity : ComponentActivity() {
                     onOpenApp = { startSafely(it.launchIntent) },
                     onOpenInput = ::openInput,
                     onOpenSettingsApp = { startSafely(Intent(android.provider.Settings.ACTION_SETTINGS)) },
-                    onRequestPermission = { askPermission.launch(Manifest.permission.READ_TV_LISTINGS) },
+                    onRequestPermission = { askPermission.launch(READ_TV_LISTINGS) },
                 )
             }
         }
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_TV_LISTINGS) != PackageManager.PERMISSION_GRANTED) {
-            askPermission.launch(Manifest.permission.READ_TV_LISTINGS)
+        if (ContextCompat.checkSelfPermission(this, READ_TV_LISTINGS) != PackageManager.PERMISSION_GRANTED) {
+            askPermission.launch(READ_TV_LISTINGS)
         }
     }
 

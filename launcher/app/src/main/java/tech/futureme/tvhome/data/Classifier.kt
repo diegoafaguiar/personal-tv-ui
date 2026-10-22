@@ -53,7 +53,7 @@ object Classifier {
         TvContract.PreviewPrograms.TYPE_ARTIST -> "ARTIST"
         TvContract.PreviewPrograms.TYPE_PLAYLIST -> "PLAYLIST"
         TvContract.PreviewPrograms.TYPE_STATION -> "STATION"
-        TvContract.PreviewPrograms.TYPE_GAME -> "GAME"
+        12 -> "GAME"   // TYPE_GAME só existe na androidx.tvprovider
         else -> "TYPE_$type"
     }
 }
