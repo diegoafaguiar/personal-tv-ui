@@ -27,3 +27,4 @@ launcher/.idea/
 launcher/*.iml
 launcher/app/*.iml
 launcher/.kotlin/
+launcher/dist/

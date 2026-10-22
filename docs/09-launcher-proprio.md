@@ -46,7 +46,9 @@ direto). Troque por uma keystore sua se for publicar.
 ## Instalar e tornar Home
 
 ```bash
-scripts/50-launcher.sh install --apk app-release.apk
+scripts/57-launcher-apk.sh                               # baixa o último artefato (gh CLI) e instala
+# ou, baixando à mão na aba Actions (o zip tem pastas: release/app-release.apk):
+scripts/50-launcher.sh install --apk ~/Downloads/tvhome-apk/release/app-release.apk
 scripts/50-launcher.sh grant tech.futureme.tvhome        # READ_TV_LISTINGS por adb (ou aceite o pedido na tela)
 scripts/50-launcher.sh status                            # tech.futureme.tvhome deve estar entre os candidatos
 ALLOW_STOCK_LAUNCHER_DISABLE=1 scripts/50-launcher.sh set-default tech.futureme.tvhome
