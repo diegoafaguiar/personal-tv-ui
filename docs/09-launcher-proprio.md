@@ -72,8 +72,14 @@ O APK é compilado pela CI (`.github/workflows/launcher.yml`) a cada push em
 JDK 17 + Android Studio (ou `sdkmanager "platforms;android-34" "build-tools;34.0.0"`),
 depois `cd launcher && ./gradlew assembleDebug`.
 
-O release é assinado com a chave de debug de propósito (uso pessoal, instala
-direto). Troque por uma keystore sua se for publicar.
+Debug e release são assinados com uma chave **fixa e versionada**
+(`launcher/keystore/tvhome-local.jks`, senha `tvhome-local`), para que todo
+build, da CI ou do Mac, tenha a mesma assinatura e atualize por cima. É uma
+chave de uso pessoal: quem tiver o repositório consegue assinar atualizações
+deste pacote. Para publicar, aponte `TVHOME_KEYSTORE`, `TVHOME_KEYSTORE_PASSWORD`,
+`TVHOME_KEY_ALIAS` e `TVHOME_KEY_PASSWORD` para uma keystore secreta.
+Builds anteriores à v0.3.1 usavam a chave de debug do runner, diferente a cada
+execução; o `57-launcher-apk.sh` detecta o conflito e oferece desinstalar.
 
 ## Instalar e tornar Home
 

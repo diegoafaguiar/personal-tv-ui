@@ -12,18 +12,32 @@ android {
         applicationId = "tech.futureme.tvhome"
         minSdk = 28          // Android TV 9+
         targetSdk = 34
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.3.1"
+    }
+
+    // Chave FIXA versionada no repositório, para que todo build (CI ou local)
+    // tenha a mesma assinatura e o Android aceite atualizar por cima.
+    // É uma chave de uso pessoal; para publicar, troque por uma keystore secreta
+    // (ex.: variável de ambiente TVHOME_KEYSTORE apontando para outro arquivo).
+    signingConfigs {
+        create("local") {
+            storeFile = file(System.getenv("TVHOME_KEYSTORE") ?: "../keystore/tvhome-local.jks")
+            storePassword = System.getenv("TVHOME_KEYSTORE_PASSWORD") ?: "tvhome-local"
+            keyAlias = System.getenv("TVHOME_KEY_ALIAS") ?: "tvhome"
+            keyPassword = System.getenv("TVHOME_KEY_PASSWORD") ?: "tvhome-local"
+        }
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("local")
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Uso pessoal: assina com a chave de debug para o APK ser instalável
-            // direto do artefato da CI. Troque por uma keystore sua se publicar.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("local")
         }
     }
 

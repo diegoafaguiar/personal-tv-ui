@@ -44,7 +44,21 @@ main() {
   load_config
   ensure_connected
   log_step "Instalando $(basename "$file") (ABI da TV: $(tv_prop ro.product.cpu.abi))"
-  [[ "$DRY_RUN" == "1" ]] || tv_adb install -r "$file"
+  if [[ "$DRY_RUN" != "1" ]]; then
+    local out
+    out="$(tv_adb install -r "$file" 2>&1 || true)"
+    echo "$out" >&2
+    if [[ "$out" == *INSTALL_FAILED_UPDATE_INCOMPATIBLE* ]]; then
+      log_warn "A versão instalada foi assinada com outra chave (builds antigos da CI usavam uma chave nova a cada execução)."
+      log_warn "Para atualizar é preciso desinstalar uma vez. Você perde os ajustes da home (dock, fundo) e o Home volta ao TV Detox até o próximo set-default."
+      confirm "Desinstalar $PKG e instalar de novo?" || die "Cancelado."
+      tv_adb uninstall "$PKG" || true
+      tv_adb install "$file"
+      log_info "Agora: scripts/50-launcher.sh grant $PKG && ALLOW_STOCK_LAUNCHER_DISABLE=1 scripts/50-launcher.sh set-default $PKG"
+    elif [[ "$out" != *Success* ]]; then
+      die "Instalação falhou."
+    fi
+  fi
   log_ok "$PKG: $(pkg_state "$PKG")"
   log_info "Próximos: scripts/50-launcher.sh grant $PKG && scripts/50-launcher.sh status"
   log_info "Depois:   ALLOW_STOCK_LAUNCHER_DISABLE=1 scripts/50-launcher.sh set-default $PKG"
