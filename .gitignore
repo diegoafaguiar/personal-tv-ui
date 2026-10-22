@@ -16,3 +16,4 @@ tests/.state/
 # Sistema
 .DS_Store
 *.log
+vendor/

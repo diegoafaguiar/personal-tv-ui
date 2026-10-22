@@ -243,9 +243,47 @@ TRACKED_SETTINGS=(
   secure:screensaver_activate_on_sleep
   secure:enabled_accessibility_services
   secure:accessibility_enabled
+  system:screen_off_timeout
 )
 
 settings_get() { tv_shell settings get "$1" "$2" | tr -d '\r'; }
+
+# --------------------------------------------------------------------------
+# Memória e espaço
+# --------------------------------------------------------------------------
+# MemAvailable do kernel, em MB: o número honesto de "memória livre" no Android.
+mem_available_mb() {
+  tv_shell cat /proc/meminfo | tr -d '\r' | awk '/MemAvailable/ {printf "%d", $2/1024}'
+}
+mem_total_mb() {
+  tv_shell cat /proc/meminfo | tr -d '\r' | awk '/MemTotal/ {printf "%d", $2/1024}'
+}
+# Memória que o pacote ocupa AGORA (PSS total), em MB. 0 se não está rodando.
+pkg_pss_mb() {
+  local v
+  v="$(tv_shell dumpsys meminfo "$1" 2>/dev/null | tr -d '\r' | awk '/TOTAL PSS:/ {print $3; exit} /^ *TOTAL +[0-9]/ {print $2; exit}')"
+  [[ -n "$v" ]] && awk -v k="$v" 'BEGIN {printf "%d", k/1024}' || echo 0
+}
+# Espaço do APK (e libs) em MB. Para apps de /system isso NÃO é liberado ao
+# desabilitar; só apps de /data liberam espaço de verdade.
+pkg_apk_mb() {
+  local path dir
+  path="$(tv_shell pm path "$1" 2>/dev/null | tr -d '\r' | head -n1 | sed 's/^package://')"
+  [[ -n "$path" ]] || { echo 0; return; }
+  dir="$(dirname "$path")"
+  tv_shell du -sk "$dir" 2>/dev/null | tr -d '\r' | awk '{printf "%d", $1/1024}'
+}
+pkg_is_system() {
+  local path
+  path="$(tv_shell pm path "$1" 2>/dev/null | tr -d '\r' | head -n1 | sed 's/^package://')"
+  [[ "$path" == /system/* || "$path" == /product/* || "$path" == /vendor/* || "$path" == /odm/* || "$path" == /apex/* ]]
+}
+
+# --------------------------------------------------------------------------
+# Nomes amigáveis (config/app-names.tsv)
+# --------------------------------------------------------------------------
+app_friendly_name() { awk -F'\t' -v p="$1" '$1==p {print $2; exit}' "$REPO_ROOT/config/app-names.tsv"; }
+app_description()   { awk -F'\t' -v p="$1" '$1==p {print $3; exit}' "$REPO_ROOT/config/app-names.tsv"; }
 
 # "null" é como o Android responde para chave inexistente.
 settings_put() {

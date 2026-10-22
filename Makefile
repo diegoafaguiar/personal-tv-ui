@@ -15,8 +15,14 @@ connect: ## Conecta o adb à TV (TV_HOST em config/tv.env)
 backup: ## Fotografa o estado atual em backups/
 	@scripts/10-backup.sh
 
-inventory: ## Classifica todos os pacotes em reports/
+inventory: ## Lista em português com RAM/espaço por app em reports/
 	@scripts/20-inventory.sh
+
+review: ## Revisão interativa: marcar um a um o que desligar
+	@scripts/25-review.sh
+
+finish: ## Espera 30 s, reinicia, confirma boot, memória antes/depois
+	@scripts/95-finish.sh
 
 debloat-plan: ## Mostra o plano (dry-run) para PROFILES
 	@scripts/30-debloat.sh --dry-run $(PROFILES)
@@ -49,4 +55,4 @@ lint: ## shellcheck + bash -n
 	@for f in $(SCRIPTS); do bash -n "$$f" || exit 1; done
 	@shellcheck -x $(SCRIPTS)
 
-.PHONY: help connect backup inventory debloat-plan debloat verify tune launcher-status benchmark rollback-plan rollback test lint
+.PHONY: help connect backup inventory review finish debloat-plan debloat verify tune launcher-status benchmark rollback-plan rollback test lint

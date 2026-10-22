@@ -85,6 +85,8 @@ main() {
 
   log_info "Baseline de memória"
   tv_shell dumpsys meminfo 2>/dev/null | tr -d '\r' | head -n 60 > "$dir/meminfo.txt" || true
+  tv_shell cat /proc/meminfo | tr -d '\r' > "$dir/proc-meminfo.txt"
+  log_info "Memória livre (MemAvailable): $(awk '/MemAvailable/ {printf "%d", $2/1024}' "$dir/proc-meminfo.txt") MB"
 
   cat > "$dir/README.md" <<'MD'
 # Backup da TV
@@ -110,7 +112,7 @@ scripts/90-rollback.sh "<esta pasta>" --reboot    # aplique
 | `home-candidates.txt` | candidatos a HOME em ordem | referência |
 | `wifi-owner.txt` | dono da rede Wi-Fi salva | verificação |
 | `props.txt` / `device.txt` | modelo, firmware, chipset | referência |
-| `meminfo.txt` | memória antes das mudanças | comparação |
+| `meminfo.txt` / `proc-meminfo.txt` | memória antes das mudanças | comparação (95-finish.sh) |
 
 Atenção: `settings-*.txt` e `props.txt` podem conter SSID, contas e seriais.
 Por isso `backups/` está no `.gitignore`.

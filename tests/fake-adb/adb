@@ -46,6 +46,7 @@ case "$cmd" in
   "am start -W "*) echo "TotalTime: 812"; echo "WaitTime: 820" ;;
   "pm grant "*|"am force-stop "*|"am start "*|"input keyevent "*|"pm trim-caches "*|"cmd package bg-dexopt-job"|"reboot") : ;;
   "getprop") cat "$S/props" ;;
+  "getprop sys.boot_completed") echo 1 ;;
   "getprop "*) k="${cmd#getprop }"; sed -n "s/^\[$k\]: \[\(.*\)\]$/\1/p" "$S/props" ;;
   "settings get "*) set -- $cmd; v="$(sed -n "s/^$3:$4=//p" "$S/settings")"; echo "${v:-null}" ;;
   "settings put "*) set -- $cmd; grep -v "^$3:$4=" "$S/settings" > "$S/settings.tmp" || true; mv "$S/settings.tmp" "$S/settings"; printf '%s:%s=%s\n' "$3" "$4" "$5" >> "$S/settings" ;;
@@ -63,8 +64,13 @@ case "$cmd" in
   "cmd package resolve-activity"*) echo "${cmd##* }/.MainActivity" ;;
   "dumpsys wifi") echo "  cname=$(cat "$S/wifi-owner" 2>/dev/null || echo com.android.tv.settings)" ;;
   "dumpsys meminfo") printf 'Total RAM: 1,900,000K\n Used RAM: 1,200,000K\n Cached kernel: 300,000K\n' ;;
+  "cat /proc/meminfo "*) : ;;
   "dumpsys package "*) echo "    versionName=1.2.3" ;;
   "cat /proc/uptime") echo "1234.56 5678.90" ;;
+  "cat /proc/meminfo") printf 'MemTotal:        1900000 kB\nMemFree:          120000 kB\nMemAvailable:     %s kB\n' "$(cat "$S/memavail" 2>/dev/null || echo 600000)" ;;
+  "dumpsys meminfo "*) p="${cmd##* }"; if has installed "$p" && ! has disabled "$p"; then echo "   TOTAL PSS:    20480 TOTAL RSS: 30000"; fi ;;
+  "pm path "*) p="${cmd##* }"; if has third "$p"; then echo "package:/data/app/$p/base.apk"; else echo "package:/system/app/$p/base.apk"; fi ;;
+  "du -sk "*) echo "12288	${cmd##* }" ;;
   "cat /proc/loadavg") echo "0.50 0.40 0.30 1/200 999" ;;
   "ps -A") printf 'a\nb\nc\n' ;;
   *) echo "fake-adb: shell não suportado: $cmd" >&2; exit 1 ;;

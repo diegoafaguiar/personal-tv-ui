@@ -82,6 +82,9 @@ cmd_grant() {
 
 cmd_set_default() {
   local pkg="${1:-$DEFAULT_LAUNCHER}" force_wifi="${FORCE_SETUPWRAITH:-0}"
+  if [[ "${ALLOW_STOCK_LAUNCHER_DISABLE:-0}" != "1" ]]; then
+    die "Regra ativa: a tela inicial de fábrica não é desligada. Use o 'Override current launcher' do Projectivy, ou exporte ALLOW_STOCK_LAUNCHER_DISABLE=1 se mudar de ideia."
+  fi
   require_backup >/dev/null
   local stock; stock="$(stock_launcher_pkg)"
   [[ -n "$stock" ]] || die "Não identifiquei o launcher de fábrica (launcherx/tvlauncher)."

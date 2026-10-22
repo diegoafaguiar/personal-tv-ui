@@ -1,4 +1,7 @@
 # risk: launcher
+# REGRA ATUAL: estes pacotes estão em never-disable.list e NÃO devem ser
+# desabilitados. Este arquivo fica como referência histórica; 50-launcher.sh
+# set-default só age com ALLOW_STOCK_LAUNCHER_DISABLE=1.
 # O launcher de fábrica e o assistente de configuração. Só desabilite DEPOIS
 # que um launcher substituto estiver instalado, aberto e respondendo ao
 # controle. Use scripts/50-launcher.sh set-default, que faz as verificações.

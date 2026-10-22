@@ -9,6 +9,9 @@
 #   scripts/40-tune.sh --private-dns off
 #   scripts/40-tune.sh --trim-caches            # equivale a "limpar cache" de todos os apps
 #   scripts/40-tune.sh --dexopt                 # recompila apps em background (demora; ajuda em TVs antigas)
+#   scripts/40-tune.sh --sleep-after 5          # suspender após N minutos sem uso
+#   scripts/40-tune.sh --oled-ask               # mostra o modelo e pergunta se é OLED; se NÃO for, desliga o screensaver
+#   scripts/40-tune.sh --guided                 # = --animations 0 --sleep-after 5 --oled-ask (modo guiado)
 #   scripts/40-tune.sh --dry-run ...
 #
 # Tudo aqui é revertido por scripts/90-rollback.sh (as chaves estão em
@@ -59,6 +62,25 @@ set_screensaver() {
   esac
 }
 
+set_sleep_after() {
+  local minutes="$1"
+  log_step "Suspender após $minutes min sem uso"
+  settings_put system screen_off_timeout "$((minutes * 60 * 1000))"
+}
+
+oled_ask() {
+  local model; model="$(tv_prop ro.product.model) ($(tv_prop ro.product.device), $(tv_prop ro.product.brand))"
+  log_step "Modelo: $model"
+  log_info "Em OLED o screensaver protege contra burn-in e deve ficar LIGADO."
+  if confirm "Esta TV é OLED?"; then
+    log_ok "OLED: screensaver fica ligado."
+    [[ "$(settings_get secure screensaver_enabled)" == "1" ]] || settings_put secure screensaver_enabled 1
+  else
+    log_info "Não é OLED: screensaver desligado (menos CPU e nada de promoções à noite)."
+    settings_put secure screensaver_enabled 0
+  fi
+}
+
 set_private_dns() {
   local host="$1"
   if [[ "$host" == "off" ]]; then
@@ -74,7 +96,7 @@ set_private_dns() {
 }
 
 main() {
-  local anim="" ss="keep" dns="" trim=0 dexopt=0 any=0
+  local anim="" ss="keep" dns="" trim=0 dexopt=0 any=0 sleep_after="" oled=0
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --dry-run) export DRY_RUN=1; shift ;;
@@ -84,6 +106,9 @@ main() {
       --private-dns) dns="$2"; any=1; shift 2 ;;
       --trim-caches) trim=1; any=1; shift ;;
       --dexopt) dexopt=1; any=1; shift ;;
+      --sleep-after) sleep_after="$2"; any=1; shift 2 ;;
+      --oled-ask) oled=1; any=1; shift ;;
+      --guided) anim="0"; sleep_after="5"; oled=1; any=1; shift ;;
       -h|--help) usage ;;
       *) die "Argumento desconhecido: $1" ;;
     esac
@@ -95,7 +120,9 @@ main() {
   require_backup >/dev/null
 
   [[ -n "$anim" ]] && set_animations "$anim"
+  [[ -n "$sleep_after" ]] && set_sleep_after "$sleep_after"
   set_screensaver "$ss"
+  [[ "$oled" == "1" ]] && oled_ask
   [[ -n "$dns" ]] && set_private_dns "$dns"
   if [[ "$trim" == "1" ]]; then
     log_step "Limpando caches de todos os apps"
@@ -109,6 +136,7 @@ main() {
   log_info "animações: $(settings_get global window_animation_scale) / $(settings_get global transition_animation_scale) / $(settings_get global animator_duration_scale)"
   log_info "screensaver: enabled=$(settings_get secure screensaver_enabled) components=$(settings_get secure screensaver_components)"
   log_info "private dns: $(settings_get global private_dns_mode) $(settings_get global private_dns_specifier)"
+  log_info "suspender após: $(( $(settings_get system screen_off_timeout | sed 's/null/0/') / 60000 )) min"
 }
 
 main "$@"

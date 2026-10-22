@@ -1,0 +1,91 @@
+# pacote<TAB>nome amigável<TAB>o que faz (português claro). Usado pelo inventário e pela revisão interativa.
+# Pacotes fora desta tabela aparecem só com o nome técnico.
+com.google.android.gms	Google Play Services	Base de login, notificações e APIs do Google. Sem ele nada do Google funciona.
+com.google.android.gsf	Google Services Framework	Infraestrutura dos serviços Google.
+com.android.vending	Google Play Store	Loja de apps e atualizações.
+com.android.tv.settings	Configurações	O app de Configurações da TV.
+com.android.systemui	System UI	Barra de status, diálogos e volume do sistema.
+com.google.android.apps.tv.launcherx	Tela inicial do Google TV	A home de fábrica. Regra: nunca desligar.
+com.google.android.tvlauncher	Tela inicial do Android TV	A home de fábrica (Android TV 9-11). Nunca desligar.
+com.google.android.tungsten.setupwraith	Assistente de configuração	Setup inicial; também é dono do Wi-Fi em algumas TVs. Nunca desligar.
+com.google.android.inputmethod.latin	Teclado Gboard	Teclado na tela.
+com.tcl.inputmethod.international	Teclado TCL	Teclado na tela da TCL.
+com.android.bluetooth	Bluetooth	Controle remoto, fones e caixas.
+com.tcl.tv	TV ao vivo / HDMI	Player das entradas HDMI, antena e cabo.
+com.tcl.tvinput	Entradas de TV	Framework do tuner e das entradas HDMI.
+com.tcl.suspension	Menu de fontes	O painel que o botão Input abre.
+com.tcl.dashboard	Painel rápido	Ajustes rápidos pelo botão de engrenagem.
+com.tcl.autopair	Pareamento do controle	Pareia o controle Bluetooth.
+com.tcl.tcl_bt_rcu_service	Serviço do controle BT	Mantém o controle remoto funcionando.
+com.google.android.tv.remote.service	Serviço do controle	Apesar do nome, carrega o botão do microfone do controle.
+com.google.android.katniss	Google Assistente	Busca por voz pelo botão do microfone (~90 MB).
+com.google.android.apps.mediashell	Chromecast embutido	Receber cast do celular.
+com.google.android.apps.tv.dreamx	Protetor de tela Ambiente	Screensaver do Google com fotos e promoções (~40 MB).
+com.android.dreams.basic	Protetor de tela básico	Screensaver simples de cores, sem rede.
+com.google.android.videos	Google TV Filmes	Loja de filmes e séries do Google.
+com.google.android.play.games	Google Play Games	Jogos do Google.
+com.google.android.youtube.tv	YouTube	YouTube.
+com.google.android.youtube.tvmusic	YouTube Music	Música.
+com.google.android.tts	Síntese de voz	Leitura em voz alta (acessibilidade e Assistente).
+com.google.android.marvin.talkback	TalkBack	Leitor de tela para acessibilidade.
+com.google.android.feedback	Feedback do Google	Envia relatórios de erro ao Google.
+com.google.android.partnersetup	Partner Setup	Atribuição de parceiros do Google.
+com.google.android.syncadapters.calendar	Sincronização de calendário	Inútil numa TV.
+com.google.android.onetimeinitializer	Inicializador único	Roda uma vez no primeiro boot.
+android.autoinstalls.config.google.gtvpai	Instalador de apps parceiros	Instala apps como Pluto, Twitch e jogos sem perguntar.
+com.android.adservices.api	Serviços de anúncios	Privacy Sandbox do Android.
+com.android.ondevicepersonalization.services	Personalização no aparelho	Perfil de anúncios local.
+com.android.federatedcompute.services	Computação federada	Aprendizado para anúncios.
+com.android.tv.feedbackconsent	Consentimento de feedback	Tela de consentimento de envio de dados.
+com.android.printspooler	Impressão	Serviço de impressão. Inútil numa TV.
+com.tcl.ttvs	TCL TTVS	Telemetria da TCL e Samba TV (reconhece o que você assiste, até no HDMI).
+com.tcl.logkit	TCL LogKit	Captura e envia logs.
+com.tcl.bi	TCL BI	Estatísticas de uso.
+com.tcl.waterfall.overseas	TCL Channel	Motor de anúncios e recomendações da TCL. Maior consumo entre os inúteis.
+com.tcl.tv.tclhome_passive	TCL Home Passive	Injeta conteúdo TCL na home a cada boot.
+com.tcl.partnercustomizer	TCL Partner Customizer	Altera as linhas da home do Google TV.
+com.tcl.messagebox	TCL Mensagens	Push de promoções.
+com.tcl.channelplus	TCL Channel Plus	Canais gratuitos com anúncios (FAST).
+com.tcl.tv.plus	TCL TV+	Conteúdo TCL.
+com.tcl.interactive	TCL Interactive	Serviço de fundo TIAS.
+com.tcl.usercenter	Conta TCL	Login na conta TCL e avisos.
+com.tcl.smartlink.core	TCL SmartLink	Traz um instalador silencioso de apps.
+com.tcl.exhibit	Modo loja	Demonstração de loja.
+com.tcl.esticker	Etiqueta de loja	Adesivo de energia da loja.
+com.tcl.hotelmenu	Modo hotel	Menu de hotel.
+com.tcl.repairguide	Guia de reparo	Autodiagnóstico.
+com.tcl.ocean.instructions	Manual eletrônico	Manual na tela.
+com.tcl.smartalexa	Alexa	Alexa embutida.
+com.tcl.guard	TCL Guard	"Limpador" de memória da TCL. Gera os avisos de memória.
+com.tcl.magiconnectfree	T-Cast	Espelhamento do celular pelo app da TCL.
+com.tcl.miracast	Miracast	Espelhamento de tela de Android e Windows.
+com.tcl.airplay2	AirPlay	Espelhamento de iPhone e Mac.
+com.tcl.gamebar	Game Bar	Overlay de modo jogo para consoles.
+com.tcl.ui_mediaCenter	Media Center	Player de pendrive e DLNA.
+com.tcl.gallery	Galeria TCL	Fotos de pendrive e screensavers TCL.
+com.tcl.hearaid	Teste auditivo	Ajuste auditivo e caixas TCL.
+com.tcl.t_solo	Ouvir sozinho	Áudio só no fone Bluetooth.
+com.tcl.UpdatePeripheral	Atualizador de soundbar	Firmware de soundbar TCL.
+com.tcl.useragreement	Termos de uso	Tela de termos do setup.
+com.tcl.android.webview	WebView TCL	Navegador embutido usado por apps da TCL.
+com.mirakulo.astrotv.service	AstroTV (Ginga)	Interatividade da TV aberta brasileira.
+tv.mopa.ginga	Ginga	Interatividade da TV aberta brasileira.
+com.droidlogic	Amlogic	Framework do chipset da TV.
+com.netflix.ninja	Netflix	Netflix.
+com.netflix.tokenmanager	Netflix (token)	Parte do Netflix.
+com.amazon.amazonvideo.livingroom	Prime Video	Prime Video.
+com.disney.disneyplus	Disney+	Disney+.
+com.wbd.stream	HBO Max	HBO Max.
+com.apple.atve.androidtv.appletv	Apple TV+	Apple TV+.
+com.globo.globotv	Globoplay	Globoplay.
+com.spotify.tv.android	Spotify	Spotify.
+br.com.claro.now.smarttvclient	Claro TV+	Claro TV+.
+com.mercadolibre.android.mplay_tv	Mercado Play	Mercado Play (vídeos do Mercado Livre).
+tv.pluto.android	Pluto TV	Canais gratuitos com anúncios.
+tv.twitch.android.app	Twitch	Twitch.
+com.cbs.ca	CBS (Canadá)	App canadense, instalado sozinho.
+com.mobilus.recordplay.tv	Record Play	Record Play.
+com.FDGEntertainment.redball4.gp	Red Ball 4	Jogo instalado sozinho.
+com.rma.speedtesttv	Speedtest	Teste de velocidade.
+com.plexapp.android	Plex	Plex.
+com.spocky.projengmenu	Projectivy Launcher	Launcher alternativo.

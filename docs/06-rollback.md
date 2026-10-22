@@ -28,6 +28,13 @@ scripts/90-rollback.sh --dry-run
 scripts/90-rollback.sh --reboot
 ```
 
+## O "ctrl+z" rápido: reports/*-undo.sh
+
+Cada execução do `30-debloat.sh` grava, além do log, um `reports/<data>-undo.sh`
+com um comando por pacote (`pm enable` ou `install-existing`) e o nome amigável
+no comentário. `bash reports/<data>-undo.sh` desfaz só aquela sessão. O TV
+Detox tem o próprio `scripts/55-tv-detox.sh undo`.
+
 ## O que ele cobre e o que não cobre
 
 | Situação | Cobre? |

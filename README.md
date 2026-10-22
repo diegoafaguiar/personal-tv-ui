@@ -27,7 +27,27 @@ backup antes de qualquer mudança e rollback de um comando.
 - TV com **Opções do desenvolvedor** e **Depuração por rede/USB** ligadas. Veja [docs/02-conexao-adb.md](docs/02-conexao-adb.md).
 - Opcional para `make lint`: `shellcheck`.
 
-## Trilha (siga na ordem; cada passo ensina o próximo)
+## Modo guiado (pergunta antes de cada mudança)
+
+Fluxo que segue estas regras: só desligar (nunca apagar), perguntar antes de
+cada mudança, manter a tela inicial do Google TV, lista de desfazer, reiniciar
+uma vez no fim e mostrar a memória antes e depois.
+
+```bash
+scripts/00-connect.sh                      # 1. conecta
+scripts/10-backup.sh                       # 2. estado original + memória livre
+scripts/20-inventory.sh                    # 3. lista em português: pode desligar / a TV precisa / apps que você usa
+                                           #    com RAM em uso e espaço de cada app (abra reports/*-inventory.md)
+scripts/25-review.sh                       # 4. você marca um a um: [d]esligar [m]anter [p]ular → gera um plano
+scripts/30-debloat.sh --ask-each plano-…   # 5. aplica o plano perguntando antes de cada pacote; grava reports/*-undo.sh
+scripts/55-tv-detox.sh install "com.google.android.youtube.tv,com.netflix.ninja,…"   # 6. tela inicial TV Detox
+scripts/40-tune.sh --guided                # 7. animações off, suspender em 5 min, pergunta se é OLED (screensaver)
+scripts/95-finish.sh                       # 8. espera 30 s, reinicia, confirma o boot, memória antes/depois
+```
+
+Desfazer: `bash reports/<data>-undo.sh` (só o que o passo 5 fez) ou `scripts/90-rollback.sh` (tudo, até o backup).
+
+## Trilha completa (siga na ordem; cada passo ensina o próximo)
 
 ```bash
 cp config/tv.env.example config/tv.env     # 0. coloque o IP da TV
@@ -94,7 +114,7 @@ docs/                    guias em português
 - **Desabilitar, não desinstalar.** `pm disable-user --user 0` mantém o APK; `pm enable` reverte. (`--uninstall` existe, também reversível com `install-existing`.)
 - **Lotes com verificação.** Após cada lote o script confere que a TV responde e que o dono do HOME não mudou.
 - **Never-disable é lei.** Globs em `never-disable.list` são recusados mesmo que outro perfil peça.
-- **Launcher com guarda.** Só troca o HOME se o novo launcher já é candidato e o Wi-Fi não pertence ao setup wizard; reverte sozinho se o HOME cair em outro lugar.
+- **Tela inicial de fábrica fica.** `launcherx`, `tvlauncher` e o assistente de configuração estão em `never-disable`. Launchers alternativos (TV Detox, Projectivy) convivem com ela; `50-launcher.sh set-default` só age com `ALLOW_STOCK_LAUNCHER_DISABLE=1`, e mesmo assim com guarda e reversão automática.
 - **ADB por rede é aberto.** Qualquer dispositivo na LAN pode usar a porta 5555. Desligue a depuração ao terminar.
 
 ## Desenvolvimento

@@ -1,45 +1,42 @@
 #!/usr/bin/env bash
-# 20-inventory.sh — lista todos os pacotes da TV e classifica cada um.
+# 20-inventory.sh — lista todos os apps da TV em português, em três grupos, com
+# memória em uso e espaço de cada um, e a memória livre da TV.
 #
 # Uso:
-#   scripts/20-inventory.sh [--details]
+#   scripts/20-inventory.sh            # completo (mede RAM e espaço por app; ~2 min)
+#   scripts/20-inventory.sh --fast     # sem medir RAM/espaço (~10 s)
 #
-# Gera reports/<data>_<modelo>-inventory.md (tabela legível) e .csv.
-# Classificação:
-#   KEEP      bate com config/profiles/never-disable.list (nunca mexa)
-#   SAFE      está num perfil "risk: safe" (telemetria, anúncios, modo loja)
-#   OPTIONAL  está num perfil "risk: optional" (depende do seu uso)
-#   LAUNCHER  launcher de fábrica / assistente (só via 50-launcher.sh)
-#   USER      app de terceiros que você instalou (pm list packages -3)
-#   UNKNOWN   não está em nenhuma lista: pesquise antes de mexer
+# Gera reports/<data>_<modelo>-inventory.md e .csv.
 #
-# --details acrescenta versionName (lento: um dumpsys por pacote).
+# Grupos:
+#   PODE DESLIGAR      telemetria, anúncios, modo loja e extras que você não usa
+#   A TV PRECISA       nunca desligar (config/profiles/never-disable.list)
+#   APPS QUE VOCÊ USA  apps de terceiros (instalados por você ou pré-carregados)
+#   NÃO SEI            fora das listas: fica ligado (regra: na dúvida, deixa)
 #
-# O que você aprende aqui: a diferença entre "instalado", "desabilitado" e
-# "desinstalado para o usuário 0" (o APK continua em /system e volta com
-# pm install-existing).
+# Colunas de impacto:
+#   RAM agora  = PSS do processo neste instante (0 se não está rodando)
+#   APK        = espaço do pacote. Só apps fora de /system liberam espaço ao
+#                desligar; apps de /system continuam ocupando a partição.
 
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
 
-# Monta um índice "pacote<TAB>perfil<TAB>risco<TAB>comentário" com todas as listas
-# (menos never-disable, que usa globs e é tratada à parte).
 build_index() {
   local file name risk
   for file in "$PROFILES_DIR"/*.list; do
     name="$(basename "$file" .list)"
     [[ "$name" == "never-disable" ]] && continue
     risk="$(list_risk "$file")"
-    # Linhas "pkg   # comentário" → campos separados por TAB
     sed -nE 's/^[[:space:]]*([A-Za-z0-9_.]+)[[:space:]]*(#[[:space:]]*(.*))?$/\1\t'"$name"'\t'"$risk"'\t\3/p' "$file"
   done
 }
 
 main() {
-  local details=0
+  local fast=0
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --details) details=1; shift ;;
-      -h|--help) sed -n '2,20p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+      --fast) fast=1; shift ;;
+      -h|--help) sed -n '2,22p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
       *) die "Argumento desconhecido: $1" ;;
     esac
   done
@@ -53,6 +50,11 @@ main() {
   out_md="$REPORTS_DIR/${ts}_${slug}-inventory.md"
   out_csv="$REPORTS_DIR/${ts}_${slug}-inventory.csv"
 
+  log_step "Memória da TV"
+  local mem_avail mem_total
+  mem_avail="$(mem_available_mb)"; mem_total="$(mem_total_mb)"
+  log_info "Livre (MemAvailable): ${mem_avail} MB de ${mem_total} MB"
+
   log_step "Coletando listas da TV"
   tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
   pm_list -u  > "$tmp/known"
@@ -61,82 +63,91 @@ main() {
   pm_list -3  > "$tmp/third"
   build_index > "$tmp/index"
 
-  log_step "Classificando $(wc -l < "$tmp/known") pacotes"
-  printf 'package,state,class,profile,note\n' > "$out_csv"
+  local n; n="$(wc -l < "$tmp/known" | tr -d ' ')"
+  log_step "Classificando $n pacotes$( [[ "$fast" == "0" ]] && echo ' e medindo RAM/espaço (~2 min)')"
+  printf 'package,name,state,group,profile,ram_mb,apk_mb,system,note\n' > "$out_csv"
 
-  local pkg state class profile note hit version
+  local pkg state group profile note hit name ram apk sys i=0
   while IFS= read -r pkg; do
+    i=$((i+1)); (( i % 25 == 0 )) && log_dim "  $i/$n"
     if grep -qx "$pkg" "$tmp/installed"; then
-      if grep -qx "$pkg" "$tmp/disabled"; then state=disabled; else state=enabled; fi
+      if grep -qx "$pkg" "$tmp/disabled"; then state=desligado; else state=ligado; fi
     else
-      state=uninstalled
+      state=desinstalado
     fi
-    profile=""; note=""
+    name="$(app_friendly_name "$pkg")"; note="$(app_description "$pkg")"
+    profile=""
     if is_protected "$pkg"; then
-      class=KEEP; profile=never-disable
+      group=PRECISA; profile=never-disable
     elif grep -qx "$pkg" "$tmp/third"; then
-      class=USER
+      group=USA
     else
       hit="$(awk -F'\t' -v p="$pkg" '$1==p {print; exit}' "$tmp/index")"
       if [[ -n "$hit" ]]; then
         profile="$(cut -f2 <<<"$hit")"
-        note="$(cut -f4 <<<"$hit")"
+        [[ -z "$note" ]] && note="$(cut -f4 <<<"$hit")"
         case "$(cut -f3 <<<"$hit")" in
-          safe) class=SAFE ;;
-          optional) class=OPTIONAL ;;
-          launcher) class=LAUNCHER ;;
-          *) class=UNKNOWN ;;
+          safe|optional) group=PODE ;;
+          *) group=PRECISA ;;
         esac
       else
-        class=UNKNOWN
+        group=NAOSEI
       fi
     fi
-    if [[ "$details" == "1" && "$state" != "uninstalled" ]]; then
-      version="$(tv_shell dumpsys package "$pkg" 2>/dev/null | tr -d '\r' | sed -nE 's/^[[:space:]]*versionName=(.*)$/\1/p' | head -n1 || true)"
-      note="${note:+$note }${version:+(v$version)}"
+    ram=0; apk=0; sys=sim
+    if [[ "$fast" == "0" && "$state" != "desinstalado" ]]; then
+      ram="$(pkg_pss_mb "$pkg")"; apk="$(pkg_apk_mb "$pkg")"
+      pkg_is_system "$pkg" || sys=nao
     fi
-    printf '%s,%s,%s,%s,"%s"\n' "$pkg" "$state" "$class" "$profile" "${note//\"/\'}" >> "$out_csv"
+    printf '%s,"%s",%s,%s,%s,%s,%s,%s,"%s"\n' "$pkg" "${name//\"/\'}" "$state" "$group" "$profile" "$ram" "$apk" "$sys" "${note//\"/\'}" >> "$out_csv"
   done < "$tmp/known"
 
   # ---- Markdown ----
+  local total_ram_pode
+  total_ram_pode="$(awk -F, 'NR>1 && $4=="PODE" && $3=="ligado" {s+=$6} END {print s+0}' "$out_csv")"
   {
-    echo "# Inventário de pacotes — $slug"
+    echo "# Apps da TV — $slug"
     echo
     echo "Gerado em $(date -Iseconds) por \`scripts/20-inventory.sh\`."
     echo
-    echo "| Classe | Qtde | Significado |"
+    echo "**Memória livre agora: ${mem_avail} MB de ${mem_total} MB.** Os apps em \"Pode desligar\" que estão rodando ocupam ${total_ram_pode} MB neste instante."
+    echo
+    echo "| Grupo | Qtde | O que significa |"
     echo "|---|---:|---|"
-    for class in SAFE OPTIONAL LAUNCHER USER KEEP UNKNOWN; do
-      local n; n="$(awk -F, -v c="$class" 'NR>1 && $3==c' "$out_csv" | wc -l)"
-      case "$class" in
-        SAFE) note="Pode desabilitar sem perder função (telemetria, anúncios, modo loja)" ;;
-        OPTIONAL) note="Depende do seu uso; leia a nota de cada um" ;;
-        LAUNCHER) note="Launcher de fábrica; só via scripts/50-launcher.sh" ;;
-        USER) note="Instalado por você; desinstale pela TV se quiser" ;;
-        KEEP) note="Essencial; nunca mexa" ;;
-        UNKNOWN) note="Fora das listas; pesquise antes (docs/03-pacotes-e-riscos.md)" ;;
+    for group in PODE PRECISA USA NAOSEI; do
+      n="$(awk -F, -v g="$group" 'NR>1 && $4==g' "$out_csv" | wc -l | tr -d ' ')"
+      case "$group" in
+        PODE) note="Pode desligar sem perder nada que a TV precisa. Você escolhe um a um em scripts/25-review.sh" ;;
+        PRECISA) note="A TV precisa. Nunca desligue" ;;
+        USA) note="Apps que você usa (ou que vieram pré-instalados). Você decide" ;;
+        NAOSEI) note="Fora das listas. Regra: na dúvida, fica ligado" ;;
       esac
-      echo "| $class | $n | $note |"
+      echo "| $group | $n | $note |"
     done
     echo
-    for class in SAFE OPTIONAL LAUNCHER USER UNKNOWN KEEP; do
-      echo "## $class"
+    for group in PODE USA NAOSEI PRECISA; do
+      case "$group" in
+        PODE) echo "## Pode desligar" ;;
+        USA) echo "## Apps que você usa" ;;
+        NAOSEI) echo "## Não sei (fica ligado)" ;;
+        PRECISA) echo "## A TV precisa (nunca desligar)" ;;
+      esac
       echo
-      echo "| Pacote | Estado | Perfil | Nota |"
-      echo "|---|---|---|---|"
-      awk -F, -v c="$class" 'NR>1 && $3==c {
-        note=$5; gsub(/^"|"$/, "", note);
-        printf "| `%s` | %s | %s | %s |\n", $1, $2, $4, note
-      }' "$out_csv"
+      echo "| App | Pacote | Estado | RAM agora | APK | Em /system? | O que faz |"
+      echo "|---|---|---|---:|---:|---|---|"
+      awk -F, -v g="$group" 'NR>1 && $4==g {
+        name=$2; gsub(/^"|"$/, "", name); if (name=="") name="—";
+        note=$9; gsub(/^"|"$/, "", note);
+        printf "| %s | `%s` | %s | %s MB | %s MB | %s | %s |\n", name, $1, $3, $6, $7, $8, note
+      }' "$out_csv" | sort -t'|' -k5,5nr
       echo
     done
   } > "$out_md"
 
   log_ok "Relatório: $out_md"
   log_ok "CSV      : $out_csv"
-  log_info "Resumo:"
-  awk -F, 'NR>1 {c[$3]++} END {for (k in c) printf "      %-9s %d\n", k, c[k]}' "$out_csv" >&2
-  log_info "Próximo passo: leia o relatório, ajuste config/profiles/*.list e rode scripts/30-debloat.sh --dry-run"
+  awk -F, 'NR>1 {c[$4]++} END {for (k in c) printf "      %-8s %d\n", k, c[k]}' "$out_csv" >&2
+  log_info "Próximo passo: scripts/25-review.sh (escolher um a um o que desligar)"
 }
 
 main "$@"

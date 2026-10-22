@@ -8,6 +8,7 @@
 #   scripts/30-debloat.sh --uninstall tcl-promo-ads     # "pm uninstall -k --user 0" em vez de disable
 #   scripts/30-debloat.sh --uninstall minha-tv-apps      # apps de terceiros: remove de vez (volta pela Play Store)
 #   scripts/30-debloat.sh --reboot ...                  # reinicia ao final (necessário para liberar RAM)
+#   scripts/30-debloat.sh --ask-each plano-2026...       # pergunta ANTES de cada pacote (modo guiado)
 #
 # Perfis são arquivos em config/profiles/*.list (nome sem .list) ou caminhos.
 #
@@ -28,7 +29,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
 usage() { sed -n '2,23p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
 
 main() {
-  local batch=8 mode=disable do_reboot=0 profiles=()
+  local batch=8 mode=disable do_reboot=0 ask_each=0 profiles=()
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --dry-run) export DRY_RUN=1; shift ;;
@@ -36,6 +37,7 @@ main() {
       --batch) batch="$2"; shift 2 ;;
       --uninstall) mode=uninstall; shift ;;
       --reboot) do_reboot=1; shift ;;
+      --ask-each) ask_each=1; shift ;;
       -h|--help) usage ;;
       -*) die "Flag desconhecida: $1" ;;
       *) profiles+=("$1"); shift ;;
@@ -104,7 +106,14 @@ main() {
     log_ok "Dry-run concluído. Remova --dry-run para aplicar."
     exit 0
   fi
-  confirm "Aplicar na TV ($TV_SERIAL)?" || die "Cancelado."
+  if [[ "$ask_each" == "1" ]]; then
+    [[ -t 0 ]] || die "--ask-each precisa de um terminal."
+    log_info "Modo guiado: vou perguntar antes de cada pacote."
+  else
+    confirm "Aplicar na TV ($TV_SERIAL)?" || die "Cancelado."
+  fi
+  local mem_before; mem_before="$(mem_available_mb)"
+  log_info "Memória livre antes: ${mem_before} MB"
 
   # ---- Aplica em lotes ----
   local home_before applied=() failed=() i=0 n=${#todo[@]}
@@ -117,10 +126,29 @@ main() {
     echo "# $(date -Iseconds) mode=$mode backup=$backup_dir"
     echo "# profiles: ${profiles[*]}"
   } >> "$log_file"
+  # Arquivo de desfazer: um comando por linha, executável. O rollback completo
+  # (scripts/90-rollback.sh) continua existindo; este é o "ctrl+z" rápido.
+  local undo_file="${log_file%-debloat.log}-undo.sh"
+  if [[ ! -f "$undo_file" ]]; then
+    {
+      echo "#!/usr/bin/env bash"
+      echo "# Desfaz o que scripts/30-debloat.sh alterou em $(date -Iseconds). Rode: bash $undo_file"
+      echo "set -u; TV=\"\${TV_SERIAL:-$TV_SERIAL}\""
+    } > "$undo_file"
+    chmod +x "$undo_file"
+  fi
 
   for pkg in "${todo[@]}"; do
     i=$((i + 1))
-    log_step "[$i/$n] $pkg"
+    log_step "[$i/$n] $(app_friendly_name "$pkg") $pkg"
+    if [[ "$ask_each" == "1" ]]; then
+      local desc; desc="$(app_description "$pkg")"
+      [[ -n "$desc" ]] && log_info "$desc"
+      log_info "RAM agora: $(pkg_pss_mb "$pkg") MB   APK: $(pkg_apk_mb "$pkg") MB"
+      if ! confirm "${mode^}r este?"; then
+        skipped+=("$pkg"); log_dim "pulado"; continue
+      fi
+    fi
     # Um pacote por chamada: "pm" ignora argumentos extras em silêncio.
     if [[ "$mode" == "uninstall" ]]; then
       tv_run pm uninstall -k --user 0 "$pkg" || true
@@ -129,6 +157,7 @@ main() {
       # somem de vez ("absent") e só voltam pela Play Store.
       if [[ "$state" == "uninstalled" || "$state" == "absent" ]]; then
         applied+=("$pkg"); echo "uninstall $pkg" >> "$log_file"; log_ok "desinstalado ($state)"
+        echo "adb -s \"\$TV\" shell cmd package install-existing --user 0 $pkg   # $(app_friendly_name "$pkg")" >> "$undo_file"
       else
         failed+=("$pkg"); log_warn "estado após o comando: $state (não mudou)"
       fi
@@ -137,6 +166,7 @@ main() {
       state="$(pkg_state "$pkg")"
       if [[ "$state" == "disabled" ]]; then
         applied+=("$pkg"); echo "disable $pkg" >> "$log_file"; log_ok "desabilitado"
+        echo "adb -s \"\$TV\" shell pm enable --user 0 $pkg   # $(app_friendly_name "$pkg")" >> "$undo_file"
       else
         failed+=("$pkg"); log_warn "estado após o comando: $state (não mudou)"
       fi
@@ -156,6 +186,8 @@ main() {
 
   echo >&2
   log_ok "Aplicados: ${#applied[@]}   Falharam: ${#failed[@]}   Log: $log_file"
+  log_ok "Para desfazer: bash $undo_file   (ou scripts/90-rollback.sh para voltar ao backup)"
+  log_info "Memória livre antes: ${mem_before} MB   agora: $(mem_available_mb) MB   (o ganho real aparece após reiniciar)"
   [[ ${#failed[@]} -gt 0 ]] && for pkg in "${failed[@]}"; do log_warn "  $pkg"; done
   log_info "Pacotes desabilitados continuam em memória até reiniciar."
   if [[ "$do_reboot" == "1" ]]; then

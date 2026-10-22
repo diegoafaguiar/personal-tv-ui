@@ -117,6 +117,11 @@ com.android.tv.overlay.*
 com.android.vpndialogs
 com.android.wallpaperbackup
 
+# --- Home de fábrica e setup (regra do dono: nunca desligar) ---
+com.google.android.apps.tv.launcherx       # tela inicial do Google TV
+com.google.android.tvlauncher              # tela inicial do Android TV
+com.google.android.tungsten.setupwraith    # assistente de configuração
+
 # --- Seu launcher substituto ---
 com.spocky.projengmenu     # Projectivy Launcher
 me.efesser.flauncher       # FLauncher

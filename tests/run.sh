@@ -87,12 +87,15 @@ check "registra dono do HOME" '[[ "$(cat "$BACKUPS_DIR/$bk/home-owner.txt")" == 
 echo "== 20-inventory"
 "$ROOT/scripts/20-inventory.sh" >/dev/null 2>&1
 csv="$(ls "$REPORTS_DIR"/*-inventory.csv)"
-check "com.tcl.tv é KEEP" 'grep -q "^com.tcl.tv,enabled,KEEP" "$csv"'
-check "com.tcl.ttvs é SAFE" 'grep -q "^com.tcl.ttvs,enabled,SAFE,tcl-telemetry" "$csv"'
-check "com.tcl.smartalexa é OPTIONAL" 'grep -q "^com.tcl.smartalexa,enabled,OPTIONAL" "$csv"'
-check "launcherx é LAUNCHER" 'grep -q "^com.google.android.apps.tv.launcherx,enabled,LAUNCHER" "$csv"'
-check "app do usuário é USER" 'grep -q "^org.example.userapp,enabled,USER" "$csv"'
-check "esticker aparece como uninstalled" 'grep -q "^com.tcl.esticker,uninstalled" "$csv"'
+check "com.tcl.tv é PRECISA" 'grep -q "^com.tcl.tv,\"TV ao vivo / HDMI\",ligado,PRECISA" "$csv"'
+check "com.tcl.ttvs é PODE com RAM/APK medidos" 'grep -q "^com.tcl.ttvs,\"TCL TTVS\",ligado,PODE,tcl-telemetry,20,12,sim" "$csv"'
+check "com.tcl.smartalexa é PODE" 'grep -q "^com.tcl.smartalexa,\"Alexa\",ligado,PODE" "$csv"'
+check "launcherx é PRECISA (regra: nunca desligar)" 'grep -q "^com.google.android.apps.tv.launcherx,.*,ligado,PRECISA" "$csv"'
+check "app do usuário é USA e fora de /system" 'grep -q "^org.example.userapp,\"\",ligado,USA,,20,12,nao" "$csv"'
+check "esticker aparece como desinstalado" 'grep -q "^com.tcl.esticker,.*,desinstalado" "$csv"'
+check "markdown tem memória livre" 'grep -q "Memória livre agora: 585 MB de 1855 MB" "$REPORTS_DIR"/*-inventory.md'
+out="$("$ROOT/scripts/25-review.sh" 2>&1 || true)"
+check "25-review recusa sem terminal" '[[ "$out" == *"interativo"* ]]'
 
 echo "== 30-debloat dry-run e proteções"
 printf 'com.tcl.tv\ncom.tcl.ttvs\ncom.mediatek.foo\n' > "$WORK/custom.list"
@@ -113,6 +116,11 @@ check "desabilita com.tcl.usercenter (última linha de outra lista)" 'has disabl
 check "não toca com.tcl.tv" '! has disabled com.tcl.tv'
 check "um pacote por chamada" 'grep -q "shell pm disable-user --user 0 com.tcl.ttvs$" "$FAKE_ADB_STATE/calls.log"'
 check "gera log de auditoria" 'grep -q "^disable com.tcl.ttvs" "$REPORTS_DIR"/*-debloat.log'
+check "gera arquivo de desfazer executável" 'grep -q "pm enable --user 0 com.tcl.ttvs" "$REPORTS_DIR"/*-undo.sh && [[ -x "$(ls "$REPORTS_DIR"/*-undo.sh | head -n1)" ]]'
+out="$("$ROOT/scripts/30-debloat.sh" --dry-run launcher-stock 2>&1 || true)"
+check "launcherx recusado mesmo via perfil" '[[ "$out" == *"50-launcher.sh"* ]]'
+out="$(ALLOW_STOCK_LAUNCHER_DISABLE=0 "$ROOT/scripts/50-launcher.sh" set-default 2>&1 || true)"
+check "50-launcher set-default recusa por regra" '[[ "$out" == *"Regra ativa"* ]]'
 
 echo "== 30-debloat --uninstall app de terceiros"
 printf '# risk: optional\norg.example.userapp\n' > "$WORK/apps.list"
@@ -128,12 +136,14 @@ check "detecta pacotes que voltaram" '[[ "$out" == *"com.tcl.ttvs VOLTOU"* ]]'
 "$ROOT/scripts/30-debloat.sh" tcl-telemetry tcl-promo-ads tcl-retail-demo >/dev/null 2>&1   # reaplica para o resto dos testes
 
 echo "== 40-tune"
-"$ROOT/scripts/40-tune.sh" --animations 0.5 --screensaver basic --private-dns dns.adguard.com >/dev/null 2>&1
+"$ROOT/scripts/40-tune.sh" --animations 0.5 --screensaver basic --private-dns dns.adguard.com --sleep-after 5 >/dev/null 2>&1
 check "animações 0.5" 'grep -q "^global:animator_duration_scale=0.5" "$FAKE_ADB_STATE/settings"'
+check "suspender após 5 min" 'grep -q "^system:screen_off_timeout=300000" "$FAKE_ADB_STATE/settings"'
 check "screensaver básico" 'grep -q "^secure:screensaver_components=com.android.dreams.basic/.Colors" "$FAKE_ADB_STATE/settings"'
 check "private dns" 'grep -q "^global:private_dns_specifier=dns.adguard.com" "$FAKE_ADB_STATE/settings"'
 
-echo "== 50-launcher guardas"
+echo "== 50-launcher guardas (com ALLOW_STOCK_LAUNCHER_DISABLE=1, só para testar as guardas)"
+export ALLOW_STOCK_LAUNCHER_DISABLE=1
 echo com.google.android.tungsten.setupwraith > "$FAKE_ADB_STATE/wifi-owner"
 out="$("$ROOT/scripts/50-launcher.sh" set-default 2>&1 || true)"
 check "bloqueia quando o Wi-Fi pertence ao setupwraith" '[[ "$out" == *"pertence ao com.google.android.tungsten.setupwraith"* ]]'
@@ -179,6 +189,10 @@ check "restaura screensaver" 'grep -q "^secure:screensaver_components=com.google
 check "remove private dns (chave era null)" '! grep -q "private_dns_specifier" "$FAKE_ADB_STATE/settings"'
 out="$("$ROOT/scripts/90-rollback.sh" --dry-run 2>&1)"
 check "segundo rollback: nada a fazer" '[[ "$out" == *"já está no estado do backup"* ]]'
+
+echo "== 95-finish --no-reboot"
+out="$("$ROOT/scripts/95-finish.sh" --no-reboot 2>&1 || true)"
+check "mostra memória antes/depois e HOME" '[[ "$out" == *"Memória livre:"* && "$out" == *"HOME abre:"* ]]'
 
 echo "== 60-benchmark"
 "$ROOT/scripts/60-benchmark.sh" >/dev/null 2>&1

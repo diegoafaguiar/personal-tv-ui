@@ -1,5 +1,16 @@
 # 4. Launcher e design de UI para TV
 
+## Regra em vigor: a tela inicial de fábrica não é desligada
+
+Por decisão do dono, `com.google.android.apps.tv.launcherx` (e o `setupwraith`)
+ficam ligados. O launcher alternativo convive com ela: o botão Home continua
+abrindo o Google TV, e o novo launcher é aberto pela lista de apps, por um
+botão remapeado, ou pelo "Override current launcher" do Projectivy (que
+intercepta o Home sem desligar nada). O TV Detox tenta registrar-se via
+`cmd role add-role-holder`, que em alguns Google TV funciona sem desligar o
+launcherx; em outros, não. A seção "Setting as default" abaixo fica como
+referência e exige `ALLOW_STOCK_LAUNCHER_DISABLE=1`.
+
 ## O que a comunidade está fazendo (exemplos clean)
 
 | Abordagem | O que é | Quando escolher |
@@ -8,6 +19,7 @@
 | **FLauncher** (`me.efesser.flauncher`) | open source (Flutter), minimalista, grade de apps e wallpaper. Relatos: "mais parecido com o que eu quero" e "tosco nas bordas" | você quer o mínimo absoluto e aceita arestas |
 | **Wolf Launcher** (`com.wolf.launcher`) | simples, lembra o Android TV clássico | nostalgia do layout em linhas |
 | **Clean Your TV launcher** (`com.gathin.tvhome`) | launcher nativo em Java puro (~445 KB, sem permissão de rede, sem serviços em background) com **estilo Apple TV**: fundo preto, dock de 4 favoritos numa faixa arredondada, "shelf" no topo com o nome do app focado e brilho ambiente na cor da capa, grade de apps que sobe no D-pad, destaque de vidro flutuante, botões de Inputs/rede/Settings, relógio em Outfit. Config via `config.xml` e temas via `config.json` | você quer **codar o seu** e tem JDK 17 + Gradle. É o melhor ponto de partida para uma fase 2 deste repositório |
+| **TV Detox** (`com.ansub.tvhome`, Ansub/tv-detox) | home de uma tela só, Java puro, ~30 MB de RAM: seus apps, entradas HDMI, relógio, rede, atalhos de configurações. `install.sh <ip> "apps"` instala e registra como Home; num Google TV **não** desliga o launcherx (só com `GOOGLE_TV=1`). Tem `undo.sh`. MIT | **padrão do modo guiado** deste kit (`55-tv-detox.sh`) |
 | TV Box Tools | app open source que grava a mesma chave que *Configurações › Apps padrão › Home* por ADB e restaura o stock com um toque | só para quem não quer linha de comando |
 
 Nota de quem testou: em Google TV o Projectivy e o FLauncher precisam de ADB
