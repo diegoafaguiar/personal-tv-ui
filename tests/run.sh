@@ -226,6 +226,9 @@ check "keys 4 não reabre a TV se ela já está na tela" '! grep -q "input keyev
 
 echo "== 55-tv-detox open/status (sem clonar: VENDOR_DIR falso)"
 mkdir -p "$WORK/vendor/.git"; : > "$WORK/vendor/install.sh"
+out="$(VENDOR_OVERRIDE="$WORK/vendor" "$ROOT/scripts/55-tv-detox.sh" open 2>&1)"
+check "open inicia com.ansub.tvhome/.MainActivity quando instalado" 'grep -q "am start -n com.ansub.tvhome/.MainActivity" "$FAKE_ADB_STATE/calls.log"'
+grep -vx com.ansub.tvhome "$FAKE_ADB_STATE/installed" > "$FAKE_ADB_STATE/i.tmp"; mv "$FAKE_ADB_STATE/i.tmp" "$FAKE_ADB_STATE/installed"
 out="$(VENDOR_OVERRIDE="$WORK/vendor" "$ROOT/scripts/55-tv-detox.sh" open 2>&1 || true)"
 check "open avisa quando o TV Detox não está instalado" '[[ "$out" == *"não está instalado"* ]]'
 
