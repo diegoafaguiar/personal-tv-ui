@@ -13,6 +13,7 @@
 #   scripts/50-launcher.sh set-default --dry-run      # --dry-run logo após o subcomando
 #
 # Launchers conhecidos:
+#   tech.futureme.tvhome     Minha TV (launcher/ deste repositório; APK vem da CI)
 #   com.ansub.tvhome         TV Detox (instalado por 55-tv-detox.sh)
 #   com.spocky.projengmenu   Projectivy (padrão; mais configurável, gratuito)
 #   me.efesser.flauncher     FLauncher (open source, minimalista)
@@ -74,6 +75,9 @@ cmd_grant() {
   for perm in android.permission.READ_TV_LISTINGS android.permission.READ_EXTERNAL_STORAGE; do
     tv_run pm grant "$pkg" "$perm" || log_dim "($perm não aplicável, ignorado)"
   done
+  if [[ "$pkg" == "tech.futureme.tvhome" ]]; then
+    log_info "A permissão READ_TV_LISTINGS é o que libera 'Continuar assistindo' e as seções."
+  fi
   if [[ "$pkg" == "com.spocky.projengmenu" ]]; then
     log_step "Ativando serviço de acessibilidade do Projectivy (atalhos do controle)"
     settings_put secure enabled_accessibility_services "com.spocky.projengmenu/com.spocky.projengmenu.services.ProjectivyAccessibilityService"
@@ -112,6 +116,10 @@ cmd_set_default() {
 
   tv_run pm disable-user --user 0 "$stock"
   tv_run pm disable-user --user 0 "$SETUPWRAITH"
+  # Entre launchers de terceiros de mesma prioridade, isto escolhe o preferido.
+  # (Não funciona contra o launcherx habilitado; por isso ele é desligado antes.)
+  local comp; comp="$(home_candidates | grep "^$pkg/" | head -n1)"
+  [[ -n "$comp" ]] && { tv_run cmd package set-home-activity "$comp" || true; }
   tv_run input keyevent KEYCODE_HOME
   sleep 2
   local now; now="$(home_owner)"

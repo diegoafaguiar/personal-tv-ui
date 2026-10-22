@@ -79,6 +79,7 @@ Leitura sugerida enquanto executa:
 6. [Rollback: como funciona e o que não cobre](docs/06-rollback.md)
 7. [Troubleshooting: tela preta, controle mudo, "Success" que não fez nada](docs/07-troubleshooting.md)
 8. [Referências](docs/08-referencias.md)
+9. [Launcher próprio "Minha TV" (fase 2): seções unificadas de todos os streamings](docs/09-launcher-proprio.md)
 
 ## O que pode ser desabilitado sem risco (resumo)
 
@@ -107,6 +108,7 @@ backups/                 gerados por 10-backup.sh (ignorados pelo git: contêm d
 reports/                 inventários, logs de debloat e benchmarks
 tests/                   adb falso + 46 asserções que cobrem o fluxo inteiro e as proteções
 docs/                    guias em português
+launcher/                app Android (Kotlin + Compose for TV): a home "Minha TV"; APK vem da CI
 ```
 
 ## Segurança e princípios

@@ -17,3 +17,13 @@ tests/.state/
 .DS_Store
 *.log
 vendor/
+
+# Launcher Android (Gradle)
+launcher/.gradle/
+launcher/build/
+launcher/app/build/
+launcher/local.properties
+launcher/.idea/
+launcher/*.iml
+launcher/app/*.iml
+launcher/.kotlin/
