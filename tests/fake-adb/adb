@@ -44,6 +44,7 @@ case "$cmd" in
       if has third "$p"; then del known "$p"; del third "$p"; fi; echo Success ;;
   "cmd package install-existing --user 0 "*) p="${cmd##* }"; has known "$p" && add installed "$p"; echo "Package $p installed for user: 0" ;;
   "am start -W "*) echo "TotalTime: 812"; echo "WaitTime: 820" ;;
+  "cmd notification allow_listener "*) : ;;
   "pm grant "*|"am force-stop "*|"am start "*|"input keyevent "*|"pm trim-caches "*|"cmd package bg-dexopt-job"|"reboot") : ;;
   "getprop") cat "$S/props" ;;
   "getprop sys.boot_completed") echo 1 ;;

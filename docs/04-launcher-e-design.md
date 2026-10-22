@@ -1,6 +1,12 @@
 # 4. Launcher e design de UI para TV
 
-## Regra em vigor: a tela inicial de fábrica não é desligada
+## Decisão na unidade de referência (G09): caminho 2
+
+Em 22/10/2026 o dono optou por manter o TV Detox e desligar o `launcherx` com
+as guardas do `50-launcher.sh` (`ALLOW_STOCK_LAUNCHER_DISABLE=1`). Motivo: num
+Google TV o botão Home só muda de dono assim. Reversão: `50-launcher.sh restore`.
+
+## Regra padrão: a tela inicial de fábrica não é desligada
 
 Por decisão do dono, `com.google.android.apps.tv.launcherx` (e o `setupwraith`)
 ficam ligados. O launcher alternativo convive com ela: o botão Home continua

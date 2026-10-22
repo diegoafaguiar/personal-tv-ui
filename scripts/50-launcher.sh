@@ -7,10 +7,13 @@
 #   scripts/50-launcher.sh install --apk caminho.apk  # sideload
 #   scripts/50-launcher.sh grant [pacote]             # permissões + serviço de acessibilidade (Projectivy)
 #   scripts/50-launcher.sh set-default [pacote]       # desabilita o launcher de fábrica com guarda
+#                                                     #   exige ALLOW_STOCK_LAUNCHER_DISABLE=1 (decisão explícita)
+#                                                     #   ex.: ALLOW_STOCK_LAUNCHER_DISABLE=1 scripts/50-launcher.sh set-default com.ansub.tvhome
 #   scripts/50-launcher.sh restore                    # volta o launcher de fábrica
 #   scripts/50-launcher.sh set-default --dry-run      # --dry-run logo após o subcomando
 #
 # Launchers conhecidos:
+#   com.ansub.tvhome         TV Detox (instalado por 55-tv-detox.sh)
 #   com.spocky.projengmenu   Projectivy (padrão; mais configurável, gratuito)
 #   me.efesser.flauncher     FLauncher (open source, minimalista)
 #   com.wolf.launcher        Wolf Launcher
@@ -113,8 +116,11 @@ cmd_set_default() {
   local now; now="$(home_owner)"
   if [[ "$now" == "$pkg/"* ]]; then
     log_ok "HOME agora abre $now"
-    log_info "Teste o controle (Home, Voltar, Input). Se algo estiver errado: scripts/50-launcher.sh restore"
-    log_info "Dica: botões YouTube/Netflix do controle podem parar de abrir apps; o Projectivy remapeia em Configurações > Controle remoto."
+    log_step "Aguardando ${PM_WRITE_WAIT:-15} s para o Android gravar o estado (não reinicie antes)"
+    sleep "${PM_WRITE_WAIT:-15}"
+    log_info "Teste o controle (Home, Voltar, Input, mic). Se algo estiver errado: scripts/50-launcher.sh restore"
+    log_info "Botões YouTube/Netflix do controle podem parar de abrir apps (eram tratados pelo launcherx)."
+    log_info "Depois: scripts/95-finish.sh para reiniciar com verificação."
   else
     log_err "HOME foi para '$now', não para $pkg. Revertendo."
     cmd_restore
@@ -127,9 +133,14 @@ cmd_restore() {
   log_step "Restaurando launcher de fábrica"
   [[ -n "$stock" ]] && tv_run pm enable --user 0 "$stock"
   tv_run pm enable --user 0 "$SETUPWRAITH"
+  # O launcherx usa um listener de notificações; o undo do TV Detox também reautoriza.
+  if [[ "$stock" == "com.google.android.apps.tv.launcherx" ]]; then
+    tv_run cmd notification allow_listener "$stock/.coreservices.notificationlistener.TvNotificationListenerService" || true
+  fi
   tv_run input keyevent KEYCODE_HOME
   sleep 1
   log_ok "HOME abre: $(home_owner)"
+  [[ "$DRY_RUN" == "1" ]] || sleep "${PM_WRITE_WAIT:-15}"
 }
 
 main() {

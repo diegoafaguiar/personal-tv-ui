@@ -161,6 +161,16 @@ check "HOME passa ao Projectivy" '[[ "$out" == *"HOME agora abre com.spocky.proj
 check "launcherx desabilitado" 'has disabled com.google.android.apps.tv.launcherx'
 check "setupwraith desabilitado" 'has disabled com.google.android.tungsten.setupwraith'
 
+echo "== 50-launcher set-default com o TV Detox"
+"$ROOT/scripts/50-launcher.sh" restore >/dev/null 2>&1
+printf 'com.ansub.tvhome\n' >> "$FAKE_ADB_STATE/installed"; printf 'com.ansub.tvhome\n' >> "$FAKE_ADB_STATE/known"; printf 'com.ansub.tvhome\n' >> "$FAKE_ADB_STATE/third"
+printf 'com.google.android.apps.tv.launcherx/.Home\ncom.google.android.tungsten.setupwraith/.RecoveryActivity\ncom.ansub.tvhome/.MainActivity\ncom.spocky.projengmenu/.Main\n' > "$FAKE_ADB_STATE/home"
+out="$("$ROOT/scripts/50-launcher.sh" set-default com.ansub.tvhome 2>&1)"
+check "HOME passa ao TV Detox" '[[ "$out" == *"HOME agora abre com.ansub.tvhome/.MainActivity"* ]]'
+check "TV Detox é protegido (never-disable)" 'printf "# risk: safe\ncom.ansub.tvhome\n" > "$WORK/x.list"; o="$("$ROOT/scripts/30-debloat.sh" --dry-run "$WORK/x.list" 2>&1)"; [[ "$o" == *"Recusados"* ]]'
+"$ROOT/scripts/50-launcher.sh" restore >/dev/null 2>&1
+printf 'com.google.android.apps.tv.launcherx/.Home\ncom.google.android.tungsten.setupwraith/.RecoveryActivity\ncom.spocky.projengmenu/.Main\n' > "$FAKE_ADB_STATE/home"
+
 echo "== 50-launcher reversão automática"
 reset_state2() { del_disabled() { grep -vx "$1" "$FAKE_ADB_STATE/disabled" > "$FAKE_ADB_STATE/d.tmp" || true; mv "$FAKE_ADB_STATE/d.tmp" "$FAKE_ADB_STATE/disabled"; }; del_disabled com.google.android.apps.tv.launcherx; del_disabled com.google.android.tungsten.setupwraith; }
 reset_state2

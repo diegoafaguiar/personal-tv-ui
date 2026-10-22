@@ -165,7 +165,8 @@ home_candidates() {
 # Dono da rede Wi-Fi salva (o pacote que criou a configuração). Importa porque
 # se for o setupwraith, desabilitá-lo derruba a rede.
 wifi_owner() {
-  tv_shell "dumpsys wifi" 2>/dev/null | tr -d '\r' | grep -o 'cname=[^ ]*' | head -n1 | sed 's/cname=//' || true
+  # Android 12-13 imprime "cname=<pkg>"; Android 14 também "creatorName=<pkg>".
+  tv_shell "dumpsys wifi" 2>/dev/null | tr -d '\r' | grep -oE '(cname|creatorName)=[^ ,]*' | head -n1 | sed -E 's/^(cname|creatorName)=//' || true
 }
 
 # --------------------------------------------------------------------------
