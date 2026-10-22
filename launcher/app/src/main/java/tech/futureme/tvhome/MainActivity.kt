@@ -34,7 +34,7 @@ class MainActivity : ComponentActivity() {
                     onOpenItem = ::openItem,
                     onOpenApp = { startSafely(it.launchIntent) },
                     onOpenInput = ::openInput,
-                    onOpenSettingsApp = { startSafely(Intent(android.provider.Settings.ACTION_SETTINGS)) },
+                    onQuick = { startSafely(it.intent()) },
                     onRequestPermission = { askPermission.launch(READ_TV_LISTINGS) },
                 )
             }

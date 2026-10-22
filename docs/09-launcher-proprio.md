@@ -19,6 +19,18 @@ o que os streamings publicam e organiza em seções.
 Cada card abre o conteúdo direto no app, pelo `intent_uri` que o próprio app
 publicou (é o mesmo deep link que a home do Google usa).
 
+## v0.2: hero, cotações, densidade, fundos e botões rápidos
+
+- **Hero**: saudação pela hora, relógio, data por extenso e, à direita, dólar
+  e euro do dia (cotação comercial e variação) pela AwesomeAPI, gratuita e sem
+  chave; atualiza a cada 30 min enquanto a home existe. Desligável nos ajustes.
+- **Densidade**: "compacta" (padrão, ~6 apps por linha em 1080p) ou "normal".
+- **Fundo**: preto, grafite, azul-noite, gradiente ou a sua imagem
+  (`scripts/58-launcher-wallpaper.sh foto.jpg`, escurecida 50% para leitura).
+- **Linha de atalhos**: HDMI 1/2/3 (nomes vindos da TV) e botões rápidos
+  Bluetooth, Rede, Som, Imagem, Configurações; cada um liga/desliga nos ajustes.
+- Cards semitransparentes para o fundo aparecer.
+
 ## Por que isso funciona sem scraping
 
 No Android TV os apps publicam "Watch Next" e "canais de prévia" num banco do

@@ -1,7 +1,6 @@
 package tech.futureme.tvhome.ui
 
 import android.util.Log
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -17,7 +16,7 @@ import tech.futureme.tvhome.data.HomeContent
 /**
  * Mostra o que cada app publica de fato nesta TV. É com isso que ajustamos
  * as regras do Classifier. "Enviar ao logcat" imprime tudo com a tag TvHome:
- *   adb logcat -s TvHome
+ *   adb logcat -d -s TvHome
  */
 @Composable
 fun DiagnosticsScreen(content: HomeContent, appLabel: (String) -> String) {
@@ -43,15 +42,15 @@ fun DiagnosticsScreen(content: HomeContent, appLabel: (String) -> String) {
             items.take(8).forEach { add("  [${s.name}] ${it.title} · ${appLabel(it.packageName)} · tipo ${it.type} · ${it.genres.joinToString("/")}") }
         }
     }
-    LazyColumn(Modifier.fillMaxSize().background(TvColors.background), contentPadding = PaddingValues(vertical = 28.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 24.dp)) {
         item { RowTitle("Diagnóstico", "O que os apps publicam nesta TV. Voltar sai.") }
         item {
-            LazyRow(contentPadding = RowPadding) {
-                item { PillCard("Enviar ao logcat") { lines.forEach { Log.i("TvHome", it) } } }
+            LazyRow(contentPadding = rowPadding()) {
+                item { PillCard("Enviar ao logcat", { lines.forEach { Log.i("TvHome", it) } }) }
             }
         }
         items(lines.size) { i ->
-            Text(lines[i], fontSize = 16.sp, color = TvColors.text, modifier = Modifier.padding(RowPadding).padding(vertical = 2.dp))
+            Text(lines[i], fontSize = 15.sp, color = TvColors.text, modifier = Modifier.padding(rowPadding()).padding(vertical = 2.dp))
         }
     }
 }

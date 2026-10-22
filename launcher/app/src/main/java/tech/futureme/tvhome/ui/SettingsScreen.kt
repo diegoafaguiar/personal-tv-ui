@@ -1,6 +1,5 @@
 package tech.futureme.tvhome.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -19,6 +18,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
 import tech.futureme.tvhome.data.AppEntry
+import tech.futureme.tvhome.data.Background
+import tech.futureme.tvhome.data.QuickAction
 import tech.futureme.tvhome.data.Section
 import tech.futureme.tvhome.data.Settings
 
@@ -31,14 +32,33 @@ fun SettingsScreen(
     onToggleHidden: (String) -> Unit,
     onToggleSection: (Section) -> Unit,
     onSetLiveTv: (String) -> Unit,
+    onSetBackground: (Background) -> Unit,
+    onToggleDensity: () -> Unit,
+    onToggleQuick: (QuickAction) -> Unit,
+    onToggleRates: () -> Unit,
+    onToggleInputs: () -> Unit,
 ) {
-    LazyColumn(Modifier.fillMaxSize().background(TvColors.background), contentPadding = PaddingValues(vertical = 28.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 24.dp)) {
         item { RowTitle("Ajustes da home", "Voltar sai desta tela. As mudanças valem na hora.") }
 
+        item { RowTitle("Aparência") }
+        item { SettingRow("Densidade dos cards", if (settings.density == "normal") "normal (~4 por linha)" else "compacta (~6 por linha)") { onToggleDensity() } }
+        item { SettingRow("Cotações no topo (dólar e euro)", if (settings.showRates) "ligado" else "desligado") { onToggleRates() } }
+        item { SettingRow("Atalhos de HDMI", if (settings.showInputs) "ligado" else "desligado") { onToggleInputs() } }
+        item { RowTitle("Fundo", "Para \"Minha imagem\": scripts/58-launcher-wallpaper.sh foto.jpg") }
+        items(Background.entries, key = { "bg-" + it.name }) { bg ->
+            SettingRow(bg.label, if (settings.background == bg) "● em uso" else "") { onSetBackground(bg) }
+        }
+
+        item { RowTitle("Botões rápidos") }
+        items(QuickAction.entries, key = { "quick-" + it.name }) { q ->
+            SettingRow(q.label, if (q in settings.quick) "visível" else "oculto") { onToggleQuick(q) }
+        }
+
         item { RowTitle("Seções") }
-        items(Section.entries) { section ->
+        items(Section.entries, key = { "sec-" + it.name }) { section ->
             val off = section.name in settings.disabledSections
-            SettingRow(label = section.title, value = if (off) "oculta" else "visível") { onToggleSection(section) }
+            SettingRow(section.title, if (off) "oculta" else "visível") { onToggleSection(section) }
         }
 
         item { RowTitle("Dock", "OK adiciona/remove; as setas mudam a ordem") }
@@ -46,11 +66,11 @@ fun SettingsScreen(
             val inDock = app.packageName in settings.dock
             val pos = settings.dock.indexOf(app.packageName)
             Row(
-                Modifier.fillMaxWidth().padding(RowPadding).padding(vertical = 4.dp),
+                Modifier.fillMaxWidth().padding(rowPadding()).padding(vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                SettingRow(label = app.label, value = if (inDock) "no dock (${pos + 1})" else "fora", modifier = Modifier.width(520.dp)) { onToggleDock(app.packageName) }
+                SettingRow(app.label, if (inDock) "no dock (${pos + 1})" else "fora", modifier = Modifier.width(520.dp)) { onToggleDock(app.packageName) }
                 if (inDock) {
                     PillSmall("◀") { onMoveDock(app.packageName, -1) }
                     PillSmall("▶") { onMoveDock(app.packageName, +1) }
@@ -61,12 +81,12 @@ fun SettingsScreen(
         item { RowTitle("Apps ocultos", "Somem do dock e de \"Todos os apps\"") }
         items(apps, key = { "hide-" + it.packageName }) { app ->
             val hidden = app.packageName in settings.hidden
-            SettingRow(label = app.label, value = if (hidden) "oculto" else "visível") { onToggleHidden(app.packageName) }
+            SettingRow(app.label, if (hidden) "oculto" else "visível") { onToggleHidden(app.packageName) }
         }
 
         item { RowTitle("App de TV ao vivo", "Quem abre quando você escolhe o sintonizador (atual: ${settings.liveTvPackage})") }
         items(apps.filter { it.packageName.contains("tv", ignoreCase = true) }, key = { "live-" + it.packageName }) { app ->
-            SettingRow(label = app.label, value = app.packageName) { onSetLiveTv(app.packageName) }
+            SettingRow(app.label, app.packageName) { onSetLiveTv(app.packageName) }
         }
     }
 }
@@ -75,26 +95,26 @@ fun SettingsScreen(
 private fun SettingRow(
     label: String,
     value: String,
-    modifier: Modifier = Modifier.fillMaxWidth().padding(RowPadding).padding(vertical = 4.dp),
+    modifier: Modifier = Modifier.fillMaxWidth().padding(rowPadding()).padding(vertical = 4.dp),
     onClick: () -> Unit,
 ) {
-    FocusSurface(onClick = onClick, modifier = modifier.height(56.dp)) {
+    FocusSurface(onClick = onClick, modifier = modifier.height(52.dp)) {
         Row(
             Modifier.fillMaxSize().padding(horizontal = 18.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(label, fontSize = 20.sp, color = TvColors.text)
-            Text(value, fontSize = 16.sp, color = TvColors.textDim)
+            Text(label, fontSize = 18.sp, color = TvColors.text)
+            Text(value, fontSize = 15.sp, color = TvColors.textDim)
         }
     }
 }
 
 @Composable
 private fun PillSmall(label: String, onClick: () -> Unit) {
-    FocusSurface(onClick = onClick, modifier = Modifier.width(56.dp).height(56.dp)) {
+    FocusSurface(onClick = onClick, modifier = Modifier.width(52.dp).height(52.dp)) {
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(label, fontSize = 20.sp, color = TvColors.text)
+            Text(label, fontSize = 18.sp, color = TvColors.text)
         }
     }
 }

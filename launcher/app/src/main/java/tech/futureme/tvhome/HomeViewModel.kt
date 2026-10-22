@@ -4,10 +4,11 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tech.futureme.tvhome.data.AppsRepository
@@ -15,6 +16,7 @@ import tech.futureme.tvhome.data.Classifier
 import tech.futureme.tvhome.data.HomeContent
 import tech.futureme.tvhome.data.MediaItem
 import tech.futureme.tvhome.data.Prefs
+import tech.futureme.tvhome.data.RatesRepository
 import tech.futureme.tvhome.data.Section
 import tech.futureme.tvhome.data.Settings
 import tech.futureme.tvhome.data.TvContentRepository
@@ -23,13 +25,25 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     val prefs = Prefs(app)
     val appsRepo = AppsRepository(app)
     private val tvRepo = TvContentRepository(app)
+    private val ratesRepo = RatesRepository()
 
     private val _content = MutableStateFlow(HomeContent())
     val content: StateFlow<HomeContent> = _content
     val settings: StateFlow<Settings> = prefs.settings.stateIn(viewModelScope, SharingStarted.Eagerly, Settings())
 
+    private val _rates = MutableStateFlow<List<RatesRepository.Rate>>(emptyList())
+    val rates: StateFlow<List<RatesRepository.Rate>> = _rates
+    private var ratesFetchedAt = 0L
+
     private val _loading = MutableStateFlow(false)
     val loading: StateFlow<Boolean> = _loading
+
+    init {
+        // Cotações: a cada 30 min enquanto a home existir (sem serviço em background).
+        viewModelScope.launch {
+            while (true) { refreshRates(force = false); delay(30 * 60 * 1000L) }
+        }
+    }
 
     fun refresh() {
         if (_loading.value) return
@@ -47,6 +61,14 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             _content.value = result
             _loading.value = false
         }
+        viewModelScope.launch { refreshRates(force = false) }
+    }
+
+    private suspend fun refreshRates(force: Boolean) {
+        val now = System.currentTimeMillis()
+        if (!force && now - ratesFetchedAt < 25 * 60 * 1000L) return
+        val list = withContext(Dispatchers.IO) { ratesRepo.fetch() }
+        if (list.isNotEmpty()) { _rates.value = list; ratesFetchedAt = now }
     }
 
     /** Netflix e companhia repetem o mesmo título em vários canais. */

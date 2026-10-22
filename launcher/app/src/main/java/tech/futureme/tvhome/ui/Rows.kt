@@ -34,9 +34,12 @@ import tech.futureme.tvhome.data.InputEntry
 import tech.futureme.tvhome.data.MediaItem
 
 val CardShape = RoundedCornerShape(10.dp)
-val RowPadding = PaddingValues(horizontal = 48.dp)   // zona segura de ~5%
 
-/** Superfície focável padrão: escala 1.08 e borda branca no foco. */
+/** Padding lateral das linhas (zona segura), segue a densidade escolhida. */
+@Composable
+fun rowPadding(): PaddingValues = PaddingValues(horizontal = LocalDims.current.side)
+
+/** Superfície focável padrão: escala 1.08 e borda branca no foco. Semitransparente para o fundo aparecer. */
 @Composable
 fun FocusSurface(
     onClick: () -> Unit,
@@ -48,8 +51,8 @@ fun FocusSurface(
         modifier = modifier,
         shape = ClickableSurfaceDefaults.shape(CardShape),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = TvColors.surface,
-            focusedContainerColor = TvColors.surfaceHigh,
+            containerColor = Color(0x99151B23),
+            focusedContainerColor = Color(0xCC1F2733),
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.08f),
         border = ClickableSurfaceDefaults.border(
@@ -60,15 +63,16 @@ fun FocusSurface(
 
 @Composable
 fun RowTitle(text: String, subtitle: String? = null) {
-    Column(Modifier.padding(RowPadding).padding(top = 20.dp, bottom = 10.dp)) {
-        Text(text, fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = TvColors.text)
-        if (subtitle != null) Text(subtitle, fontSize = 16.sp, color = TvColors.textDim)
+    val d = LocalDims.current
+    Column(Modifier.padding(rowPadding()).padding(top = 18.dp, bottom = 8.dp)) {
+        Text(text, fontSize = d.titleSp.sp, fontWeight = FontWeight.SemiBold, color = TvColors.text)
+        if (subtitle != null) Text(subtitle, fontSize = (d.titleSp - 8).sp, color = TvColors.textDim)
     }
 }
 
 @Composable
 fun MediaRow(items: List<MediaItem>, appLabel: (String) -> String, onClick: (MediaItem) -> Unit) {
-    LazyRow(contentPadding = RowPadding, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+    LazyRow(contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(LocalDims.current.gap)) {
         items(items, key = { "${it.packageName}:${it.id}:${it.isWatchNext}" }) { item ->
             MediaCard(item, appLabel(item.packageName)) { onClick(item) }
         }
@@ -77,7 +81,8 @@ fun MediaRow(items: List<MediaItem>, appLabel: (String) -> String, onClick: (Med
 
 @Composable
 fun MediaCard(item: MediaItem, appLabel: String, onClick: () -> Unit) {
-    FocusSurface(onClick = onClick, modifier = Modifier.width(300.dp).height(200.dp)) {
+    val d = LocalDims.current
+    FocusSurface(onClick = onClick, modifier = Modifier.width(d.mediaW).height(d.mediaH)) {
         Box(Modifier.fillMaxSize()) {
             if (item.imageUri != null) {
                 AsyncImage(
@@ -86,15 +91,11 @@ fun MediaCard(item: MediaItem, appLabel: String, onClick: () -> Unit) {
                 )
             }
             // Gradiente para o texto ler sobre qualquer imagem
-            Box(
-                Modifier.fillMaxSize().background(
-                    Brush.verticalGradient(0.45f to Color.Transparent, 1f to Color(0xCC000000)),
-                ),
-            )
-            Column(Modifier.align(Alignment.BottomStart).padding(14.dp)) {
-                Text(item.title, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = TvColors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.45f to Color.Transparent, 1f to Color(0xCC000000))))
+            Column(Modifier.align(Alignment.BottomStart).padding(10.dp)) {
+                Text(item.title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TvColors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 val sub = listOfNotNull(appLabel, item.episodeTitle).joinToString(" · ")
-                Text(sub, fontSize = 14.sp, color = TvColors.textDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(sub, fontSize = 12.sp, color = TvColors.textDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
     }
@@ -102,25 +103,30 @@ fun MediaCard(item: MediaItem, appLabel: String, onClick: () -> Unit) {
 
 @Composable
 fun AppCard(app: AppEntry, onClick: () -> Unit) {
-    FocusSurface(onClick = onClick, modifier = Modifier.width(200.dp).height(112.dp)) {
+    val d = LocalDims.current
+    FocusSurface(onClick = onClick, modifier = Modifier.width(d.appW).height(d.appH)) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             if (app.banner != null) {
                 AsyncImage(model = app.banner, contentDescription = app.label, modifier = Modifier.fillMaxSize().clip(CardShape), contentScale = ContentScale.Crop)
             } else {
-                Text(app.label, fontSize = 18.sp, color = TvColors.text, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(app.label, fontSize = 16.sp, color = TvColors.text, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         }
     }
 }
 
+/** Botão de texto, mesmo tamanho dos apps. "accent" destaca (ex.: HDMI). */
 @Composable
-fun PillCard(label: String, onClick: () -> Unit) {
-    FocusSurface(onClick = onClick, modifier = Modifier.width(200.dp).height(112.dp)) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(label, fontSize = 20.sp, fontWeight = FontWeight.Medium, color = TvColors.text)
+fun PillCard(label: String, onClick: () -> Unit, sub: String? = null) {
+    val d = LocalDims.current
+    FocusSurface(onClick = onClick, modifier = Modifier.width(d.pillW).height(d.pillH)) {
+        Column(Modifier.fillMaxSize().padding(8.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(label, fontSize = 17.sp, fontWeight = FontWeight.Medium, color = TvColors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (sub != null) Text(sub, fontSize = 12.sp, color = TvColors.textDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
 
 @Composable
-fun InputCard(input: InputEntry, onClick: () -> Unit) = PillCard(input.label, onClick)
+fun InputCard(input: InputEntry, onClick: () -> Unit) =
+    PillCard(label = input.label, onClick = onClick, sub = if (input.isTuner) "TV ao vivo" else "entrada")

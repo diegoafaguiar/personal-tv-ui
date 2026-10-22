@@ -1,6 +1,5 @@
 package tech.futureme.tvhome.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -21,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -30,9 +30,13 @@ import tech.futureme.tvhome.data.AppEntry
 import tech.futureme.tvhome.data.HomeContent
 import tech.futureme.tvhome.data.InputEntry
 import tech.futureme.tvhome.data.MediaItem
+import tech.futureme.tvhome.data.QuickAction
+import tech.futureme.tvhome.data.RatesRepository
 import tech.futureme.tvhome.data.Section
 import tech.futureme.tvhome.data.Settings
+import java.text.NumberFormat
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -40,37 +44,49 @@ import java.util.Locale
 fun HomeScreen(
     content: HomeContent,
     settings: Settings,
+    rates: List<RatesRepository.Rate>,
     appLabel: (String) -> String,
     onOpenItem: (MediaItem) -> Unit,
     onOpenApp: (AppEntry) -> Unit,
     onOpenInput: (InputEntry) -> Unit,
+    onQuick: (QuickAction) -> Unit,
     onOpenAllApps: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenDiagnostics: () -> Unit,
-    onOpenSettingsApp: () -> Unit,
     onRequestPermission: () -> Unit,
 ) {
     val visibleApps = content.apps.filter { it.packageName !in settings.hidden }
     val byPkg = visibleApps.associateBy { it.packageName }
     val dock = settings.dock.mapNotNull { byPkg[it] }.ifEmpty { visibleApps.take(8) }
+    val gap = LocalDims.current.gap
 
-    LazyColumn(Modifier.fillMaxSize().background(TvColors.background), contentPadding = PaddingValues(vertical = 28.dp)) {
-        item { Header() }
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 24.dp)) {
+        item { Hero(rates = if (settings.showRates) rates else emptyList()) }
 
-        // Dock: TV ao vivo, apps favoritos, entradas HDMI
+        // Dock: TV ao vivo + apps favoritos
         item {
-            LazyRow(contentPadding = RowPadding, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            LazyRow(contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(gap)) {
                 items(content.inputs.filter { it.isTuner }, key = { it.id }) { InputCard(it) { onOpenInput(it) } }
                 items(dock, key = { it.packageName }) { AppCard(it) { onOpenApp(it) } }
-                items(content.inputs.filter { !it.isTuner }, key = { it.id }) { InputCard(it) { onOpenInput(it) } }
-                item { PillCard("Todos os apps", onOpenAllApps) }
+                item { PillCard("Todos os apps", onOpenAllApps, sub = "${visibleApps.size} instalados") }
+            }
+        }
+
+        // Atalhos: HDMI 1/2/3 e funções rápidas
+        if (settings.showInputs || settings.quick.isNotEmpty()) {
+            item { Spacer(Modifier.height(gap)) }
+            item {
+                LazyRow(contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(gap)) {
+                    if (settings.showInputs) items(content.inputs.filter { !it.isTuner }, key = { it.id }) { InputCard(it) { onOpenInput(it) } }
+                    items(QuickAction.entries.filter { it in settings.quick }, key = { it.name }) { PillCard(it.label, { onQuick(it) }) }
+                }
             }
         }
 
         if (!content.hasPermission) {
             item {
                 RowTitle("Sem acesso ao que os apps publicam", "Conceda a permissão de listagens de TV para ver \"Continuar assistindo\" e as seções.")
-                LazyRow(contentPadding = RowPadding) { item { PillCard("Conceder permissão", onRequestPermission) } }
+                LazyRow(contentPadding = rowPadding()) { item { PillCard("Conceder permissão", onRequestPermission) } }
             }
         }
 
@@ -93,9 +109,8 @@ fun HomeScreen(
         }
 
         item {
-            RowTitle("Sistema")
-            LazyRow(contentPadding = RowPadding, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                item { PillCard("Configurações da TV", onOpenSettingsApp) }
+            RowTitle("Esta home")
+            LazyRow(contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(gap)) {
                 item { PillCard("Ajustes da home", onOpenSettings) }
                 item { PillCard("Diagnóstico", onOpenDiagnostics) }
             }
@@ -104,17 +119,47 @@ fun HomeScreen(
     }
 }
 
+/** Saudação, hora, data e cotações. */
 @Composable
-private fun Header() {
+private fun Hero(rates: List<RatesRepository.Rate>) {
     var now by remember { mutableStateOf(Date()) }
-    LaunchedEffect(Unit) { while (true) { now = Date(); delay(30_000) } }
+    LaunchedEffect(Unit) { while (true) { now = Date(); delay(15_000) } }
     val locale = Locale("pt", "BR")
     val time = remember(now) { SimpleDateFormat("HH:mm", locale).format(now) }
     val date = remember(now) { SimpleDateFormat("EEEE, d 'de' MMMM", locale).format(now).replaceFirstChar { it.uppercase() } }
-    Row(Modifier.fillMaxWidth().padding(RowPadding).padding(bottom = 12.dp), verticalAlignment = Alignment.Bottom) {
-        Column {
-            Text(time, fontSize = 44.sp, fontWeight = FontWeight.Light, color = TvColors.text)
-            Text(date, fontSize = 18.sp, color = TvColors.textDim)
+    val greeting = remember(now) {
+        when (Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
+            in 5..11 -> "Bom dia"
+            in 12..17 -> "Boa tarde"
+            else -> "Boa noite"
         }
+    }
+    Row(
+        Modifier.fillMaxWidth().padding(rowPadding()).padding(bottom = 10.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        Column {
+            Text(greeting, fontSize = 18.sp, color = TvColors.textDim)
+            Text(time, fontSize = 48.sp, fontWeight = FontWeight.Light, color = TvColors.text)
+            Text(date, fontSize = 17.sp, color = TvColors.textDim)
+        }
+        if (rates.isNotEmpty()) {
+            Row(horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.Bottom) {
+                for (r in rates) RateChip(r)
+            }
+        }
+    }
+}
+
+@Composable
+private fun RateChip(rate: RatesRepository.Rate) {
+    val money = remember(rate.bid) { NumberFormat.getCurrencyInstance(Locale("pt", "BR")).format(rate.bid) }
+    val pct = remember(rate.pctChange) { String.format(Locale("pt", "BR"), "%+.2f%%", rate.pctChange) }
+    val color = if (rate.pctChange > 0) Color(0xFFE57373) else if (rate.pctChange < 0) Color(0xFF81C784) else TvColors.textDim
+    Column(horizontalAlignment = Alignment.End) {
+        Text(if (rate.code == "USD") "Dólar" else if (rate.code == "EUR") "Euro" else rate.code, fontSize = 14.sp, color = TvColors.textDim)
+        Text(money, fontSize = 26.sp, fontWeight = FontWeight.Medium, color = TvColors.text)
+        Text(pct, fontSize = 14.sp, color = color)
     }
 }
