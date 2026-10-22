@@ -160,8 +160,16 @@ home_candidates() {
            act && /^[[:space:]]+packageName=/ {sub(/^[[:space:]]+packageName=/, ""); print $0 "/" n; act=0}' || true
 }
 
-# Quem responde ao botão HOME hoje. Primeira entrada = quem o Android abre.
-home_owner() { home_candidates | head -n1; }
+# Quem responde ao botão HOME hoje, como "pacote/Classe". resolve-activity honra
+# a preferência gravada por "cmd package set-home-activity"; a lista de
+# candidatos não (ela é só ordem de prioridade).
+home_owner() {
+  local r
+  r="$(tv_shell "cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME" 2>/dev/null \
+    | tr -d '\r' | grep -E '^[A-Za-z0-9_.]+/' | tail -n1 || true)"
+  [[ -n "$r" ]] && { echo "$r"; return 0; }
+  home_candidates | head -n1
+}
 
 # Dono da rede Wi-Fi salva (o pacote que criou a configuração). Importa porque
 # se for o setupwraith, desabilitá-lo derruba a rede.

@@ -177,12 +177,29 @@ check "TV Detox é protegido (never-disable)" 'printf "# risk: safe\ncom.ansub.t
 "$ROOT/scripts/50-launcher.sh" restore >/dev/null 2>&1
 printf 'com.google.android.apps.tv.launcherx/.Home\ncom.google.android.tungsten.setupwraith/.RecoveryActivity\ncom.spocky.projengmenu/.Main\n' > "$FAKE_ADB_STATE/home"
 
+echo "== 50-launcher: dois launchers de terceiros disputando o HOME"
+"$ROOT/scripts/50-launcher.sh" restore >/dev/null 2>&1; rm -f "$FAKE_ADB_STATE/home-preferred"
+printf 'com.google.android.apps.tv.launcherx/.Home\ncom.google.android.tungsten.setupwraith/.RecoveryActivity\ncom.ansub.tvhome/.MainActivity\ncom.spocky.projengmenu/.Main\n' > "$FAKE_ADB_STATE/home"
+out="$("$ROOT/scripts/50-launcher.sh" set-default com.spocky.projengmenu 2>&1)"
+check "set-home-activity decide entre terceiros (resolve-activity honra a preferência)" '[[ "$out" == *"HOME agora abre com.spocky.projengmenu/com.spocky.projengmenu.Main"* ]]'
+# Simula um firmware que ignora a preferência: a reversão devolve só o que mudou
+"$ROOT/scripts/50-launcher.sh" restore >/dev/null 2>&1; rm -f "$FAKE_ADB_STATE/home-preferred"
+printf 'com.google.android.apps.tv.launcherx\ncom.google.android.tungsten.setupwraith\n' >> "$FAKE_ADB_STATE/disabled"   # caminho 2 já em vigor
+out="$(PREFER_IGNORED=1 "$ROOT/scripts/50-launcher.sh" set-default com.spocky.projengmenu 2>&1 || true)"
+check "sem --disable-others, orienta a repetir com a flag" '[[ "$out" == *"--disable-others"* ]]'
+check "reversão NÃO reabilita o launcherx que já estava desligado" 'has disabled com.google.android.apps.tv.launcherx'
+out="$("$ROOT/scripts/50-launcher.sh" set-default com.spocky.projengmenu --disable-others 2>&1)"
+check "--disable-others desliga o TV Detox e o HOME vai ao Projectivy" '[[ "$out" == *"HOME agora abre com.spocky.projengmenu/"* ]] && has disabled com.ansub.tvhome'
+"$ROOT/scripts/50-launcher.sh" restore >/dev/null 2>&1; rm -f "$FAKE_ADB_STATE/home-preferred"
+grep -vx com.ansub.tvhome "$FAKE_ADB_STATE/disabled" > "$FAKE_ADB_STATE/d.tmp" || true; mv "$FAKE_ADB_STATE/d.tmp" "$FAKE_ADB_STATE/disabled"
+printf 'com.google.android.apps.tv.launcherx/.Home\ncom.google.android.tungsten.setupwraith/.RecoveryActivity\ncom.spocky.projengmenu/.Main\n' > "$FAKE_ADB_STATE/home"
+
 echo "== 50-launcher reversão automática"
 reset_state2() { del_disabled() { grep -vx "$1" "$FAKE_ADB_STATE/disabled" > "$FAKE_ADB_STATE/d.tmp" || true; mv "$FAKE_ADB_STATE/d.tmp" "$FAKE_ADB_STATE/disabled"; }; del_disabled com.google.android.apps.tv.launcherx; del_disabled com.google.android.tungsten.setupwraith; }
 reset_state2
 # Simula um launcher que é candidato mas perde para um terceiro inesperado
 printf 'com.google.android.apps.tv.launcherx/.Home\ncom.google.android.tungsten.setupwraith/.RecoveryActivity\ncom.tcl.tv/.FallbackHome\ncom.spocky.projengmenu/.Main\n' > "$FAKE_ADB_STATE/home"
-out="$("$ROOT/scripts/50-launcher.sh" set-default 2>&1 || true)"
+out="$(PREFER_IGNORED=1 "$ROOT/scripts/50-launcher.sh" set-default 2>&1 || true)"
 check "detecta HOME errado e reverte" '[[ "$out" == *"Revertendo"* ]] && ! has disabled com.google.android.apps.tv.launcherx'
 
 echo "== 90-rollback"

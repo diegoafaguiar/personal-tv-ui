@@ -7,6 +7,7 @@
 #   scripts/50-launcher.sh install --apk caminho.apk  # sideload
 #   scripts/50-launcher.sh grant [pacote]             # permissões + serviço de acessibilidade (Projectivy)
 #   scripts/50-launcher.sh set-default [pacote]       # desabilita o launcher de fábrica com guarda
+#   scripts/50-launcher.sh set-default [pacote] --disable-others   # também desliga outros launchers de terceiros que disputem o HOME
 #                                                     #   exige ALLOW_STOCK_LAUNCHER_DISABLE=1 (decisão explícita)
 #                                                     #   ex.: ALLOW_STOCK_LAUNCHER_DISABLE=1 scripts/50-launcher.sh set-default com.ansub.tvhome
 #   scripts/50-launcher.sh restore                    # volta o launcher de fábrica
@@ -88,7 +89,8 @@ cmd_grant() {
 }
 
 cmd_set_default() {
-  local pkg="${1:-$DEFAULT_LAUNCHER}" force_wifi="${FORCE_SETUPWRAITH:-0}"
+  local pkg="${1:-$DEFAULT_LAUNCHER}" force_wifi="${FORCE_SETUPWRAITH:-0}" disable_others=0
+  [[ "${2:-}" == "--disable-others" ]] && disable_others=1
   if [[ "${ALLOW_STOCK_LAUNCHER_DISABLE:-0}" != "1" ]]; then
     die "Regra ativa: a tela inicial de fábrica não é desligada. Use o 'Override current launcher' do Projectivy, ou exporte ALLOW_STOCK_LAUNCHER_DISABLE=1 se mudar de ideia."
   fi
@@ -110,12 +112,32 @@ cmd_set_default() {
   fi
   log_ok "Wi-Fi não pertence ao setup wizard (dono: ${owner:-nenhum})."
 
-  log_info "Plano: desabilitar $stock e $SETUPWRAITH; verificar HOME → $pkg; reverter automaticamente se falhar."
+  # Estado anterior, para a reversão devolver só o que este passo mudou.
+  local stock_was setup_was home_was
+  stock_was="$(pkg_state "$stock")"; setup_was="$(pkg_state "$SETUPWRAITH")"; home_was="$(home_owner)"
+  local -a others=()
+  local c
+  while IFS= read -r c; do
+    case "$c" in
+      "$pkg/"*|"$stock/"*|"$SETUPWRAITH/"*|com.android.tv.settings/*|com.android.settings/*|com.android.systemui/*) ;;
+      *) others+=("${c%%/*}") ;;
+    esac
+  done < <(home_candidates)
+  mapfile -t others < <(printf '%s\n' "${others[@]+"${others[@]}"}" | awk 'NF && !seen[$0]++')
+
+  log_info "Plano: desabilitar $stock e $SETUPWRAITH (se ligados); set-home-activity → $pkg; verificar; reverter só o que mudou se falhar."
+  if [[ ${#others[@]} -gt 0 ]]; then
+    if [[ "$disable_others" == "1" ]]; then log_info "Também desligar outros launchers de terceiros: ${others[*]}"
+    else log_info "Outros launchers de terceiros presentes (${others[*]}); se o HOME ficar com eles, repita com --disable-others."; fi
+  fi
   [[ "$DRY_RUN" == "1" ]] && { log_ok "Dry-run concluído."; return 0; }
   confirm "Aplicar?" || die "Cancelado."
 
-  tv_run pm disable-user --user 0 "$stock"
-  tv_run pm disable-user --user 0 "$SETUPWRAITH"
+  [[ "$stock_was" == "enabled" ]] && tv_run pm disable-user --user 0 "$stock"
+  [[ "$setup_was" == "enabled" ]] && tv_run pm disable-user --user 0 "$SETUPWRAITH"
+  if [[ "$disable_others" == "1" ]]; then
+    for c in "${others[@]}"; do tv_run pm disable-user --user 0 "$c"; done
+  fi
   # Entre launchers de terceiros de mesma prioridade, isto escolhe o preferido.
   # (Não funciona contra o launcherx habilitado; por isso ele é desligado antes.)
   local comp; comp="$(home_candidates | grep "^$pkg/" | head -n1)"
@@ -131,9 +153,18 @@ cmd_set_default() {
     log_info "Botões YouTube/Netflix do controle podem parar de abrir apps (eram tratados pelo launcherx)."
     log_info "Depois: scripts/95-finish.sh para reiniciar com verificação."
   else
-    log_err "HOME foi para '$now', não para $pkg. Revertendo."
-    cmd_restore
-    die "Reversão aplicada. Veja docs/07-troubleshooting.md."
+    log_err "HOME foi para '$now', não para $pkg. Revertendo só o que este passo mudou."
+    [[ "$stock_was" == "enabled" ]] && tv_run pm enable --user 0 "$stock"
+    [[ "$setup_was" == "enabled" ]] && tv_run pm enable --user 0 "$SETUPWRAITH"
+    if [[ "$disable_others" == "1" ]]; then for c in "${others[@]}"; do tv_run pm enable --user 0 "$c"; done; fi
+    [[ "$home_was" == */* ]] && { tv_run cmd package set-home-activity "$home_was" || true; }
+    tv_run input keyevent KEYCODE_HOME
+    sleep 1
+    log_info "HOME abre: $(home_owner) (antes era $home_was)"
+    if [[ ${#others[@]} -gt 0 && "$disable_others" != "1" ]]; then
+      die "Outro launcher de terceiros ficou com o HOME. Repita com: ALLOW_STOCK_LAUNCHER_DISABLE=1 scripts/50-launcher.sh set-default $pkg --disable-others"
+    fi
+    die "Veja docs/07-troubleshooting.md."
   fi
 }
 

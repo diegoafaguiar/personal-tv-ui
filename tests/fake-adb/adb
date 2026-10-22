@@ -44,7 +44,15 @@ case "$cmd" in
       if has third "$p"; then del known "$p"; del third "$p"; fi; echo Success ;;
   "cmd package install-existing --user 0 "*) p="${cmd##* }"; has known "$p" && add installed "$p"; echo "Package $p installed for user: 0" ;;
   "am start -W "*) echo "TotalTime: 812"; echo "WaitTime: 820" ;;
-  "cmd notification allow_listener "*|"cmd package set-home-activity "*) : ;;
+  "cmd notification allow_listener "*) : ;;
+  "cmd package set-home-activity "*) echo "${cmd##* }" > "$S/home-preferred"; echo Success ;;
+  "cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME")
+    pref="$(cat "$S/home-preferred" 2>/dev/null || true)"
+    [[ "${PREFER_IGNORED:-0}" == "1" ]] && pref=""
+    if [[ -n "$pref" ]] && has installed "${pref%%/*}" && ! has disabled "${pref%%/*}"; then echo "$pref"; exit 0; fi
+    while IFS= read -r comp; do p="${comp%%/*}"
+      if has installed "$p" && ! has disabled "$p"; then echo "$p/$p${comp#*/}"; exit 0; fi
+    done < "$S/home"; echo "No activity found" ;;
   "pm grant "*|"am force-stop "*|"am start "*|"input keyevent "*|"pm trim-caches "*|"cmd package bg-dexopt-job"|"reboot") : ;;
   "getprop") cat "$S/props" ;;
   "getprop sys.boot_completed") echo 1 ;;

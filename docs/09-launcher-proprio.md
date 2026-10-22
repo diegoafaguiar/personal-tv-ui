@@ -56,7 +56,9 @@ ALLOW_STOCK_LAUNCHER_DISABLE=1 scripts/50-launcher.sh set-default tech.futureme.
 
 Com o launcherx já desligado, o `set-default` usa `cmd package
 set-home-activity` para escolher entre os launchers de terceiros (TV Detox e
-este). Voltar para o TV Detox: `... set-default com.ansub.tvhome`. Voltar para
+este). Se o firmware ignorar a preferência e o Home ficar com o outro, repita
+com `--disable-others`, que desliga os demais launchers de terceiros (o
+TV Detox volta com `pm enable --user 0 com.ansub.tvhome`). Voltar para o TV Detox: `... set-default com.ansub.tvhome`. Voltar para
 a fábrica: `scripts/50-launcher.sh restore`.
 
 ## Estrutura
