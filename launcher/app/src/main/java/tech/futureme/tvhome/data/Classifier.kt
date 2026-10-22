@@ -44,8 +44,10 @@ object Classifier {
         "\\b(caz[ée]tv|ge tv|goat|fifa|football|futebol|desimpedidos|nsports|sportynet|xsports|man city|gfn|espn|sportv|premiere|esporte|sports?)\\b",
         RegexOption.IGNORE_CASE,
     )
-    fun isSportsChannel(ch: MediaChannelLike): Boolean =
-        sportsChannelWords.containsMatchIn(ch.name) || (ch.nowTitle != null && footballWords.containsMatchIn(ch.nowTitle))
+    fun isSportsChannel(ch: MediaChannelLike): Boolean {
+        val now = ch.nowTitle   // cópia local: propriedade de interface não permite smart cast
+        return sportsChannelWords.containsMatchIn(ch.name) || (now != null && footballWords.containsMatchIn(now))
+    }
 
     interface MediaChannelLike { val name: String; val nowTitle: String? }
 
