@@ -98,8 +98,7 @@ out="$("$ROOT/scripts/25-review.sh" 2>&1 || true)"
 check "25-review recusa sem terminal" '[[ "$out" == *"interativo"* ]]'
 
 echo "== 30-debloat dry-run e proteções"
-printf 'com.tcl.tv\ncom.tcl.ttvs\ncom.mediatek.foo\n' > "$WORK/custom.list"
-sed -i '1i # risk: safe' "$WORK/custom.list"
+printf '# risk: safe\ncom.tcl.tv\ncom.tcl.ttvs\ncom.mediatek.foo\n' > "$WORK/custom.list"   # sem sed -i: GNU e BSD divergem
 out="$("$ROOT/scripts/30-debloat.sh" --dry-run "$WORK/custom.list" 2>&1)"
 check "recusa com.tcl.tv (never-disable)" '[[ "$out" == *"Recusados"* && "$out" == *"com.tcl.tv"* ]]'
 check "recusa glob com.mediatek.*" '[[ "$out" == *"com.mediatek.foo"* ]]'

@@ -48,14 +48,30 @@ fun SettingsScreen(
     onToggleHeroCompact: () -> Unit,
     onMoveOrder: (String, Int) -> Unit,
     onChangePin: (Profile) -> Unit,
+    onToggleGlass: () -> Unit,
+    onAdjustTransparency: (Int) -> Unit,
+    onAdjustFx: (Int) -> Unit,
+    onAdjustBlur: (Int) -> Unit,
+    onToggleAnimations: () -> Unit,
+    onToggleLite: () -> Unit,
+    onOpenTvSettings: () -> Unit,
 ) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 24.dp)) {
         item { RowTitle("Ajustes da home", "Voltar sai desta tela. As mudanças valem na hora.") }
+        item { SettingRow("Configurações da TV (Android TV)", "rede, som, imagem, apps, sistema") { onOpenTvSettings() } }
 
         item { RowTitle("Perfis", "Senha dos perfis adultos (padrão 1234). O perfil infantil não tem senha.") }
         items(Profiles.ALL.filter { it.requiresPin }, key = { "pin-" + it.id }) { p ->
             SettingRow("Senha de ${p.name}", if (settings.pins.containsKey(p.id)) "personalizada" else "padrão") { onChangePin(p) }
         }
+
+        item { RowTitle("Vidro", "Painéis translúcidos sobre o papel de parede. OK liga/desliga; ◀ ▶ ajustam.") }
+        item { SettingRow("Estilo vidro", if (settings.glass.enabled) "ligado" else "desligado (cards escuros)") { onToggleGlass() } }
+        item { AdjustRow("Transparência", "${(settings.glass.transparency * 100).toInt()}%", onAdjustTransparency) }
+        item { AdjustRow("Intensidade dos efeitos (reflexos, borda, brilho)", "${(settings.glass.fx * 100).toInt()}%", onAdjustFx) }
+        item { AdjustRow("Desfoque de \"Minha imagem\"", listOf("nítido", "leve", "médio", "forte")[settings.glass.blur.coerceIn(0, 3)], onAdjustBlur) }
+        item { SettingRow("Animações (escala e varredura de luz no foco)", if (settings.glass.animations) "ligadas" else "desligadas") { onToggleAnimations() } }
+        item { SettingRow("Modo leve (sem ver-através nem reflexos; para GPU fraca)", if (settings.glass.lite) "ligado" else "desligado") { onToggleLite() } }
 
         item { RowTitle("Aparência") }
         item { SettingRow("Densidade dos cards", if (settings.density == "normal") "normal (~4 por linha)" else "compacta (~6 por linha)") { onToggleDensity() } }
@@ -68,7 +84,7 @@ fun SettingsScreen(
         item { SettingRow("Ícones de HDMI no menu", if (settings.showInputs) "ligado" else "desligado") { onToggleInputs() } }
         item { SettingRow("Linha \"Canais pela internet\" (TCL Channel+)", if (settings.showFast) "ligada" else "desligada") { onToggleFast() } }
         item { SettingRow("Limpar \"Abertos recentemente\"", "${settings.recents.size} itens") { onClearRecents() } }
-        item { RowTitle("Fundo", "Para \"Minha imagem\": scripts/58-launcher-wallpaper.sh foto.jpg") }
+        item { RowTitle("Papel de parede", "Aurora, Oceano e Ocaso valorizam o vidro. Para \"Minha imagem\": scripts/58-launcher-wallpaper.sh foto.jpg") }
         items(Background.entries, key = { "bg-" + it.name }) { bg ->
             SettingRow(bg.label, if (settings.background == bg) "● em uso" else "") { onSetBackground(bg) }
         }
@@ -82,7 +98,7 @@ fun SettingsScreen(
         items(apps.sortedBy { settings.appRank(it.packageName) }, key = { "order-" + it.packageName }) { app ->
             val pos = settings.appOrder.indexOf(app.packageName)
             Row(
-                Modifier.fillMaxWidth().padding(rowPadding()).padding(vertical = 4.dp),
+                Modifier.fillMaxWidth().padding(sidePadding()).padding(vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -103,7 +119,7 @@ fun SettingsScreen(
             val inDock = app.packageName in settings.dock
             val pos = settings.dock.indexOf(app.packageName)
             Row(
-                Modifier.fillMaxWidth().padding(rowPadding()).padding(vertical = 4.dp),
+                Modifier.fillMaxWidth().padding(sidePadding()).padding(vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -132,7 +148,7 @@ fun SettingsScreen(
 private fun SettingRow(
     label: String,
     value: String,
-    modifier: Modifier = Modifier.fillMaxWidth().padding(rowPadding()).padding(vertical = 4.dp),
+    modifier: Modifier = Modifier.fillMaxWidth().padding(sidePadding()).padding(vertical = 4.dp),
     onClick: () -> Unit,
 ) {
     FocusSurface(onClick = onClick, modifier = modifier.height(52.dp)) {
@@ -144,6 +160,20 @@ private fun SettingRow(
             Text(label, fontSize = 18.sp, color = TvColors.text)
             Text(value, fontSize = 15.sp, color = TvColors.textDim)
         }
+    }
+}
+
+/** Linha com valor e botões ◀ ▶ (OK na linha também avança). */
+@Composable
+private fun AdjustRow(label: String, value: String, onAdjust: (Int) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(sidePadding()).padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SettingRow(label, value, modifier = Modifier.width(520.dp)) { onAdjust(+1) }
+        PillSmall("◀") { onAdjust(-1) }
+        PillSmall("▶") { onAdjust(+1) }
     }
 }
 

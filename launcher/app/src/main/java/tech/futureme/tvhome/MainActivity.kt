@@ -32,6 +32,8 @@ class MainActivity : ComponentActivity() {
                 App(
                     vm = vm,
                     onOpenItem = ::openItem,
+                    onOpenUrl = ::openUrl,
+                    onOpenMusic = ::openMusic,
                     onOpenApp = { vm.recordRecent(it.packageName, it.label, null); startSafely(it.launchIntent) },
                     onOpenRecent = ::openRecent,
                     onTuneFailed = ::tuneFailed,
@@ -53,6 +55,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        // Botão Home com o launcher aberto (singleTask): o sistema entrega um novo intent HOME
+        if (intent.hasCategory(Intent.CATEGORY_HOME)) vm.homePressed.value++
         vm.refresh()
     }
 
@@ -77,8 +81,15 @@ class MainActivity : ComponentActivity() {
     private fun tuneFailed(ch: tech.futureme.tvhome.data.TunerChannel, why: String) {
         Log.w("TvHome", "Sintonia falhou para ${ch.number} ${ch.name}: $why")
         Toast.makeText(this, "$why. Abrindo o app de TV.", Toast.LENGTH_LONG).show()
-        val view = Intent(Intent.ACTION_VIEW, android.media.tv.TvContract.buildChannelUri(ch.id)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        if (view.resolveActivity(packageManager) != null) startSafely(view) else openApp(vm.settings.value.liveTvPackage)
+        val live = vm.settings.value.liveTvPackage
+        // O app da TCL declara VIEW para vnd.android.cursor.item/channel: pacote e tipo explícitos para resolver
+        val view = Intent(Intent.ACTION_VIEW).setDataAndType(android.media.tv.TvContract.buildChannelUri(ch.id), "vnd.android.cursor.item/channel").setPackage(live)
+        val tuner = vm.content.value.inputs.firstOrNull { it.isTuner }
+        when {
+            view.resolveActivity(packageManager) != null -> startSafely(view)
+            tuner != null -> openInput(tuner)
+            else -> openApp(live)
+        }
     }
 
     private fun openItem(item: MediaItem) {
@@ -92,6 +103,26 @@ class MainActivity : ComponentActivity() {
             Log.w("TvHome", "intent_uri inválido para ${item.title}: $uri", e)
             openApp(item.packageName)
         }
+    }
+
+    /** Abre uma URL em quem souber (navegador, app do YouTube). Devolve false se ninguém atende. */
+    private fun openUrl(url: String): Boolean {
+        val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val target = intent.resolveActivity(packageManager) ?: return false
+        // Android TV sem navegador resolve para um "stub" que não mostra nada: tratar como sem navegador
+        if (target.packageName == "com.android.tv.frameworkpackagestubs") return false
+        return try { startActivity(intent); true } catch (e: Exception) { false }
+    }
+
+    /** Sugestão musical: busca no Spotify, senão no YouTube, senão abre o primeiro app de música. */
+    private fun openMusic(query: String) {
+        val spotify = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("spotify:search:" + android.net.Uri.encode(query))).setPackage("com.spotify.tv.android")
+        if (spotify.resolveActivity(packageManager) != null) { startSafely(spotify); return }
+        val yt = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://www.youtube.com/results?search_query=" + android.net.Uri.encode(query))).setPackage("com.google.android.youtube.tv")
+        if (yt.resolveActivity(packageManager) != null) { startSafely(yt); return }
+        val any = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://www.youtube.com/results?search_query=" + android.net.Uri.encode(query)))
+        if (any.resolveActivity(packageManager) != null) { startSafely(any); return }
+        Toast.makeText(this, "Instale o Spotify ou o YouTube para abrir sugestões", Toast.LENGTH_SHORT).show()
     }
 
     private fun openApp(packageName: String) {

@@ -343,3 +343,35 @@ confirm() {
 }
 
 timestamp() { date +%Y%m%d-%H%M%S; }
+
+# --------------------------------------------------------------------------
+# Android SDK / JDK (launcher local: scripts/80-emulator.sh, 85-launcher-dev.sh)
+# --------------------------------------------------------------------------
+# Exporta JAVA_HOME e ANDROID_HOME e põe as ferramentas do SDK no PATH.
+# Ordem: variável já definida > Homebrew (openjdk@17, android-commandlinetools)
+# > pasta padrão do Android Studio. Não falha se faltar algo: cada script
+# confere o que precisa com require_cmd / os caminhos abaixo.
+android_sdk_env() {
+  ANDROID_HOME="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Library/Android/sdk}}"
+  if [[ -z "${JAVA_HOME:-}" ]]; then
+    local j
+    for j in /opt/homebrew/opt/openjdk@17 /usr/local/opt/openjdk@17; do
+      [[ -x "$j/bin/java" ]] && { JAVA_HOME="$j"; break; }
+    done
+    if [[ -z "${JAVA_HOME:-}" ]] && command -v /usr/libexec/java_home >/dev/null 2>&1; then
+      JAVA_HOME="$(/usr/libexec/java_home -v 17 2>/dev/null || true)"
+    fi
+  fi
+  # sdkmanager/avdmanager: do Homebrew (cask android-commandlinetools) ou do próprio SDK
+  local cmdline
+  for cmdline in "$ANDROID_HOME/cmdline-tools/latest" /opt/homebrew/share/android-commandlinetools/cmdline-tools/latest; do
+    [[ -d "$cmdline/bin" ]] && { PATH="$cmdline/bin:$PATH"; break; }
+  done
+  PATH="$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:${JAVA_HOME:+$JAVA_HOME/bin:}$PATH"
+  export ANDROID_HOME ANDROID_SDK_ROOT="$ANDROID_HOME" JAVA_HOME PATH
+}
+
+# Serial do emulador (adb) — o primeiro "emulator-*" online, ou vazio.
+emulator_serial() {
+  adb devices 2>/dev/null </dev/null | awk '$1 ~ /^emulator-/ && $2 == "device" {print $1; exit}'
+}

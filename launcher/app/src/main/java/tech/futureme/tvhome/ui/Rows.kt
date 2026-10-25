@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -16,20 +18,27 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Border
@@ -42,18 +51,72 @@ import android.media.tv.TvContract
 import tech.futureme.tvhome.data.AppEntry
 import tech.futureme.tvhome.data.InputEntry
 import tech.futureme.tvhome.data.MediaItem
+import tech.futureme.tvhome.data.MusicItem
+import tech.futureme.tvhome.data.NewsItem
 import tech.futureme.tvhome.data.TunerChannel
 
 val CardShape = RoundedCornerShape(10.dp)
 
+/** Início das linhas quando algo já ocupa a esquerda (barra lateral da home de vidro). null = zona segura. */
+val LocalRowStart = compositionLocalOf<Dp?> { null }
+
 /** Padding lateral das linhas (zona segura), segue a densidade escolhida. */
 @Composable
-fun rowPadding(): PaddingValues = PaddingValues(horizontal = LocalDims.current.side)
+fun rowPadding(): PaddingValues = PaddingValues(start = LocalRowStart.current ?: LocalDims.current.side, end = LocalDims.current.side, top = 12.dp, bottom = 12.dp)
+
+/** Só a zona segura lateral (hero, títulos, menu de ícones). */
+@Composable
+fun sidePadding(): PaddingValues = PaddingValues(start = LocalRowStart.current ?: LocalDims.current.side, end = LocalDims.current.side)
+
+/**
+ * Ícone quadrado de app com acabamento de vidro e rótulo embaixo (estilo da home de vidro).
+ * Usa android:icon do app; sem ícone, as iniciais sobre a cor do nome.
+ */
+@Composable
+fun AppIcon(app: AppEntry, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val glass = LocalGlass.current
+    val color = remember(app.packageName) { appColor(app) }
+    val shape = RoundedCornerShape(20.dp)
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(84.dp)) {
+        FocusSurface(
+            onClick = onClick, shape = shape, glowColor = color,
+            modifier = modifier.size(84.dp).onFocusChanged { if (it.isFocused) glass.focusColor = color },
+        ) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                if (app.icon != null) {
+                    AsyncImage(model = app.icon, contentDescription = app.label, modifier = Modifier.size(56.dp).clip(RoundedCornerShape(14.dp)), contentScale = ContentScale.Fit)
+                } else {
+                    Box(Modifier.size(56.dp).clip(RoundedCornerShape(14.dp)).background(placeholderBrush(app.packageName)), contentAlignment = Alignment.Center) {
+                        Text(app.label.take(2).uppercase(), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TvColors.text)
+                    }
+                }
+                if (glass.config.enabled && !glass.config.lite && glass.config.fx > 0f) {
+                    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color.White.copy(alpha = 0.16f * glass.config.fx), 0.45f to Color.Transparent)))
+                }
+            }
+        }
+        Text(app.label, fontSize = 12.sp, color = TvColors.textDim, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp))
+    }
+}
 
 /** Gradiente estável derivado do nome: dois tons da mesma matiz, para placeholders com identidade. */
 fun placeholderBrush(seed: String): Brush {
     val hue = ((seed.hashCode() and 0x7fffffff) % 360).toFloat()
     return Brush.linearGradient(listOf(Color.hsv(hue, 0.55f, 0.42f), Color.hsv((hue + 30f) % 360f, 0.6f, 0.18f)))
+}
+
+/**
+ * Toque/clique do mouse = foco + clique. O Surface do Compose for TV só responde ao OK do D-pad;
+ * na TV não há toque (nada muda), mas no emulador o mouse passa a funcionar como no celular.
+ */
+fun Modifier.tapToClick(onClick: () -> Unit): Modifier = composed {
+    val focus = remember { FocusRequester() }
+    focusRequester(focus).pointerInput(onClick) {
+        detectTapGestures {
+            runCatching { focus.requestFocus() }
+            onClick()
+        }
+    }
 }
 
 /** Superfície focável padrão: escala 1.08 e borda branca no foco. Semitransparente para o fundo aparecer. */
@@ -62,27 +125,33 @@ fun FocusSurface(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     shape: RoundedCornerShape = CardShape,
+    glowColor: Color = Color.Transparent,
+    focusScale: Float = 1.08f,
     content: @Composable () -> Unit,
 ) {
+    val glass = LocalGlass.current.config
+    var focused by remember { mutableStateOf(false) }
+    val scale = if (glass.enabled && !glass.animations) 1f else focusScale
     Surface(
         onClick = onClick,
-        modifier = modifier,
+        modifier = modifier.focusGlow(focused, glowColor).onFocusChanged { focused = it.isFocused }.tapToClick(onClick),
         shape = ClickableSurfaceDefaults.shape(shape),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color(0x99151B23),
-            focusedContainerColor = Color(0xCC1F2733),
-        ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.08f),
+        colors = if (glass.enabled) ClickableSurfaceDefaults.colors(containerColor = Color.Transparent, focusedContainerColor = Color.Transparent)
+        else ClickableSurfaceDefaults.colors(containerColor = Color(0x99151B23), focusedContainerColor = Color(0xCC1F2733)),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = scale),
         border = ClickableSurfaceDefaults.border(
             focusedBorder = Border(border = BorderStroke(3.dp, TvColors.focus), shape = shape),
         ),
-    ) { content() }
+    ) {
+        // O vidro é desenhado DENTRO do Surface para escalar junto com o foco.
+        Box(Modifier.fillMaxSize().glass(shape).focusSweep(focused)) { content() }
+    }
 }
 
 @Composable
 fun RowTitle(text: String, subtitle: String? = null) {
     val d = LocalDims.current
-    Column(Modifier.padding(rowPadding()).padding(top = 22.dp, bottom = 10.dp)) {
+    Column(Modifier.padding(sidePadding()).padding(top = 16.dp, bottom = 2.dp)) {
         Text(text, fontSize = d.titleSp.sp, fontWeight = FontWeight.SemiBold, color = TvColors.text)
         if (subtitle != null) Text(subtitle, fontSize = (d.titleSp - 8).sp, color = TvColors.textDim)
     }
@@ -114,25 +183,56 @@ fun MediaCard(item: MediaItem, appLabel: String, onFocused: (MediaItem?) -> Unit
                 }
             }
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.45f to Color.Transparent, 1f to Color(0xCC000000))))
-            Column(Modifier.align(Alignment.BottomStart).padding(10.dp)) {
+            Column(Modifier.align(Alignment.BottomStart).padding(start = 10.dp, end = 10.dp, bottom = if (item.progress != null) 14.dp else 10.dp)) {
                 Text(item.title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TvColors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                val sub = listOfNotNull(appLabel, item.episodeTitle).joinToString(" · ")
+                val sub = listOfNotNull(appLabel, item.progressLabel).joinToString(" · ")
                 Text(sub, fontSize = 12.sp, color = TvColors.textDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            if (item.progress != null) {
+                // Barra de progresso do Watch Next (posição / duração publicadas pelo app)
+                Box(Modifier.align(Alignment.BottomStart).padding(horizontal = 10.dp, vertical = 6.dp).fillMaxWidth().height(3.dp).clip(RoundedCornerShape(50)).background(Color(0x55FFFFFF))) {
+                    Box(Modifier.fillMaxHeight().fillMaxWidth(item.progress).background(Color.White))
+                }
             }
         }
     }
 }
 
+/**
+ * Tile de app: o banner que o app publica, com acabamento de vidro por cima (reflexo no topo,
+ * borda iluminada) e brilho na cor dominante do banner quando focado. Com o vidro desligado,
+ * só o banner.
+ */
 @Composable
-fun AppCard(app: AppEntry, onClick: () -> Unit) {
+fun AppCard(app: AppEntry, glassy: Boolean = false, onClick: () -> Unit) {
     val d = LocalDims.current
-    FocusSurface(onClick = onClick, modifier = Modifier.width(d.appW).height(d.appH)) {
+    val glass = LocalGlass.current
+    val color = remember(app.packageName) { appColor(app) }
+    FocusSurface(
+        onClick = onClick, glowColor = color,
+        modifier = Modifier.width(d.appW).height(d.appH).onFocusChanged { if (it.isFocused) glass.focusColor = color },
+    ) {
         if (app.banner != null) {
-            AsyncImage(model = app.banner, contentDescription = app.label, modifier = Modifier.fillMaxSize().clip(CardShape), contentScale = ContentScale.Crop)
+            AsyncImage(
+                model = app.banner, contentDescription = app.label,
+                modifier = Modifier.fillMaxSize().clip(CardShape), contentScale = ContentScale.Crop,
+                alpha = if (glassy && glass.config.enabled) 0.88f else 1f,
+            )
         } else {
             Box(Modifier.fillMaxSize().background(placeholderBrush(app.packageName)), contentAlignment = Alignment.Center) {
                 Text(app.label, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TvColors.text, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
+        }
+        if (glass.config.enabled && !glass.config.lite && glass.config.fx > 0f) {
+            // Acabamento de vidro sobre o banner: reflexo em cima, sombra interna embaixo
+            Box(
+                Modifier.fillMaxSize().background(
+                    Brush.verticalGradient(
+                        0f to Color.White.copy(alpha = 0.28f * glass.config.fx), 0.35f to Color.Transparent,
+                        0.8f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.22f * glass.config.fx),
+                    ),
+                ),
+            )
         }
     }
 }
@@ -189,24 +289,70 @@ fun ChannelCard(ch: TunerChannel, onClick: () -> Unit) {
 fun IconButton(icon: ImageVector, label: String, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(64.dp)) {
+        val glass = LocalGlass.current.config
+        val round = RoundedCornerShape(50)
         Surface(
             onClick = onClick,
-            modifier = Modifier.size(44.dp).clip(CircleShape).onFocusChanged { focused = it.isFocused },
-            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(50)),
+            modifier = Modifier.size(44.dp).clip(CircleShape).onFocusChanged { focused = it.isFocused }.tapToClick(onClick),
+            shape = ClickableSurfaceDefaults.shape(round),
             colors = ClickableSurfaceDefaults.colors(
                 containerColor = Color.Transparent,
                 focusedContainerColor = TvColors.text,
                 contentColor = TvColors.textDim,
                 focusedContentColor = TvColors.background,
             ),
-            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
+            scale = ClickableSurfaceDefaults.scale(focusedScale = if (glass.enabled && !glass.animations) 1f else 1.15f),
             border = ClickableSurfaceDefaults.border(),
         ) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            // Em repouso: bolha de vidro discreta; no foco o Surface pinta o círculo claro por cima.
+            Box(Modifier.fillMaxSize().then(if (glass.enabled && !focused) Modifier.glass(round) else Modifier), contentAlignment = Alignment.Center) {
                 Icon(imageVector = icon, contentDescription = label, tint = if (focused) TvColors.background else TvColors.textDim, modifier = Modifier.size(22.dp))
             }
         }
         Text(if (focused) label else " ", fontSize = 11.sp, color = TvColors.textDim, maxLines = 1, modifier = Modifier.padding(top = 4.dp))
+    }
+}
+
+/** Manchete: glass, assunto, título em até 3 linhas, fonte e "há 2 h". OK abre a leitura. */
+@Composable
+fun NewsCard(item: NewsItem, onClick: () -> Unit) {
+    val d = LocalDims.current
+    FocusSurface(onClick = onClick, modifier = Modifier.width(d.mediaW).height(d.mediaH)) {
+        Column(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.SpaceBetween) {
+            Text(item.topic.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = TvColors.accent, letterSpacing = 1.sp)
+            Text(item.title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TvColors.text, maxLines = 3, overflow = TextOverflow.Ellipsis, lineHeight = 18.sp)
+            Text(listOfNotNull(item.source.ifBlank { null }, relativeTime(item.publishedMs)).joinToString(" · "), fontSize = 11.sp, color = TvColors.textDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+fun relativeTime(ms: Long): String? {
+    if (ms <= 0) return null
+    val min = (System.currentTimeMillis() - ms) / 60_000L
+    return when {
+        min < 1 -> "agora"
+        min < 60 -> "há $min min"
+        min < 60 * 24 -> "há ${min / 60} h"
+        else -> "há ${min / (60 * 24)} d"
+    }
+}
+
+/** Sugestão musical: capa quadrada, título, artista, tipo. OK abre a busca no app de música. */
+@Composable
+fun MusicCard(item: MusicItem, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(14.dp)
+    Column(Modifier.width(116.dp)) {
+        FocusSurface(onClick = onClick, shape = shape, modifier = Modifier.size(116.dp)) {
+            Box(Modifier.fillMaxSize()) {
+                if (item.imageUrl != null) AsyncImage(model = item.imageUrl, contentDescription = item.title, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                else Box(Modifier.fillMaxSize().background(placeholderBrush(item.title)))
+                Box(Modifier.align(Alignment.TopStart).padding(6.dp).clip(RoundedCornerShape(50)).background(Color(0x99000000)).padding(horizontal = 7.dp, vertical = 2.dp)) {
+                    Text(item.kind.label, fontSize = 9.sp, color = TvColors.text, letterSpacing = 0.5.sp)
+                }
+            }
+        }
+        Text(item.title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TvColors.text, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp))
+        Text(item.subtitle, fontSize = 11.sp, color = TvColors.textDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 

@@ -9,6 +9,10 @@ data class AppEntry(
     val label: String,
     val banner: Drawable?,
     val launchIntent: Intent,
+    /** Ícone quadrado (android:icon), para os tiles do estilo vidro. */
+    val icon: Drawable? = null,
+    /** ApplicationInfo.category (CATEGORY_GAME, CATEGORY_AUDIO…), -1 = não declarado. */
+    val category: Int = -1,
 )
 
 /** Uma entrada de TV (HDMI ou sintonizador) vinda do TvInputManager. */
@@ -37,7 +41,18 @@ data class MediaItem(
     val isWatchNext: Boolean,
     val channelName: String?,
     val episodeTitle: String?,
+    /** Quanto já foi assistido (0..1), quando o app publica posição e duração no Watch Next. */
+    val progress: Float? = null,
+    val seasonNumber: String? = null,
+    val episodeNumber: String? = null,
+    /** Minutos que faltam (duração - posição), quando o app publica os dois. */
+    val remainingMin: Int? = null,
 ) {
+    /** "T4 E7 · 32 min restantes", ou o título do episódio, ou nada. */
+    val progressLabel: String? get() = listOfNotNull(
+        if (!seasonNumber.isNullOrBlank() && !episodeNumber.isNullOrBlank()) "T$seasonNumber E$episodeNumber" else episodeTitle,
+        remainingMin?.let { if (it >= 60) "${it / 60}h${(it % 60).toString().padStart(2, '0')} restantes" else "$it min restantes" },
+    ).joinToString(" · ").ifBlank { null }
     /** Melhor imagem 16:9 disponível. */
     val imageUri: String? get() = thumbnailUri ?: posterUri
 }

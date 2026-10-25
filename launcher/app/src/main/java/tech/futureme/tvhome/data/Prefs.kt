@@ -9,14 +9,34 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "tvhome")
 
 /** Fundos predefinidos. "imagem" usa o arquivo enviado por scripts/58-launcher-wallpaper.sh. */
 enum class Background(val label: String) {
+    HORIZONTE("Horizonte (foto)"), AURORA("Aurora"), OCEANO("Oceano"), OCASO("Ocaso"),
     PRETO("Preto"), GRAFITE("Grafite"), NOITE("Azul-noite"), GRADIENTE("Gradiente"), IMAGEM("Minha imagem");
 }
+
+/**
+ * Estilo "vidro": painéis translúcidos que deixam o papel de parede atravessar, borda iluminada,
+ * reflexo e brilho no foco. Tudo desenhado sobre uma cópia do papel de parede calculada uma vez
+ * (sem desfoque em tempo real), então custa o mesmo que um card opaco.
+ */
+data class Glass(
+    val enabled: Boolean = true,
+    /** 0 = painel quase opaco, 1 = quase só o papel de parede. */
+    val transparency: Float = 0.6f,
+    /** 0 = sem reflexos/bordas/brilho, 1 = padrão, 1.5 = exagerado. */
+    val fx: Float = 1f,
+    /** Desfoque do papel de parede "Minha imagem": 0 nítido … 3 muito desfocado. */
+    val blur: Int = 2,
+    val animations: Boolean = true,
+    /** Modo leve: painéis escuros sem ver-através nem reflexos (fallback para GPU fraca). */
+    val lite: Boolean = false,
+)
 
 data class Settings(
     /** Pacotes do dock, na ordem. Vazio = os 8 primeiros apps instalados. */
@@ -24,7 +44,8 @@ data class Settings(
     val hidden: Set<String> = emptySet(),
     val liveTvPackage: String = "com.tcl.tv",
     val disabledSections: Set<String> = emptySet(),
-    val background: Background = Background.NOITE,
+    val background: Background = Background.HORIZONTE,
+    val glass: Glass = Glass(),
     val density: String = "compacta",
     val quick: Set<QuickAction> = QuickAction.DEFAULT,
     val showRates: Boolean = true,
@@ -95,6 +116,14 @@ class Prefs(private val context: Context) {
     private val lastChKey = stringPreferencesKey("last_channel")
     private val teamYtKey = stringPreferencesKey("team_youtube")
     private val pinsKey = stringPreferencesKey("pins")
+    private val activeProfileKey = stringPreferencesKey("active_profile")
+    private val profileBootKey = stringPreferencesKey("active_profile_boot")
+    private val glassOnKey = booleanPreferencesKey("glass_on")
+    private val glassTransKey = stringPreferencesKey("glass_transparency")
+    private val glassFxKey = stringPreferencesKey("glass_fx")
+    private val glassBlurKey = stringPreferencesKey("glass_blur")
+    private val glassAnimKey = booleanPreferencesKey("glass_animations")
+    private val glassLiteKey = booleanPreferencesKey("glass_lite")
 
     val settings: Flow<Settings> = context.dataStore.data.map { p ->
         Settings(
@@ -102,7 +131,15 @@ class Prefs(private val context: Context) {
             hidden = p[hiddenKey] ?: emptySet(),
             liveTvPackage = p[liveTvKey] ?: "com.tcl.tv",
             disabledSections = p[sectionsOffKey] ?: emptySet(),
-            background = p[backgroundKey]?.let { v -> Background.entries.firstOrNull { it.name == v } } ?: Background.NOITE,
+            background = p[backgroundKey]?.let { v -> Background.entries.firstOrNull { it.name == v } } ?: Background.HORIZONTE,
+            glass = Glass(
+                enabled = p[glassOnKey] ?: true,
+                transparency = p[glassTransKey]?.toFloatOrNull() ?: 0.6f,
+                fx = p[glassFxKey]?.toFloatOrNull() ?: 1f,
+                blur = p[glassBlurKey]?.toIntOrNull() ?: 2,
+                animations = p[glassAnimKey] ?: true,
+                lite = p[glassLiteKey] ?: false,
+            ),
             density = p[densityKey] ?: "compacta",
             quick = p[quickKey]?.mapNotNull { v -> QuickAction.entries.firstOrNull { it.name == v } }?.toSet() ?: QuickAction.DEFAULT,
             showRates = p[ratesKey] ?: true,
@@ -189,4 +226,48 @@ class Prefs(private val context: Context) {
         p[orderKey] = cur.joinToString(",")
     }
     suspend fun toggleInputs() = context.dataStore.edit { p -> p[inputsKey] = !(p[inputsKey] ?: true) }
+
+    /**
+     * Perfil escolhido + identificação do boot (instante em que a TV ligou). Se o processo do
+     * launcher for morto pelo sistema (memória) e renascer no MESMO boot, o perfil volta sem
+     * passar pelo seletor; TV ligada de novo = boot novo = seletor.
+     */
+    suspend fun setActiveProfile(profileId: String?) = context.dataStore.edit { p ->
+        if (profileId == null) { p.remove(activeProfileKey); p.remove(profileBootKey) }
+        else { p[activeProfileKey] = profileId; p[profileBootKey] = bootId().toString() }
+    }
+    suspend fun activeProfileForThisBoot(): String? {
+        val p = context.dataStore.data.first()
+        val boot = p[profileBootKey]?.toLongOrNull() ?: return null
+        return if (kotlin.math.abs(boot - bootId()) < 5_000) p[activeProfileKey] else null
+    }
+    private fun bootId(): Long = System.currentTimeMillis() - android.os.SystemClock.elapsedRealtime()
+
+    /** v0.7: quem estava num dos fundos lisos da v0.6 (preto, grafite, azul-noite, gradiente) passa para a foto Horizonte, uma vez só. */
+    suspend fun migrateWallpaper() = context.dataStore.edit { p ->
+        val done = booleanPreferencesKey("bg_migrated_v7b")
+        if (p[done] != true) {
+            val old = setOf(Background.NOITE.name, Background.GRADIENTE.name, Background.PRETO.name, Background.GRAFITE.name)
+            if (p[backgroundKey] == null || p[backgroundKey] in old) p[backgroundKey] = Background.HORIZONTE.name
+            p[done] = true
+        }
+    }
+
+    suspend fun toggleGlass() = context.dataStore.edit { p -> p[glassOnKey] = !(p[glassOnKey] ?: true) }
+    suspend fun toggleGlassAnimations() = context.dataStore.edit { p -> p[glassAnimKey] = !(p[glassAnimKey] ?: true) }
+    suspend fun toggleGlassLite() = context.dataStore.edit { p -> p[glassLiteKey] = !(p[glassLiteKey] ?: false) }
+    /** Transparência em passos de 0,1 dentro de 0,1..1,0. */
+    suspend fun adjustGlassTransparency(delta: Int) = context.dataStore.edit { p ->
+        val cur = p[glassTransKey]?.toFloatOrNull() ?: 0.6f
+        p[glassTransKey] = (Math.round((cur + delta * 0.1f) * 10f) / 10f).coerceIn(0.1f, 1f).toString()
+    }
+    /** Intensidade dos efeitos em passos de 0,25 dentro de 0..1,5. */
+    suspend fun adjustGlassFx(delta: Int) = context.dataStore.edit { p ->
+        val cur = p[glassFxKey]?.toFloatOrNull() ?: 1f
+        p[glassFxKey] = (Math.round((cur + delta * 0.25f) * 100f) / 100f).coerceIn(0f, 1.5f).toString()
+    }
+    suspend fun adjustGlassBlur(delta: Int) = context.dataStore.edit { p ->
+        val cur = p[glassBlurKey]?.toIntOrNull() ?: 2
+        p[glassBlurKey] = (cur + delta).coerceIn(0, 3).toString()
+    }
 }

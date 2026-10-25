@@ -146,6 +146,8 @@ class TvContentRepository(private val context: Context) {
         TvContract.PreviewPrograms.COLUMN_INTENT_URI,
         TvContract.PreviewPrograms.COLUMN_BROWSABLE,
         TvContract.PreviewPrograms.COLUMN_EPISODE_TITLE,
+        TvContract.PreviewPrograms.COLUMN_SEASON_DISPLAY_NUMBER,
+        TvContract.PreviewPrograms.COLUMN_EPISODE_DISPLAY_NUMBER,
     )
 
     /**
@@ -180,6 +182,10 @@ class TvContentRepository(private val context: Context) {
         TvContract.WatchNextPrograms.COLUMN_BROWSABLE,
         TvContract.WatchNextPrograms.COLUMN_EPISODE_TITLE,
         TvContract.WatchNextPrograms.COLUMN_LAST_ENGAGEMENT_TIME_UTC_MILLIS,
+        TvContract.WatchNextPrograms.COLUMN_LAST_PLAYBACK_POSITION_MILLIS,
+        TvContract.WatchNextPrograms.COLUMN_DURATION_MILLIS,
+        TvContract.WatchNextPrograms.COLUMN_SEASON_DISPLAY_NUMBER,
+        TvContract.WatchNextPrograms.COLUMN_EPISODE_DISPLAY_NUMBER,
     )
 
     private fun queryWatchNext(): List<MediaItem> {
@@ -197,6 +203,9 @@ class TvContentRepository(private val context: Context) {
     private fun Cursor.toMediaItem(isWatchNext: Boolean, channelName: String?, lastEngagement: Long): MediaItem {
         val genreRaw = getStringOrNull(TvContract.PreviewPrograms.COLUMN_CANONICAL_GENRE)
         val genres = if (genreRaw.isNullOrBlank()) emptyList() else TvContract.Programs.Genres.decode(genreRaw).toList()
+        val position = if (isWatchNext) getLongOrZero(TvContract.WatchNextPrograms.COLUMN_LAST_PLAYBACK_POSITION_MILLIS) else 0L
+        val duration = if (isWatchNext) getLongOrZero(TvContract.WatchNextPrograms.COLUMN_DURATION_MILLIS) else 0L
+        val progress = if (position > 0 && duration > 0) (position.toFloat() / duration).coerceIn(0f, 1f) else null
         return MediaItem(
             id = getLong(getColumnIndexOrThrow(TvContract.PreviewPrograms._ID)),
             packageName = getStringOrNull(TvContract.PreviewPrograms.COLUMN_PACKAGE_NAME) ?: "",
@@ -211,6 +220,10 @@ class TvContentRepository(private val context: Context) {
             isWatchNext = isWatchNext,
             channelName = channelName,
             episodeTitle = getStringOrNull(TvContract.PreviewPrograms.COLUMN_EPISODE_TITLE),
+            progress = progress,
+            seasonNumber = getStringOrNull(TvContract.PreviewPrograms.COLUMN_SEASON_DISPLAY_NUMBER),
+            episodeNumber = getStringOrNull(TvContract.PreviewPrograms.COLUMN_EPISODE_DISPLAY_NUMBER),
+            remainingMin = if (position > 0 && duration > position) ((duration - position) / 60_000L).toInt().coerceAtLeast(1) else null,
         )
     }
 

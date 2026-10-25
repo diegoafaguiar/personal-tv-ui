@@ -1,5 +1,6 @@
 # Atalhos para o fluxo. Cada alvo chama um script em scripts/; leia-os.
 # Uso: make connect | backup | inventory | debloat | tune | launcher-status | rollback | test | lint
+#      make emulator-setup | emulator | dev | dev-logs | dev-push   (launcher local, docs/09)
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
@@ -48,6 +49,27 @@ rollback-plan: ## Mostra o que o rollback faria (dry-run)
 rollback: ## Volta ao último backup
 	@scripts/90-rollback.sh
 
+emulator-setup: ## Uma vez: JDK 17 + SDK + imagem Android TV + AVD "tvhome"
+	@scripts/80-emulator.sh setup
+
+emulator: ## Abre o emulador Android TV e espera o boot
+	@scripts/80-emulator.sh start
+
+emulator-stop: ## Desliga o emulador
+	@scripts/80-emulator.sh stop
+
+dev: ## Compila o launcher e roda no emulador
+	@scripts/85-launcher-dev.sh run
+
+dev-build: ## Só compila (launcher/app/build/outputs/apk/debug)
+	@scripts/85-launcher-dev.sh build
+
+dev-logs: ## logcat do launcher no emulador
+	@scripts/85-launcher-dev.sh logs
+
+dev-push: ## Compila e instala o APK local na TV (config/tv.env)
+	@scripts/85-launcher-dev.sh push
+
 test: ## Roda os testes com o adb falso
 	@tests/run.sh
 
@@ -55,4 +77,4 @@ lint: ## shellcheck + bash -n
 	@for f in $(SCRIPTS); do bash -n "$$f" || exit 1; done
 	@shellcheck -x $(SCRIPTS)
 
-.PHONY: help connect backup inventory review finish debloat-plan debloat verify tune launcher-status benchmark rollback-plan rollback test lint
+.PHONY: emulator-setup emulator emulator-stop dev dev-build dev-logs dev-push help connect backup inventory review finish debloat-plan debloat verify tune launcher-status benchmark rollback-plan rollback test lint

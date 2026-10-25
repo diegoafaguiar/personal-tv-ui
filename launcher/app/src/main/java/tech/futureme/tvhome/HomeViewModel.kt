@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tech.futureme.tvhome.data.AppsRepository
@@ -19,11 +20,17 @@ import tech.futureme.tvhome.data.HomeContent
 import tech.futureme.tvhome.data.MediaItem
 import tech.futureme.tvhome.data.Prefs
 import tech.futureme.tvhome.data.Profile
+import tech.futureme.tvhome.data.Profiles
 import tech.futureme.tvhome.data.RatesRepository
 import tech.futureme.tvhome.data.RecentEntry
 import tech.futureme.tvhome.data.StatusRepository
 import tech.futureme.tvhome.data.WeatherRepository
 import tech.futureme.tvhome.data.Section
+import tech.futureme.tvhome.data.NewsRepository
+import tech.futureme.tvhome.data.NewsContent
+import tech.futureme.tvhome.data.NewsItem
+import tech.futureme.tvhome.data.MusicRepository
+import tech.futureme.tvhome.data.MusicContent
 import tech.futureme.tvhome.data.Settings
 import tech.futureme.tvhome.data.TvContentRepository
 
@@ -35,12 +42,29 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     private val weatherRepo = WeatherRepository()
     private val statusRepo = StatusRepository(app)
     private val teamRepo = FlamengoRepository()
+    private val newsRepo = NewsRepository()
+    private val musicRepo = MusicRepository()
+
+    private val _news = MutableStateFlow(NewsContent())
+    val news: StateFlow<NewsContent> = _news
+    private val _music = MutableStateFlow(MusicContent())
+    val music: StateFlow<MusicContent> = _music
 
     private val _team = MutableStateFlow(TeamContent())
     val team: StateFlow<TeamContent> = _team
 
-    /** Perfil em uso. Nulo = mostrar o seletor (processo novo = TV ligada agora). */
+    /** Perfil em uso. Nulo = mostrar o seletor (TV ligada agora, ou troca pedida pelo usuário). */
     val profile = MutableStateFlow<Profile?>(null)
+    /** Verdadeiro enquanto ainda não sabemos se há perfil a restaurar (evita piscar o seletor). */
+    val profileRestoring = MutableStateFlow(true)
+
+    /** Incrementa quando o botão Home é pressionado com o launcher já aberto: a UI volta ao Início. */
+    val homePressed = MutableStateFlow(0)
+
+    fun selectProfile(p: Profile?) {
+        profile.value = p
+        viewModelScope.launch { prefs.setActiveProfile(p?.id) }
+    }
 
     private val _content = MutableStateFlow(HomeContent())
     val content: StateFlow<HomeContent> = _content
@@ -58,9 +82,15 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     val loading: StateFlow<Boolean> = _loading
 
     init {
+        // Processo morto pelo sistema no mesmo boot (ex.: Netflix aberto numa TV de 2 GB): volta ao perfil sem o seletor.
+        viewModelScope.launch { try { prefs.migrateWallpaper() } catch (e: Exception) { /* fica como está */ } }
+        viewModelScope.launch {
+            try { prefs.activeProfileForThisBoot()?.let { id -> Profiles.byId(id)?.let { profile.value = it } } } catch (e: Exception) { /* seletor */ }
+            profileRestoring.value = false
+        }
         // Cotações: a cada 30 min enquanto a home existir (sem serviço em background).
         viewModelScope.launch {
-            while (true) { refreshRates(force = false); refreshWeather(force = false); refreshTeam(force = false); delay(30 * 60 * 1000L) }
+            while (true) { refreshRates(force = false); refreshWeather(force = false); refreshTeam(force = false); refreshNews(force = false); refreshMusic(force = false); delay(30 * 60 * 1000L) }
         }
     }
 
@@ -100,7 +130,39 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             _content.value = result
             _loading.value = false
         }
-        viewModelScope.launch { refreshRates(force = false); refreshWeather(force = false); refreshTeam(force = false) }
+        viewModelScope.launch { refreshRates(force = false); refreshWeather(force = false); refreshTeam(force = false); refreshNews(force = false); refreshMusic(force = false) }
+    }
+
+    /** Notícias do time e de tecnologia (ligadas aos apps instalados), a cada hora. */
+    private suspend fun refreshNews(force: Boolean) {
+        val now = System.currentTimeMillis()
+        if (!force && now - _news.value.fetchedAt < 60 * 60 * 1000L) return
+        val s = settings.value
+        val apps = _content.value.apps
+        // Apps "de tecnologia/streaming" que valem notícia: os do dock primeiro, até 6 nomes
+        val names = (s.dock.mapNotNull { pkg -> apps.firstOrNull { it.packageName == pkg }?.label } + apps.map { it.label })
+            .distinct().filter { it.length in 3..20 }.take(6)
+        val r = withContext(Dispatchers.IO) {
+            // As três buscas em paralelo: a primeira carga da home fica ~3x mais rápida
+            val teamD = async { if (s.showTeam) newsRepo.search(s.teamName, max = 12) else emptyList() }
+            val techD = async { newsRepo.search("tecnologia", max = 8) }
+            val appsD = async { if (names.isEmpty()) emptyList() else newsRepo.search("(" + names.joinToString(" OR ") { "\"$it\"" } + ") (app OR aplicativo OR recurso OR lançamento OR atualização OR streaming OR preço)", topic = "Apps", max = 8) }
+            val team = teamD.await(); val tech = techD.await(); val appsNews = appsD.await()
+            // Intercala: uma de tecnologia, uma dos apps
+            val mixed = ArrayList<NewsItem>()
+            val a = tech.iterator(); val b = appsNews.iterator()
+            while (a.hasNext() || b.hasNext()) { if (a.hasNext()) mixed += a.next(); if (b.hasNext()) mixed += b.next() }
+            NewsContent(team, mixed.distinctBy { it.title }, now)
+        }
+        _news.value = r
+    }
+
+    /** Paradas musicais (Deezer), a cada 6 h. */
+    private suspend fun refreshMusic(force: Boolean) {
+        val now = System.currentTimeMillis()
+        if (!force && now - _music.value.fetchedAt < 6 * 60 * 60 * 1000L) return
+        val r = withContext(Dispatchers.IO) { musicRepo.chart() }
+        if (r.fetchedAt > 0) _music.value = r
     }
 
     fun recordRecent(packageName: String, title: String, intentUri: String?) {

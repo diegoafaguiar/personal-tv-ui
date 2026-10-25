@@ -22,7 +22,8 @@ class AppsRepository(private val context: Context) {
             val intent = pm.getLeanbackLaunchIntentForPackage(pkg) ?: pm.getLaunchIntentForPackage(pkg) ?: continue
             val banner = ri.activityInfo.loadBanner(pm) ?: ri.activityInfo.applicationInfo.loadBanner(pm)
                 ?: ri.activityInfo.loadIcon(pm)
-            out += AppEntry(pkg, ri.loadLabel(pm).toString(), banner, intent)
+            val icon = runCatching { ri.activityInfo.loadIcon(pm) }.getOrNull()
+            out += AppEntry(pkg, ri.loadLabel(pm).toString(), banner, intent, icon = icon, category = ri.activityInfo.applicationInfo.category)
         }
         return out.sortedBy { it.label.lowercase() }
     }
@@ -40,13 +41,16 @@ class AppsRepository(private val context: Context) {
             }
     }
 
-    /** HDMI abre pelo URI de passthrough; o sintonizador abre o app de TV ao vivo. */
-    fun inputIntent(input: InputEntry, liveTvPackage: String): Intent? =
-        if (input.isTuner) {
-            pm.getLeanbackLaunchIntentForPackage(liveTvPackage) ?: pm.getLaunchIntentForPackage(liveTvPackage)
-        } else {
-            Intent(Intent.ACTION_VIEW, TvContract.buildChannelUriForPassthroughInput(input.id))
-        }
+    /**
+     * HDMI e sintonizador abrem pelo URI de passthrough da entrada: o app de TV ao vivo sobe já
+     * naquela entrada (na TCL, com.tcl.tv/TVActivity). Abrir o app "seco" o deixava no último
+     * input usado. Sem quem atenda o passthrough, abre o app.
+     */
+    fun inputIntent(input: InputEntry, liveTvPackage: String): Intent? {
+        val view = Intent(Intent.ACTION_VIEW, TvContract.buildChannelUriForPassthroughInput(input.id))
+        if (view.resolveActivity(pm) != null) return view
+        return pm.getLeanbackLaunchIntentForPackage(liveTvPackage) ?: pm.getLaunchIntentForPackage(liveTvPackage)
+    }
 
     fun label(packageName: String): String =
         try { pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0)).toString() } catch (e: Exception) { packageName }

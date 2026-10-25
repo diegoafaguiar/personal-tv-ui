@@ -79,7 +79,78 @@ Leitura sugerida enquanto executa:
 6. [Rollback: como funciona e o que não cobre](docs/06-rollback.md)
 7. [Troubleshooting: tela preta, controle mudo, "Success" que não fez nada](docs/07-troubleshooting.md)
 8. [Referências](docs/08-referencias.md)
-9. [Launcher próprio "Minha TV" (fase 2): seções unificadas de todos os streamings](docs/09-launcher-proprio.md)
+9. [Launcher próprio "Minha TV" (fase 2): seções unificadas de todos os streamings, estilo vidro (v0.7)](docs/09-launcher-proprio.md)
+
+## Launcher "Minha TV": rodar no Mac, testar no emulador, publicar na TV
+
+O launcher próprio (`launcher/`, Kotlin + Compose for TV) tem um ciclo local
+completo: compila no Mac, roda num emulador Android TV, você navega com o
+teclado ou o mouse, lê o logcat e só então manda para a TV. Detalhes em
+[docs/09-launcher-proprio.md](docs/09-launcher-proprio.md).
+
+### 1. Preparar (uma vez)
+
+```bash
+make emulator-setup      # JDK 17 + Android SDK + imagem Android TV + AVD "tvhome" (1080p, 2 GB RAM)
+```
+
+Tudo via Homebrew, sem sudo, em `~/Library/Android/sdk`. Pode repetir: é idempotente.
+
+### 2. Rodar
+
+```bash
+make emulator            # abre a janela do emulador e espera o boot (~40 s)
+make dev                 # compila (assembleDebug), instala, concede READ_TV_LISTINGS e abre o launcher
+make dev-logs            # logcat só do processo do launcher (Ctrl+C sai)
+```
+
+Editou código? `make dev` de novo (build incremental, ~20 s). `make emulator-stop` desliga.
+
+### 3. Interagir
+
+Na **janela do emulador** (clique nela primeiro para ela receber o teclado):
+
+| Tecla do Mac | Na TV |
+|---|---|
+| ← ↑ → ↓ | D-pad |
+| Enter | OK |
+| Esc | Voltar |
+| Home (fn+←) | botão Home |
+| 0-9 | dígitos (senha dos perfis, número do canal) |
+| **clique do mouse** | foca e aciona o item, como o OK (toque habilitado no AVD; o app trata toque em `Modifier.tapToClick`) |
+
+Pelo **terminal**, sem tocar na janela:
+
+```bash
+scripts/85-launcher-dev.sh remote            # controle remoto: setas, Enter, Backspace/Esc, h, m, 0-9, s (screenshot), q
+scripts/85-launcher-dev.sh key down 3        # uma tecla, n vezes: up|down|left|right|ok|back|home|menu|0-9
+scripts/85-launcher-dev.sh tap 960 570       # clique numa coordenada (tela 1920x1080)
+scripts/85-launcher-dev.sh screenshot        # PNG em reports/
+scripts/85-launcher-dev.sh home              # botão Home do emulador passa a abrir o launcher (role HOME)
+scripts/80-emulator.sh wipe                  # volta o AVD ao estado de fábrica (TV recém-ligada)
+```
+
+O que dá para validar no emulador: layout, foco, hero (relógio, clima, dólar/euro),
+perfis e senha, menu, busca, ajustes, Flamengo, crashes. A imagem traz o YouTube,
+que publica cards em "Para você". O que **não** tem: sintonizador (TV aberta),
+HDMI e os apps de streaming brasileiros, então Continuar assistindo / Filmes /
+Séries ficam vazios; isso só se vê na TV.
+
+### 4. Publicar na TV (instalar, atualizar, desinstalar: docs/09)
+
+```bash
+make dev-push                                # compila o debug e instala na TV de config/tv.env
+scripts/85-launcher-dev.sh push --release    # ou o release (R8, menor)
+scripts/50-launcher.sh grant tech.futureme.tvhome
+scripts/50-launcher.sh status
+ALLOW_STOCK_LAUNCHER_DISABLE=1 scripts/50-launcher.sh set-default tech.futureme.tvhome   # botão Home abre o launcher
+```
+
+Build local e CI assinam com a mesma chave (`launcher/keystore/`), então o APK do
+Mac atualiza por cima do da CI sem perder ajustes. Alternativa sem compilar: faça
+push do código, espere a Action `Launcher APK` e rode `scripts/57-launcher-apk.sh`
+(baixa o artefato e instala). Deu tela preta? `scripts/59-launcher-rescue.sh`;
+voltar ao launcher de fábrica: `scripts/50-launcher.sh restore`.
 
 ## O que pode ser desabilitado sem risco (resumo)
 
@@ -109,6 +180,7 @@ reports/                 inventários, logs de debloat e benchmarks
 tests/                   adb falso + 46 asserções que cobrem o fluxo inteiro e as proteções
 docs/                    guias em português
 launcher/                app Android (Kotlin + Compose for TV): a home "Minha TV"; APK vem da CI
+                         ou do Mac: make emulator-setup && make dev (emulador Android TV), make dev-push (TV)
 ```
 
 ## Segurança e princípios
