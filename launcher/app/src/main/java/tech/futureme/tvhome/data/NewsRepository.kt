@@ -23,6 +23,8 @@ data class NewsItem(
 data class NewsContent(
     val team: List<NewsItem> = emptyList(),
     val tech: List<NewsItem> = emptyList(),
+    /** Estreias e lançamentos nos streamings que estão instalados. */
+    val releases: List<NewsItem> = emptyList(),
     val fetchedAt: Long = 0L,
 )
 

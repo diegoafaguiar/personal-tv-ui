@@ -28,12 +28,17 @@ class AppsRepository(private val context: Context) {
         return out.sortedBy { it.label.lowercase() }
     }
 
+    /** Sintonizador da própria TV (antena): físico e digital de preferência. Nunca o "tuner" de um app. */
+    fun builtInTuner(inputs: List<InputEntry>): InputEntry? =
+        inputs.firstOrNull { it.isTuner && it.builtIn && !it.analog } ?: inputs.firstOrNull { it.isTuner && it.builtIn }
+
     fun inputs(): List<InputEntry> {
         val tim = context.getSystemService(Context.TV_INPUT_SERVICE) as? TvInputManager ?: return emptyList()
         return tim.tvInputList
             .filter { it.parentId == null && !it.isHidden(context) }
             .filter { it.type == TvInputInfo.TYPE_HDMI || it.type == TvInputInfo.TYPE_TUNER }
-            .sortedBy { it.id }
+            // Físicas primeiro (antena digital, depois analógica, HDMI); as de apps (Globoplay…) por último
+            .sortedWith(compareBy({ !it.id.contains("/HW") }, { it.id.contains("Analog", ignoreCase = true) }, { it.id }))
             .map { info ->
                 val label = (info.loadCustomLabel(context) ?: info.loadLabel(context))?.toString()
                     ?: if (info.type == TvInputInfo.TYPE_TUNER) "TV" else "HDMI"

@@ -138,13 +138,15 @@ fun GlassHomeScreen(
     onOpenSearch: () -> Unit,
     onSwitchProfile: () -> Unit,
     onRequestPermission: () -> Unit,
+    /** Muda a cada Home pressionado: volta a lista e a linha de apps ao começo e foca o primeiro app. */
+    resetKey: Int = 0,
 ) {
     val kids = profile.isKids
     val visibleApps = content.apps.filter { it.packageName !in settings.hidden && profile.allows(it.packageName) }
     val byPkg = visibleApps.associateBy { it.packageName }
     val dock = settings.dock.mapNotNull { byPkg[it] }.ifEmpty { visibleApps.take(8) }
     val yourApps = dock + visibleApps.filter { it !in dock }
-    val hdmi = content.inputs.filter { !it.isTuner }
+    val hdmi = content.inputs.filter { !it.isTuner && it.builtIn }
     val side = LocalDims.current.side
 
     // Carrossel: o que tem imagem, dos apps mais bem ranqueados primeiro
@@ -163,7 +165,13 @@ fun GlassHomeScreen(
     val firstApp = remember { FocusRequester() }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
-    LaunchedEffect(yourApps.isNotEmpty()) { if (yourApps.isNotEmpty()) { delay(150); runCatching { firstApp.requestFocus() } } }
+    val appsRow = rememberLazyListState()
+    LaunchedEffect(yourApps.isNotEmpty(), resetKey) {
+        if (yourApps.isNotEmpty()) {
+            runCatching { listState.scrollToItem(0); appsRow.scrollToItem(0) }
+            delay(150); runCatching { firstApp.requestFocus() }
+        }
+    }
     // Voltar com a lista rolada: volta ao topo e ao primeiro app (padrão das homes de TV)
     val scrolled by remember { derivedStateOf { listState.firstVisibleItemIndex > 1 } }
     BackHandler(enabled = scrolled) {
@@ -188,7 +196,7 @@ fun GlassHomeScreen(
                     }
                     if (yourApps.isNotEmpty()) item(key = "apps-title") { RowTitle("Seus aplicativos") }
                     if (yourApps.isNotEmpty()) item(key = "apps") {
-                        LazyRow(contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        LazyRow(state = appsRow, contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             itemsIndexed(yourApps, key = { _, a -> a.packageName }) { i, app ->
                                 // Foco inicial da home: o primeiro app (não o ícone de perfil nem a lateral)
                                 AppIcon(app, modifier = if (i == 0) Modifier.focusRequester(firstApp) else Modifier) { onOpenApp(app) }

@@ -1,0 +1,20 @@
+# risk: optional
+# Perfil da segunda TV do Diego: TCL "Smart TV" (device G13), Google TV (Android 14),
+# chipset MediaTek mt5867, 1 GB de RAM, painel 1080p com interface em 720p. Brasil.
+# Inventário de 25/10/2026: 152 pacotes.
+#
+# Mesmas escolhas OPTIONAL feitas na TV G09 (tcl-smart-tv-pro-br), só com o que existe
+# nesta TV. Os SAFE (telemetria, anúncios, modo loja) vêm de tcl-telemetry,
+# tcl-promo-ads e tcl-retail-demo. Comente o que você usa.
+#
+# Ordem:
+#   TV_HOST=192.168.100.28 scripts/40-tune.sh --screensaver basic   # antes de desligar o dreamx
+#   TV_HOST=192.168.100.28 scripts/30-debloat.sh --dry-run tcl-telemetry tcl-promo-ads tcl-retail-demo tcl-g13-br
+
+com.android.printspooler                   # impressão: nenhuma TV imprime
+com.google.android.apps.tv.dreamx          # protetor de tela "Ambiente" (fotos e sugestões): troque pelo básico antes
+com.google.android.onetimeinitializer      # roda só no primeiro boot
+com.google.android.play.games              # Google Play Games
+com.google.android.syncadapters.calendar   # sincronização de calendário
+com.google.android.videos                  # Google TV Filmes (loja)
+com.google.android.youtube.tvmusic         # YouTube Music (comente se usa)

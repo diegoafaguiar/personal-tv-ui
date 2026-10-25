@@ -133,6 +133,18 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { refreshRates(force = false); refreshWeather(force = false); refreshTeam(force = false); refreshNews(force = false); refreshMusic(force = false) }
     }
 
+    /**
+     * TV ligada (tela acendeu) ou launcher aberto pela primeira vez: recomendações, notícias,
+     * lançamentos, paradas, cotações e clima são buscados de novo, sem esperar o intervalo.
+     */
+    fun refreshFeedsNow() {
+        viewModelScope.launch {
+            refreshNews(force = true); refreshMusic(force = true); refreshTeam(force = true)
+            refreshRates(force = true); refreshWeather(force = true)
+        }
+        refresh()
+    }
+
     /** Notícias do time e de tecnologia (ligadas aos apps instalados), a cada hora. */
     private suspend fun refreshNews(force: Boolean) {
         val now = System.currentTimeMillis()
@@ -147,12 +159,18 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             val teamD = async { if (s.showTeam) newsRepo.search(s.teamName, max = 12) else emptyList() }
             val techD = async { newsRepo.search("tecnologia", max = 8) }
             val appsD = async { if (names.isEmpty()) emptyList() else newsRepo.search("(" + names.joinToString(" OR ") { "\"$it\"" } + ") (app OR aplicativo OR recurso OR lançamento OR atualização OR streaming OR preço)", topic = "Apps", max = 8) }
-            val team = teamD.await(); val tech = techD.await(); val appsNews = appsD.await()
+            // Lançamentos: estreias da semana nos streamings instalados (Netflix, Prime, Disney+, Globoplay…)
+            val streamNames = names.filter { n -> listOf("netflix", "prime", "disney", "globoplay", "max", "apple tv", "paramount", "claro").any { n.lowercase().contains(it) } }
+            val relD = async {
+                val q = if (streamNames.isEmpty()) "estreias streaming semana" else "(estreias OR lançamentos OR \"chega ao\") (" + streamNames.joinToString(" OR ") { "\"$it\"" } + ")"
+                newsRepo.search(q, topic = "Lançamentos", max = 12)
+            }
+            val team = teamD.await(); val tech = techD.await(); val appsNews = appsD.await(); val releases = relD.await()
             // Intercala: uma de tecnologia, uma dos apps
             val mixed = ArrayList<NewsItem>()
             val a = tech.iterator(); val b = appsNews.iterator()
             while (a.hasNext() || b.hasNext()) { if (a.hasNext()) mixed += a.next(); if (b.hasNext()) mixed += b.next() }
-            NewsContent(team, mixed.distinctBy { it.title }, now)
+            NewsContent(team, mixed.distinctBy { it.title }, releases.distinctBy { it.title }, now)
         }
         _news.value = r
     }

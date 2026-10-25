@@ -117,7 +117,7 @@ fun App(
     }
     CompositionLocalProvider(LocalDims provides Dims.of(settings.density), LocalGlass provides glass) {
         Box(Modifier.fillMaxSize().onSizeChanged { if (it != glass.screen) glass.screen = it }) {
-            if (screen != Screen.LIVE_TV) BackgroundLayer(if (screen == Screen.HOME && profile != null) focused?.imageUri else null, settings.nightMode)
+            if (screen != Screen.LIVE_TV) BackgroundLayer(if (screen == Screen.HOME && profile != null && !settings.glass.lite) focused?.imageUri else null, settings.nightMode)   // modo leve: sem a arte em tela cheia (2 camadas a menos por quadro)
             // Sem perfil: seletor (e senha, se o perfil pedir)
             if (profile == null) {
                 if (restoring) return@Box   // só o fundo, até sabermos se há perfil a restaurar
@@ -141,7 +141,7 @@ fun App(
             // O TvView dentro do launcher fica para os cards de canal; na TCL ele recusa a sessão e caía
             // no app de TV no último input usado (ex.: HDMI 2).
             fun openTuner() {
-                val tunerInput = content.inputs.firstOrNull { it.isTuner }
+                val tunerInput = vm.appsRepo.builtInTuner(content.inputs)
                 if (tunerInput != null) { onOpenInput(tunerInput); return }
                 val last = content.tunerChannels.firstOrNull { it.id == settings.lastChannelId }
                 val ch = last ?: content.tunerChannels.firstOrNull { it.name.contains("globo", true) } ?: content.tunerChannels.firstOrNull()
@@ -183,6 +183,7 @@ fun App(
                     onOpenItem = onOpenItem, onOpenApp = onOpenApp, onOpenInput = onOpenInput, onOpenRecent = onOpenRecent,
                     onOpenChannel = ::openChannel, onOpenTuner = ::openTuner, onQuick = onQuick,
                     onNav = ::navigate,
+                    resetKey = homeTick,
                     onOpenSearch = { screen = Screen.SEARCH },
                     onSwitchProfile = { vm.selectProfile(null); focused = null },
                     onRequestPermission = onRequestPermission,

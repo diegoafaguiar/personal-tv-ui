@@ -94,6 +94,16 @@ data class Settings(
 }
 
 class Prefs(private val context: Context) {
+    /**
+     * TV com pouca memória (menos de 1,5 GB, ex.: TCL G13 com 1 GB): o "modo leve" vira o padrão,
+     * porque o vidro completo passa de 90 ms por quadro nessas GPUs. O ajuste continua valendo.
+     */
+    val lowRam: Boolean = run {
+        val am = context.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+        val mi = android.app.ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }
+        am.isLowRamDevice || mi.totalMem < 1_500L * 1024 * 1024
+    }
+
     private val dockKey = stringPreferencesKey("dock")
     private val hiddenKey = stringSetPreferencesKey("hidden")
     private val liveTvKey = stringPreferencesKey("live_tv")
@@ -138,7 +148,7 @@ class Prefs(private val context: Context) {
                 fx = p[glassFxKey]?.toFloatOrNull() ?: 1f,
                 blur = p[glassBlurKey]?.toIntOrNull() ?: 2,
                 animations = p[glassAnimKey] ?: true,
-                lite = p[glassLiteKey] ?: false,
+                lite = p[glassLiteKey] ?: lowRam,
             ),
             density = p[densityKey] ?: "compacta",
             quick = p[quickKey]?.mapNotNull { v -> QuickAction.entries.firstOrNull { it.name == v } }?.toSet() ?: QuickAction.DEFAULT,
@@ -255,7 +265,7 @@ class Prefs(private val context: Context) {
 
     suspend fun toggleGlass() = context.dataStore.edit { p -> p[glassOnKey] = !(p[glassOnKey] ?: true) }
     suspend fun toggleGlassAnimations() = context.dataStore.edit { p -> p[glassAnimKey] = !(p[glassAnimKey] ?: true) }
-    suspend fun toggleGlassLite() = context.dataStore.edit { p -> p[glassLiteKey] = !(p[glassLiteKey] ?: false) }
+    suspend fun toggleGlassLite() = context.dataStore.edit { p -> p[glassLiteKey] = !(p[glassLiteKey] ?: lowRam) }
     /** Transparência em passos de 0,1 dentro de 0,1..1,0. */
     suspend fun adjustGlassTransparency(delta: Int) = context.dataStore.edit { p ->
         val cur = p[glassTransKey]?.toFloatOrNull() ?: 0.6f

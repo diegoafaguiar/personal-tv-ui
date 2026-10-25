@@ -211,6 +211,31 @@ capas. OK numa sugestão abre `spotify:search:<artista título>` no Spotify (tes
 abre e toca), ou a busca no YouTube se não houver Spotify. Limite: as sugestões são as
 paradas do Brasil, não o seu histórico; o Spotify não expõe o que você ouve para outros apps.
 
+## v0.8.1: segunda TV, TV aberta, atualização ao ligar, lançamentos
+
+- **Botão "TV ao Vivo"**: abria o Globoplay porque o Globoplay registra um "tuner" próprio
+  (`com.globo.globotv/.androidtv.tif.service.LiveTvInputService`) e era o primeiro em ordem
+  alfabética. Agora o launcher usa o sintonizador físico da TV (id `…/HWn`), digital antes do
+  analógico; entradas de apps ficam por último e saem dos cards de HDMI.
+- **Atualizar ao ligar a TV**: ao sair do standby (`ACTION_SCREEN_ON`) o launcher busca de novo
+  notícias, lançamentos, paradas musicais, Flamengo, cotações, clima e o Watch Next.
+- **Linha "Lançamentos"**: estreias da semana nos streamings instalados (Google Notícias).
+- **Home** volta a lista e a linha de apps ao começo e foca o primeiro app.
+- **TVs com pouca memória** (menos de 1,5 GB): "modo leve" vira o padrão e a arte do item focado
+  não cobre o fundo (duas camadas de tela cheia a menos). Na TCL G13 (mt5867, 1 GB) a mediana
+  caiu de 97 ms para 65 ms por quadro; é o limite com foto de fundo nessa GPU.
+
+**Segunda TV (TCL G13, 192.168.100.28)**: backup em `backups/20261025-133922_TCL_Smart_TV`,
+perfil `config/profiles/tcl-g13-br.list`, 19 pacotes desabilitados, launcher como Home. Para
+falar com ela sem mexer no `config/tv.env` da primeira:
+
+```bash
+TV_HOST=192.168.100.28 scripts/35-verify.sh
+TV_HOST=192.168.100.28 scripts/85-launcher-dev.sh push --release
+TV_HOST=192.168.100.28 scripts/90-rollback.sh --dry-run
+TV_HOST=192.168.100.28 scripts/50-launcher.sh restore     # volta a home do Google
+```
+
 ## Por que isso funciona sem scraping
 
 No Android TV os apps publicam "Watch Next" e "canais de prévia" num banco do

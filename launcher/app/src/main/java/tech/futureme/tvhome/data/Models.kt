@@ -20,6 +20,10 @@ data class InputEntry(
     val id: String,
     val label: String,
     val isTuner: Boolean,
+    /** Entrada física da TV (id ".../HWn"): antena, HDMI. Apps como o Globoplay registram "tuners" próprios sem HW. */
+    val builtIn: Boolean = id.contains("/HW"),
+    /** Sintonizador analógico (cabo antigo); o digital (TV aberta ISDB-T) tem preferência. */
+    val analog: Boolean = id.contains("Analog", ignoreCase = true),
 )
 
 /**

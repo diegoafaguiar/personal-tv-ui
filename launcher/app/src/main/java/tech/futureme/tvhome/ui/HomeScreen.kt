@@ -91,8 +91,8 @@ fun HomeScreen(
     val kids = profile.isKids
     fun List<MediaItem>.allowed() = filter { profile.allows(it.packageName) }
     val gap = LocalDims.current.gap
-    val tuner = content.inputs.firstOrNull { it.isTuner }
-    val hdmi = content.inputs.filter { !it.isTuner }
+    val tuner = content.inputs.firstOrNull { it.isTuner && it.builtIn }
+    val hdmi = content.inputs.filter { !it.isTuner && it.builtIn }
     val broadcast = content.tunerChannels.sortedBy { if (it.name.contains("globo", true)) -1 else 0 }
     val listState = rememberLazyListState()
     // Hero expandido só com a lista no topo; ao rolar para baixo ele colapsa, ao voltar reexpande.
@@ -200,6 +200,16 @@ fun LazyListScope.homeRows(
                 items(team.related, key = { "rel-${it.packageName}:${it.id}" }) { MediaCard(it, appLabel(it.packageName), onFocused) { onOpenItem(it) } }
                 items(team.videos, key = { "yt-${it.id}" }) { MediaCard(it, it.channelName ?: "YouTube", onFocused) { onOpenItem(it) } }
                 item { PillCard("${settings.teamName} no YouTube", { onOpenYoutubeSearch(settings.teamName) }, sub = "vídeos e lances") }
+            }
+        }
+    }
+
+    // Lançamentos: estreias nos streamings instalados (atualiza toda vez que a TV liga)
+    if (!kids && news.releases.isNotEmpty()) {
+        item(key = "title-releases") { RowTitle("Lançamentos", "estreias nos seus streamings") }
+        item(key = "row-releases") {
+            LazyRow(contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(gap)) {
+                items(news.releases, key = { "rel-n-" + it.link.hashCode() }) { NewsCard(it) { onOpenNews(it) } }
             }
         }
     }

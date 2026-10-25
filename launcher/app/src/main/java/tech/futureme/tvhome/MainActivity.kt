@@ -53,6 +53,23 @@ class MainActivity : ComponentActivity() {
         vm.refresh()   // voltou de um app: o Watch Next pode ter mudado
     }
 
+    /** A TV saiu do standby (tela acendeu): atualiza as áreas de recomendação. */
+    private val screenOn = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context?, intent: Intent?) {
+            if (intent?.action == Intent.ACTION_SCREEN_ON) vm.refreshFeedsNow()
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        registerReceiver(screenOn, android.content.IntentFilter(Intent.ACTION_SCREEN_ON))
+    }
+
+    override fun onDestroy() {
+        runCatching { unregisterReceiver(screenOn) }
+        super.onDestroy()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         // Botão Home com o launcher aberto (singleTask): o sistema entrega um novo intent HOME
@@ -63,7 +80,7 @@ class MainActivity : ComponentActivity() {
     /** O botão Input do controle abre a TV ao vivo / menu de fontes mesmo com a home na frente. */
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         if (keyCode == KeyEvent.KEYCODE_TV_INPUT) {
-            val first = vm.content.value.inputs.firstOrNull()
+            val first = vm.appsRepo.builtInTuner(vm.content.value.inputs) ?: vm.content.value.inputs.firstOrNull()
             if (first != null) { openInput(first); return true }
         }
         return super.onKeyDown(keyCode, event)
@@ -84,7 +101,7 @@ class MainActivity : ComponentActivity() {
         val live = vm.settings.value.liveTvPackage
         // O app da TCL declara VIEW para vnd.android.cursor.item/channel: pacote e tipo explícitos para resolver
         val view = Intent(Intent.ACTION_VIEW).setDataAndType(android.media.tv.TvContract.buildChannelUri(ch.id), "vnd.android.cursor.item/channel").setPackage(live)
-        val tuner = vm.content.value.inputs.firstOrNull { it.isTuner }
+        val tuner = vm.appsRepo.builtInTuner(vm.content.value.inputs)
         when {
             view.resolveActivity(packageManager) != null -> startSafely(view)
             tuner != null -> openInput(tuner)

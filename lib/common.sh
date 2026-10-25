@@ -47,13 +47,18 @@ die()      { log_err "$@"; exit 1; }
 # --------------------------------------------------------------------------
 # Ordem de precedência: variável de ambiente > config/tv.env > erro.
 load_config() {
-  local env_file="$REPO_ROOT/config/tv.env"
+  local env_file="${TV_ENV:-$REPO_ROOT/config/tv.env}"
+  # Guarda o que veio do ambiente: "TV_HOST=ip scripts/..." vale mais que o arquivo
+  # (é assim que se fala com uma segunda TV sem editar config/tv.env).
+  local env_host="${TV_HOST:-}" env_dry="${DRY_RUN:-}"
   if [[ -f "$env_file" ]]; then
     set -a
     # shellcheck source=/dev/null
     source "$env_file"
     set +a
   fi
+  [[ -n "$env_host" ]] && TV_HOST="$env_host"
+  [[ -n "$env_dry" ]] && DRY_RUN="$env_dry"
   DRY_RUN="${DRY_RUN:-0}"
   TV_HOST="${TV_HOST:-}"
   if [[ -z "$TV_HOST" ]]; then
@@ -281,7 +286,11 @@ pkg_apk_mb() {
   path="$(tv_shell pm path "$1" 2>/dev/null | tr -d '\r' | head -n1 | sed 's/^package://')"
   [[ -n "$path" ]] || { echo 0; return; }
   dir="$(dirname "$path")"
-  tv_shell du -sk "$dir" 2>/dev/null | tr -d '\r' | awk '{printf "%d", $1/1024}'
+  # Android 14 nega "du" em /data/app ao shell: sem tamanho, 0 (não derruba o inventário)
+  local kb
+  kb="$(tv_shell du -sk "$dir" 2>/dev/null | tr -d '\r' | awk '{print $1; exit}' || true)"
+  [[ "$kb" =~ ^[0-9]+$ ]] || kb=0
+  echo $(( kb / 1024 ))
 }
 pkg_is_system() {
   local path
