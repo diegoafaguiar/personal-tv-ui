@@ -44,10 +44,15 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     private val teamRepo = FlamengoRepository()
     private val newsRepo = NewsRepository()
     private val musicRepo = MusicRepository()
+    private val youtubeRepo = tech.futureme.tvhome.data.YoutubeRepository()
 
     private val _news = MutableStateFlow(NewsContent())
     val news: StateFlow<NewsContent> = _news
     private val _music = MutableStateFlow(MusicContent())
+    /** A última busca falhou (sem internet): a tela mostra "sem conexão" e "Tentar de novo". */
+    val musicFailed = MutableStateFlow(false)
+    val weatherFailed = MutableStateFlow(false)
+    fun retryMusic() { musicFailed.value = false; viewModelScope.launch { refreshMusic(force = true) } }
     val music: StateFlow<MusicContent> = _music
 
     private val _team = MutableStateFlow(TeamContent())
@@ -179,8 +184,15 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     private suspend fun refreshMusic(force: Boolean) {
         val now = System.currentTimeMillis()
         if (!force && now - _music.value.fetchedAt < 6 * 60 * 60 * 1000L) return
-        val r = withContext(Dispatchers.IO) { musicRepo.chart() }
-        if (r.fetchedAt > 0) _music.value = r
+        val r = withContext(Dispatchers.IO) {
+            val chart = musicRepo.chart()
+            // Clipe de cada uma das 8 mais tocadas + vídeos musicais em alta, em paralelo
+            val clipsD = chart.tracks.take(8).map { t -> async { youtubeRepo.search("${t.query} clipe oficial", max = 1).firstOrNull() } }
+            val ytD = async { youtubeRepo.search("músicas mais tocadas ao vivo", max = 12, recent = false) }
+            val clips = clipsD.mapNotNull { it.await() }.distinctBy { it.id }.map { youtubeRepo.toItem(it) }
+            chart.copy(clips = clips, youtube = ytD.await().map { youtubeRepo.toItem(it) })
+        }
+        if (r.fetchedAt > 0 || r.clips.isNotEmpty()) { _music.value = r; musicFailed.value = false } else musicFailed.value = true
     }
 
     fun recordRecent(packageName: String, title: String, intentUri: String?) {
@@ -191,7 +203,11 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         val s = settings.value
         if (!s.showTeam) return
         if (!force && System.currentTimeMillis() - _team.value.fetchedAt < 25 * 60 * 1000L) return
-        val r = withContext(Dispatchers.IO) { teamRepo.fetch(s.teamEspnId, s.teamLeague, s.teamYoutube) }
+        val r0 = withContext(Dispatchers.IO) { teamRepo.fetch(s.teamEspnId, s.teamLeague, s.teamYoutube) }
+        // RSS de vídeos do YouTube morreu (404): busca os vídeos mais recentes do time
+        val r = if (r0.videos.isNotEmpty()) r0 else r0.copy(videos = withContext(Dispatchers.IO) {
+            youtubeRepo.search("${s.teamName} melhores momentos", max = 12, recent = true).map { youtubeRepo.toItem(it, "SPORTS") }
+        })
         val name = s.teamName.lowercase()
         val related = _content.value.allItems.filter { (it.title + " " + (it.description ?: "")).lowercase().contains(name) }
         _team.value = TeamContent(r.info, r.videos.take(20), related, r.errors, System.currentTimeMillis())
@@ -202,7 +218,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         if (!force && now - weatherFetchedAt < 25 * 60 * 1000L) return
         val s = settings.value
         val w = withContext(Dispatchers.IO) { weatherRepo.fetch(s.latitude, s.longitude) }
-        if (w != null) { _weather.value = w; weatherFetchedAt = now }
+        if (w != null) { _weather.value = w; weatherFetchedAt = now; weatherFailed.value = false } else weatherFailed.value = true
     }
 
     private suspend fun refreshRates(force: Boolean) {

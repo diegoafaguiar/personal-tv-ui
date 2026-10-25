@@ -17,6 +17,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -126,7 +128,8 @@ fun PinPad(title: String, subtitle: String, expected: String?, onDone: (String) 
                     val mod = if (r == 0 && c == 0) Modifier.focusRequester(first) else Modifier
                     FocusSurface(
                         onClick = { when (ch) { '⌫' -> typed = typed.dropLast(1); '✕' -> onCancel(); else -> press(ch) } },
-                        modifier = mod.size(64.dp), shape = RoundedCornerShape(50),
+                        modifier = mod.size(64.dp).semantics { contentDescription = when (ch) { '⌫' -> "Apagar"; '✕' -> "Cancelar"; else -> ch.toString() } },
+                        shape = RoundedCornerShape(50),
                     ) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(ch.toString(), fontSize = 22.sp, color = TvColors.text) }
                     }

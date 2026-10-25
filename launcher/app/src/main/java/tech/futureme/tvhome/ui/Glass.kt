@@ -89,7 +89,7 @@ suspend fun renderWallpaper(context: Context, bg: Background, imageFile: File?, 
         else -> null
     }
     if (photo != null) {
-        Wallpaper(sharp = photoBitmap(photo, width, height, blur = 0, darken = 0x40000000), blur = photoBitmap(photo, width, height, blur = maxOf(1, blur), darken = 0x66000000))
+        Wallpaper(sharp = photoBitmap(photo, width, height, blur = 0, darken = 0x52000000), blur = photoBitmap(photo, width, height, blur = maxOf(1, blur), darken = 0x66000000))
     } else {
         val img = ImageBitmap(width, height)
         CanvasDrawScope().draw(Density(1f), LayoutDirection.Ltr, Canvas(img), Size(width.toFloat(), height.toFloat())) {
@@ -126,6 +126,8 @@ private fun photoBitmap(decoded: Bitmap, width: Int, height: Int, blur: Int, dar
 /** Vinheta: assada no bitmap do papel de parede (custa zero por quadro). */
 private fun DrawScope.drawVignette() {
     drawRect(Brush.radialGradient(listOf(Color.Transparent, Color.Transparent, Color(0x8C000000)), center = Offset(size.width * 0.5f, size.height * 0.4f), radius = size.width * 0.75f))
+    // Faixas escuras onde ficam relógio/títulos (topo) e as últimas linhas (base): legibilidade
+    drawRect(Brush.verticalGradient(0f to Color(0x8C000000), 0.22f to Color.Transparent, 0.75f to Color.Transparent, 1f to Color(0x99000000)))
 }
 
 private fun DrawScope.blob(cx: Float, cy: Float, r: Float, color: Color) {
@@ -203,8 +205,10 @@ fun Modifier.glass(shape: RoundedCornerShape = CardShape, strong: Boolean = fals
             val cfg = glass.config
             val fx = cfg.fx
             val radius = CornerRadius(shape.topStart.toPx(size, this))
-            val tintAlpha = ((if (strong) 0.26f else 0.2f) * (1f - cfg.transparency) + 0.03f).coerceIn(0f, 1f)
-            val tint = Color.White.copy(alpha = tintAlpha)
+            // Tinta ESCURA (texto branco precisa de fundo escuro, mesmo sobre o céu claro da foto)
+            // + um véu branco fino para manter a cara de vidro. Transparência 100% = quase só o fundo.
+            val shade = Color.Black.copy(alpha = (((if (strong) 0.55f else 0.45f) * (1f - cfg.transparency)) + 0.12f).coerceIn(0f, 0.85f))
+            val tint = Color.White.copy(alpha = 0.05f)
             val lite = Color(0xFF10141E).copy(alpha = (0.95f - 0.45f * cfg.transparency).coerceIn(0.3f, 1f))
             val edge = Brush.linearGradient(
                 listOf(Color.White.copy(alpha = 0.55f * fx), Color.White.copy(alpha = 0.06f), Color.White.copy(alpha = 0.02f), Color.White.copy(alpha = 0.3f * fx)),
@@ -240,6 +244,7 @@ fun Modifier.glass(shape: RoundedCornerShape = CardShape, strong: Boolean = fals
                         // Painel parcialmente fora da tela (rolagem/escala): caminho simples, a GPU recorta
                         translate(-p.x, -p.y) { drawImage(wp, dstSize = screen, filterQuality = FilterQuality.Low) }
                     }
+                    drawRect(shade)
                     drawRect(tint)
                     if (glass.darken > 0f) drawRect(Color.Black.copy(alpha = glass.darken))
                 }

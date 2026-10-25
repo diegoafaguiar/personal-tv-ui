@@ -38,6 +38,52 @@ data class Glass(
     val lite: Boolean = false,
 )
 
+/** Cores de destaque (borda e brilho do foco, detalhes). */
+enum class Accent(val label: String, val argb: Long) {
+    BRANCO("Branco", 0xFFFFFFFF), CIANO("Ciano", 0xFF5BC0EB), AZUL("Azul", 0xFF6C8CFF), VIOLETA("Violeta", 0xFFB18CFF),
+    ROSA("Rosa", 0xFFFF7EB6), CORAL("Coral", 0xFFFF8A65), AMBAR("Âmbar", 0xFFFFC857), VERDE("Verde", 0xFF6EE7A8), RUBRO("Rubro-negro", 0xFFE53935);
+}
+
+/** Como os apps aparecem em "Seus aplicativos". */
+enum class AppTile(val label: String) { ICONE("Ícone quadrado (1/1)"), BANNER("Banner do app (16/9)") }
+
+/** Formato do destaque do card focado. */
+enum class FocusStyle(val label: String) { BORDA("Borda"), BRILHO("Brilho, sem borda"), BORDA_BRILHO("Borda e brilho") }
+
+/**
+ * Personalização da aparência (Ajustes › Aparência). Tudo vale na hora, com prévia ao lado.
+ * Os valores ficam em passos para serem ajustados com ◀ ▶ no controle.
+ */
+data class Look(
+    /** Tamanho dos cards: 0,8 a 1,3 (1 = padrão). */
+    val cardScale: Float = 1f,
+    /** Espaço entre cards, em dp: 4 a 28. */
+    val cardSpacing: Int = 12,
+    /** Espaço entre linhas, em % da altura da tela: 0 a 8. */
+    val rowSpacing: Int = 2,
+    /** Opacidade das linhas sem foco: 0,3 a 1. */
+    val unselectedAlpha: Float = 1f,
+    /** A linha focada fica sempre na mesma altura da tela (a lista anda por baixo). */
+    val fixedFocusRow: Boolean = false,
+    /** Linhas acima da focada somem (fica só o que vem pela frente). */
+    val hideRowsAbove: Boolean = false,
+    /** Voltar a uma linha foca o último card visitado nela. */
+    val rememberFocus: Boolean = true,
+    /** Ícone antes do título de cada linha. */
+    val rowIcons: Boolean = true,
+    /** Escala do card focado: 1,0 a 1,2. */
+    val focusScale: Float = 1.08f,
+    /** Espessura da borda de foco, em dp: 0 a 5. */
+    val focusBorder: Int = 3,
+    val focusStyle: FocusStyle = FocusStyle.BORDA,
+    val accent: Accent = Accent.BRANCO,
+    val appTile: AppTile = AppTile.ICONE,
+    /** Rótulo com o nome do app embaixo do ícone. */
+    val appLabels: Boolean = true,
+    /** Segundos no relógio. */
+    val clockSeconds: Boolean = false,
+)
+
 data class Settings(
     /** Pacotes do dock, na ordem. Vazio = os 8 primeiros apps instalados. */
     val dock: List<String> = DEFAULT_DOCK,
@@ -46,6 +92,7 @@ data class Settings(
     val disabledSections: Set<String> = emptySet(),
     val background: Background = Background.HORIZONTE,
     val glass: Glass = Glass(),
+    val look: Look = Look(),
     val density: String = "compacta",
     val quick: Set<QuickAction> = QuickAction.DEFAULT,
     val showRates: Boolean = true,
@@ -142,6 +189,23 @@ class Prefs(private val context: Context) {
             liveTvPackage = p[liveTvKey] ?: "com.tcl.tv",
             disabledSections = p[sectionsOffKey] ?: emptySet(),
             background = p[backgroundKey]?.let { v -> Background.entries.firstOrNull { it.name == v } } ?: Background.HORIZONTE,
+            look = Look(
+                cardScale = p[floatKey("look_card_scale")] ?: 1f,
+                cardSpacing = p[intKey("look_card_spacing")] ?: 12,
+                rowSpacing = p[intKey("look_row_spacing")] ?: 2,
+                unselectedAlpha = p[floatKey("look_unselected_alpha")] ?: 1f,
+                fixedFocusRow = p[booleanPreferencesKey("look_fixed_row")] ?: false,
+                hideRowsAbove = p[booleanPreferencesKey("look_hide_above")] ?: false,
+                rememberFocus = p[booleanPreferencesKey("look_remember_focus")] ?: true,
+                rowIcons = p[booleanPreferencesKey("look_row_icons")] ?: true,
+                focusScale = p[floatKey("look_focus_scale")] ?: 1.08f,
+                focusBorder = p[intKey("look_focus_border")] ?: 3,
+                focusStyle = p[stringPreferencesKey("look_focus_style")]?.let { v -> FocusStyle.entries.firstOrNull { it.name == v } } ?: FocusStyle.BORDA,
+                accent = p[stringPreferencesKey("look_accent")]?.let { v -> Accent.entries.firstOrNull { it.name == v } } ?: Accent.BRANCO,
+                appTile = p[stringPreferencesKey("look_app_tile")]?.let { v -> AppTile.entries.firstOrNull { it.name == v } } ?: AppTile.ICONE,
+                appLabels = p[booleanPreferencesKey("look_app_labels")] ?: true,
+                clockSeconds = p[booleanPreferencesKey("look_clock_seconds")] ?: false,
+            ),
             glass = Glass(
                 enabled = p[glassOnKey] ?: true,
                 transparency = p[glassTransKey]?.toFloatOrNull() ?: 0.6f,
@@ -261,6 +325,31 @@ class Prefs(private val context: Context) {
             if (p[backgroundKey] == null || p[backgroundKey] in old) p[backgroundKey] = Background.HORIZONTE.name
             p[done] = true
         }
+    }
+
+    // ---------- Aparência (Look): ajustes genéricos por chave ----------
+    private fun floatKey(n: String) = androidx.datastore.preferences.core.floatPreferencesKey(n)
+    private fun intKey(n: String) = androidx.datastore.preferences.core.intPreferencesKey(n)
+
+    /** Soma [delta] passos de [step] a uma chave Float, presa em [min]..[max]. */
+    suspend fun stepFloat(name: String, default: Float, step: Float, min: Float, max: Float, delta: Int) = context.dataStore.edit { p ->
+        val k = floatKey(name); val cur = p[k] ?: default
+        p[k] = (Math.round((cur + delta * step) * 100f) / 100f).coerceIn(min, max)
+    }
+    suspend fun stepInt(name: String, default: Int, step: Int, min: Int, max: Int, delta: Int) = context.dataStore.edit { p ->
+        val k = intKey(name); p[k] = ((p[k] ?: default) + delta * step).coerceIn(min, max)
+    }
+    suspend fun toggleBool(name: String, default: Boolean) = context.dataStore.edit { p ->
+        val k = booleanPreferencesKey(name); p[k] = !(p[k] ?: default)
+    }
+    /** Próximo (delta=+1) ou anterior (-1) valor de um enum guardado por nome. */
+    suspend fun <E : Enum<E>> cycleEnum(name: String, values: List<E>, default: E, delta: Int) = context.dataStore.edit { p ->
+        val k = stringPreferencesKey(name)
+        val i = values.indexOfFirst { it.name == (p[k] ?: default.name) }.coerceAtLeast(0)
+        p[k] = values[(i + delta + values.size) % values.size].name
+    }
+    suspend fun resetLook() = context.dataStore.edit { p ->
+        p.asMap().keys.filter { it.name.startsWith("look_") }.forEach { p.remove(it) }
     }
 
     suspend fun toggleGlass() = context.dataStore.edit { p -> p[glassOnKey] = !(p[glassOnKey] ?: true) }

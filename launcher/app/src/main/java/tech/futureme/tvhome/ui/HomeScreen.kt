@@ -123,7 +123,7 @@ fun HomeScreen(
 
             // Dock
             item {
-                LazyRow(contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(gap)) {
+                LazyRow(Modifier.rememberFocus(), contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(LocalDims.current.gap)) {
                     items(dock, key = { it.packageName }) { AppCard(it) { onOpenApp(it) } }
                 }
             }
@@ -132,7 +132,7 @@ fun HomeScreen(
 
             if (!kids) item {
                 RowTitle("Esta home")
-                LazyRow(contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(gap)) {
+                LazyRow(Modifier.rememberFocus(), contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(LocalDims.current.gap)) {
                     item { PillCard("Ajustes", onOpenSettings) }
                     item { PillCard("Diagnóstico", onOpenDiagnostics) }
                     item { PillCard("Trocar perfil", onSwitchProfile) }
@@ -181,7 +181,7 @@ fun LazyListScope.homeRows(
         val g = content.globo
         item(key = "title-globo") { RowTitle("TV Globo", g.nowTitle?.let { "Agora: $it" }) }
         item(key = "row-globo") {
-            LazyRow(contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(gap)) {
+            LazyRow(Modifier.rememberFocus(), contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(LocalDims.current.gap)) {
                 item { ChannelCard(g) { onOpenChannel(g) } }
                 val now = System.currentTimeMillis()
                 items(content.globoSchedule.take(12), key = { "pg-${it.startMs}" }) { ProgramCard(it, isNow = it.startMs <= now && it.endMs > now) { onOpenChannel(g) } }
@@ -194,7 +194,7 @@ fun LazyListScope.homeRows(
     if (profile.showTeam && settings.showTeam && (team.info != null || team.videos.isNotEmpty() || team.related.isNotEmpty() || news.team.isNotEmpty())) {
         item(key = "title-team") { RowTitle(settings.teamName, "jogo, tabela, notícias e vídeos") }
         item(key = "row-team") {
-            LazyRow(contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(gap)) {
+            LazyRow(Modifier.rememberFocus(), contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(LocalDims.current.gap)) {
                 item { TeamInfoCard(settings.teamName, team.info) { onOpenYoutubeSearch(settings.teamName) } }
                 items(news.team.take(8), key = { "news-" + it.link.hashCode() }) { NewsCard(it) { onOpenNews(it) } }
                 items(team.related, key = { "rel-${it.packageName}:${it.id}" }) { MediaCard(it, appLabel(it.packageName), onFocused) { onOpenItem(it) } }
@@ -205,20 +205,20 @@ fun LazyListScope.homeRows(
     }
 
     // Lançamentos: estreias nos streamings instalados (atualiza toda vez que a TV liga)
-    if (!kids && news.releases.isNotEmpty()) {
+    if (!kids && news.releases.isNotEmpty() && Section.LANCAMENTOS.name !in settings.disabledSections) {
         item(key = "title-releases") { RowTitle("Lançamentos", "estreias nos seus streamings") }
         item(key = "row-releases") {
-            LazyRow(contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(gap)) {
+            LazyRow(Modifier.rememberFocus(), contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(LocalDims.current.gap)) {
                 items(news.releases, key = { "rel-n-" + it.link.hashCode() }) { NewsCard(it) { onOpenNews(it) } }
             }
         }
     }
 
     // Tecnologia: manchetes gerais e sobre os apps instalados (Netflix, Spotify, YouTube…)
-    if (!kids && news.tech.isNotEmpty()) {
+    if (!kids && news.tech.isNotEmpty() && Section.TECNOLOGIA.name !in settings.disabledSections) {
         item(key = "title-tech") { RowTitle("Tecnologia", "novidades e os apps que você tem") }
         item(key = "row-tech") {
-            LazyRow(contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(gap)) {
+            LazyRow(Modifier.rememberFocus(), contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(LocalDims.current.gap)) {
                 items(news.tech, key = { "tech-" + it.link.hashCode() }) { NewsCard(it) { onOpenNews(it) } }
             }
         }
@@ -228,7 +228,7 @@ fun LazyListScope.homeRows(
     if (!kids && (fut.isNotEmpty() || content.sportsChannels.isNotEmpty()) && Section.FUTEBOL.name !in settings.disabledSections) {
         item(key = "title-futebol") { RowTitle("Futebol") }
         item(key = "row-futebol") {
-            LazyRow(contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(gap)) {
+            LazyRow(Modifier.rememberFocus(), contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(LocalDims.current.gap)) {
                 items(content.sportsChannels, key = { "ch-" + it.id }) { ChannelCard(it) { onOpenChannel(it) } }
                 items(fut, key = { "${it.packageName}:${it.id}:${it.isWatchNext}" }) { MediaCard(it, appLabel(it.packageName), onFocused) { onOpenItem(it) } }
             }
@@ -238,7 +238,7 @@ fun LazyListScope.homeRows(
     if (broadcast.isNotEmpty()) {
         item(key = "title-tv") { RowTitle("TV aberta") }
         item(key = "row-tv") {
-            LazyRow(contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(gap)) {
+            LazyRow(Modifier.rememberFocus(), contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(LocalDims.current.gap)) {
                 items(broadcast, key = { it.id }) { ChannelCard(it) { onOpenChannel(it) } }
             }
         }
@@ -255,7 +255,7 @@ fun LazyListScope.homeRows(
     if (!kids && settings.recents.isNotEmpty()) {
         item(key = "title-recents") { RowTitle("Abertos recentemente") }
         item(key = "row-recents") {
-            LazyRow(contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(gap)) {
+            LazyRow(Modifier.rememberFocus(), contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(LocalDims.current.gap)) {
                 items(settings.recents, key = { it.encode() }) { r ->
                     PillCard(r.title.ifBlank { appLabel(r.packageName) }, { onOpenRecent(r) }, sub = appLabel(r.packageName))
                 }
@@ -272,7 +272,7 @@ fun LazyListScope.homeRows(
     if (!kids && settings.showFast && content.fastChannels.isNotEmpty()) {
         item(key = "title-fast") { RowTitle("Canais pela internet") }
         item(key = "row-fast") {
-            LazyRow(contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(gap)) {
+            LazyRow(Modifier.rememberFocus(), contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(LocalDims.current.gap)) {
                 items(content.fastChannels, key = { it.id }) { ChannelCard(it) { onOpenChannel(it) } }
             }
         }

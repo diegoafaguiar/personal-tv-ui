@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,7 +18,23 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.PlayCircle
+import androidx.compose.material.icons.rounded.SportsSoccer
+import androidx.compose.material.icons.rounded.LiveTv
+import androidx.compose.material.icons.rounded.Movie
+import androidx.compose.material.icons.rounded.Tv
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.NewReleases
+import androidx.compose.material.icons.rounded.Memory
+import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Apps
+import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.SmartDisplay
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.ViewCarousel
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,6 +48,8 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -77,16 +96,18 @@ fun AppIcon(app: AppEntry, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val glass = LocalGlass.current
     val color = remember(app.packageName) { appColor(app) }
     val shape = RoundedCornerShape(20.dp)
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(84.dp)) {
+    val look = LocalLook.current
+    val side = 84.dp * look.cardScale
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(side)) {
         FocusSurface(
             onClick = onClick, shape = shape, glowColor = color,
-            modifier = modifier.size(84.dp).onFocusChanged { if (it.isFocused) glass.focusColor = color },
+            modifier = modifier.size(side).onFocusChanged { if (it.isFocused) glass.focusColor = color },
         ) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 if (app.icon != null) {
-                    AsyncImage(model = app.icon, contentDescription = app.label, modifier = Modifier.size(56.dp).clip(RoundedCornerShape(14.dp)), contentScale = ContentScale.Fit)
+                    AsyncImage(model = app.icon, contentDescription = app.label, modifier = Modifier.size(side * 0.67f).clip(RoundedCornerShape(14.dp)), contentScale = ContentScale.Fit)
                 } else {
-                    Box(Modifier.size(56.dp).clip(RoundedCornerShape(14.dp)).background(placeholderBrush(app.packageName)), contentAlignment = Alignment.Center) {
+                    Box(Modifier.size(side * 0.67f).clip(RoundedCornerShape(14.dp)).background(placeholderBrush(app.packageName)), contentAlignment = Alignment.Center) {
                         Text(app.label.take(2).uppercase(), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TvColors.text)
                     }
                 }
@@ -95,7 +116,7 @@ fun AppIcon(app: AppEntry, modifier: Modifier = Modifier, onClick: () -> Unit) {
                 }
             }
         }
-        Text(app.label, fontSize = 12.sp, color = TvColors.textDim, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp))
+        if (look.appLabels) Text(app.label, fontSize = 12.sp, color = TvColors.textDim, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp))
     }
 }
 
@@ -126,21 +147,27 @@ fun FocusSurface(
     modifier: Modifier = Modifier,
     shape: RoundedCornerShape = CardShape,
     glowColor: Color = Color.Transparent,
-    focusScale: Float = 1.08f,
+    /** Escala máxima para este card (o hero usa 1,02); a escolhida em Aparência vale até esse teto. */
+    focusScale: Float? = null,
     content: @Composable () -> Unit,
 ) {
     val glass = LocalGlass.current.config
+    val look = LocalLook.current
     var focused by remember { mutableStateOf(false) }
-    val scale = if (glass.enabled && !glass.animations) 1f else focusScale
+    val wanted = focusScale?.let { minOf(it, look.focusScale) } ?: look.focusScale
+    val scale = if (glass.enabled && !glass.animations) 1f else wanted
+    val border = if (look.focusStyle == tech.futureme.tvhome.data.FocusStyle.BRILHO) 0 else look.focusBorder
+    val glow = if (look.focusStyle == tech.futureme.tvhome.data.FocusStyle.BORDA) glowColor
+        else if (glowColor.alpha > 0f) glowColor else look.accentColor
     Surface(
         onClick = onClick,
-        modifier = modifier.focusGlow(focused, glowColor).onFocusChanged { focused = it.isFocused }.tapToClick(onClick),
+        modifier = modifier.focusGlow(focused, glow).onFocusChanged { focused = it.isFocused }.tapToClick(onClick),
         shape = ClickableSurfaceDefaults.shape(shape),
         colors = if (glass.enabled) ClickableSurfaceDefaults.colors(containerColor = Color.Transparent, focusedContainerColor = Color.Transparent)
         else ClickableSurfaceDefaults.colors(containerColor = Color(0x99151B23), focusedContainerColor = Color(0xCC1F2733)),
         scale = ClickableSurfaceDefaults.scale(focusedScale = scale),
         border = ClickableSurfaceDefaults.border(
-            focusedBorder = Border(border = BorderStroke(3.dp, TvColors.focus), shape = shape),
+            focusedBorder = if (border > 0) Border(border = BorderStroke(border.dp, look.accentColor), shape = shape) else Border.None,
         ),
     ) {
         // O vidro é desenhado DENTRO do Surface para escalar junto com o foco.
@@ -149,17 +176,105 @@ fun FocusSurface(
 }
 
 @Composable
-fun RowTitle(text: String, subtitle: String? = null) {
+fun RowTitle(text: String, subtitle: String? = null, icon: ImageVector? = null) {
     val d = LocalDims.current
-    Column(Modifier.padding(sidePadding()).padding(top = 16.dp, bottom = 2.dp)) {
-        Text(text, fontSize = d.titleSp.sp, fontWeight = FontWeight.SemiBold, color = TvColors.text)
-        if (subtitle != null) Text(subtitle, fontSize = (d.titleSp - 8).sp, color = TvColors.textDim)
+    val look = LocalLook.current
+    // Espaço entre linhas em % da altura da tela (~540 dp numa TV 1080p)
+    val top = 16.dp + (look.rowSpacing * 5.4f).dp
+    Row(Modifier.padding(sidePadding()).padding(top = top, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+        val ic = icon ?: rowIconFor(text)
+        if (ic != null && look.rowIcons) {
+            Icon(ic, contentDescription = null, tint = look.accentColor.copy(alpha = 0.9f), modifier = Modifier.padding(end = 10.dp).size((d.titleSp + 2).dp))
+        }
+        Column {
+            Text(text, fontSize = d.titleSp.sp, fontWeight = FontWeight.SemiBold, color = TvColors.text)
+            if (subtitle != null) Text(subtitle, fontSize = (d.titleSp - 8).sp, color = TvColors.textDim)
+        }
     }
+}
+
+/**
+ * Comportamento das linhas escolhido em Aparência: opacidade das linhas sem foco, esconder as
+ * de cima e lembrar o card focado. [id] agrupa título e linha; [order] é a posição na tela.
+ */
+class RowFocusState {
+    var id by mutableStateOf<String?>(null)
+    var order by mutableStateOf(-1)
+}
+val LocalRowFocus = compositionLocalOf<RowFocusState?> { null }
+
+fun Modifier.rowStyle(id: String, order: Int): Modifier = composed {
+    val st = LocalRowFocus.current ?: return@composed this
+    val look = LocalLook.current
+    this
+        .onFocusChanged { if (it.hasFocus) { st.id = id; st.order = order } }
+        // Lido na fase de desenho: trocar de linha não recompõe a lista
+        .graphicsLayer {
+            val cur = st.id
+            alpha = when {
+                cur == null || cur == id -> 1f
+                look.hideRowsAbove && order < st.order -> 0f
+                else -> look.unselectedAlpha
+            }
+        }
+}
+
+/**
+ * Envolve um LazyListScope: cada item ganha [rowStyle], agrupado pela chave ("title-x" e "row-x"
+ * formam o grupo "x"). Assim a home inteira obedece Aparência sem mexer em cada linha.
+ */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+class StyledRows(
+    private val base: androidx.compose.foundation.lazy.LazyListScope,
+    /** Rolagem padrão para as linhas horizontais (a "linha fixa" vale só para a lista vertical). */
+    private val innerSpec: androidx.compose.foundation.gestures.BringIntoViewSpec? = null,
+) : androidx.compose.foundation.lazy.LazyListScope by base {
+    private val orders = HashMap<String, Int>()
+    private fun group(key: Any?): String = (key?.toString() ?: "anon-${orders.size}").removePrefix("title-").removePrefix("row-")
+    private fun orderOf(g: String) = orders.getOrPut(g) { orders.size }
+    override fun item(key: Any?, contentType: Any?, content: @Composable androidx.compose.foundation.lazy.LazyItemScope.() -> Unit) {
+        val g = group(key); val o = orderOf(g)
+        val spec = innerSpec
+        base.item(key, contentType) {
+            val scope = this
+            Box(Modifier.rowStyle(g, o)) {
+                if (spec == null) scope.content()
+                else CompositionLocalProvider(androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides spec) { scope.content() }
+            }
+        }
+    }
+}
+
+/** Ícone de cada linha (Aparência › Ícone antes do título), pelo título. */
+fun rowIconFor(title: String): ImageVector? {
+    val t = title.lowercase()
+    return when {
+        t.startsWith("continuar") -> Icons.Rounded.PlayCircle
+        t.contains("flamengo") || t.contains("futebol") -> Icons.Rounded.SportsSoccer
+        t.contains("tv aberta") || t.contains("tv globo") || t.contains("canais") -> Icons.Rounded.LiveTv
+        t == "filmes" -> Icons.Rounded.Movie
+        t == "séries" -> Icons.Rounded.Tv
+        t.contains("para você") || t.contains("destaques") -> Icons.Rounded.AutoAwesome
+        t.contains("lançamentos") -> Icons.Rounded.NewReleases
+        t.contains("tecnologia") -> Icons.Rounded.Memory
+        t.contains("recentes") || t.contains("recentemente") -> Icons.Rounded.History
+        t.contains("aplicativos") || t.contains("apps") -> Icons.Rounded.Apps
+        t.contains("música") || t.contains("tocadas") || t.contains("playlists") || t.contains("álbuns") || t.contains("artistas") || t.contains("ouvindo") -> Icons.Rounded.MusicNote
+        t.contains("clipe") || t.contains("vídeo") || t.contains("youtube") -> Icons.Rounded.SmartDisplay
+        t.contains("esta home") || t.contains("ajustes") -> Icons.Rounded.Settings
+        else -> Icons.Rounded.ViewCarousel
+    }
+}
+
+/** Voltar a esta linha foca o último card visitado (Aparência › Lembrar o card focado). */
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
+fun Modifier.rememberFocus(): Modifier = composed {
+    if (LocalLook.current.rememberFocus) this.focusRestorer() else this
 }
 
 @Composable
 fun MediaRow(items: List<MediaItem>, appLabel: (String) -> String, onClick: (MediaItem) -> Unit, onFocused: (MediaItem?) -> Unit = {}) {
-    LazyRow(contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(LocalDims.current.gap)) {
+    LazyRow(Modifier.rememberFocus(), contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(LocalDims.current.gap)) {
         items(items, key = { "${it.packageName}:${it.id}:${it.isWatchNext}" }) { item ->
             MediaCard(item, appLabel(item.packageName), onFocused = onFocused) { onClick(item) }
         }
@@ -204,22 +319,25 @@ fun MediaCard(item: MediaItem, appLabel: String, onFocused: (MediaItem?) -> Unit
  * só o banner.
  */
 @Composable
-fun AppCard(app: AppEntry, glassy: Boolean = false, onClick: () -> Unit) {
+fun AppCard(app: AppEntry, glassy: Boolean = false, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val d = LocalDims.current
     val glass = LocalGlass.current
     val color = remember(app.packageName) { appColor(app) }
     FocusSurface(
         onClick = onClick, glowColor = color,
-        modifier = Modifier.width(d.appW).height(d.appH).onFocusChanged { if (it.isFocused) glass.focusColor = color },
+        modifier = modifier.width(d.appW).height(d.appH).onFocusChanged { if (it.isFocused) glass.focusColor = color },
     ) {
-        if (app.banner != null) {
+        if (app.banner != null && app.hasBanner) {
             AsyncImage(
                 model = app.banner, contentDescription = app.label,
                 modifier = Modifier.fillMaxSize().clip(CardShape), contentScale = ContentScale.Crop,
                 alpha = if (glassy && glass.config.enabled) 0.88f else 1f,
             )
         } else {
-            Box(Modifier.fillMaxSize().background(placeholderBrush(app.packageName)), contentAlignment = Alignment.Center) {
+            // Sem banner 16:9: ícone do app e o nome, sobre a cor do ícone
+            Row(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(color.copy(alpha = 0.35f), Color(0x66101418)))).padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (app.icon != null) AsyncImage(model = app.icon, contentDescription = null, modifier = Modifier.size(d.appH * 0.5f), contentScale = ContentScale.Fit)
                 Text(app.label, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TvColors.text, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         }
@@ -278,7 +396,7 @@ fun ChannelCard(ch: TunerChannel, onClick: () -> Unit) {
                     if (ch.nowTitle != null) "Agora: ${ch.nowTitle}" else if (ch.isBroadcast) "TV aberta" else "ao vivo pela internet",
                     fontSize = 12.sp, color = TvColors.textDim, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
-                if (ch.nextTitle != null) Text("Depois: ${ch.nextTitle}", fontSize = 11.sp, color = TvColors.textDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (ch.nextTitle != null) Text("Depois: ${ch.nextTitle}", fontSize = 12.sp, color = TvColors.textDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
     }
@@ -309,7 +427,7 @@ fun IconButton(icon: ImageVector, label: String, onClick: () -> Unit) {
                 Icon(imageVector = icon, contentDescription = label, tint = if (focused) TvColors.background else TvColors.textDim, modifier = Modifier.size(22.dp))
             }
         }
-        Text(if (focused) label else " ", fontSize = 11.sp, color = TvColors.textDim, maxLines = 1, modifier = Modifier.padding(top = 4.dp))
+        Text(if (focused) label else " ", fontSize = 12.sp, color = TvColors.textDim, maxLines = 1, modifier = Modifier.padding(top = 4.dp))
     }
 }
 
@@ -319,9 +437,9 @@ fun NewsCard(item: NewsItem, onClick: () -> Unit) {
     val d = LocalDims.current
     FocusSurface(onClick = onClick, modifier = Modifier.width(d.mediaW).height(d.mediaH)) {
         Column(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.SpaceBetween) {
-            Text(item.topic.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = TvColors.accent, letterSpacing = 1.sp)
+            Text(item.topic.uppercase(), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TvColors.accent, letterSpacing = 1.sp)
             Text(item.title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TvColors.text, maxLines = 3, overflow = TextOverflow.Ellipsis, lineHeight = 18.sp)
-            Text(listOfNotNull(item.source.ifBlank { null }, relativeTime(item.publishedMs)).joinToString(" · "), fontSize = 11.sp, color = TvColors.textDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(listOfNotNull(item.source.ifBlank { null }, relativeTime(item.publishedMs)).joinToString(" · "), fontSize = 12.sp, color = TvColors.textDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -347,12 +465,12 @@ fun MusicCard(item: MusicItem, onClick: () -> Unit) {
                 if (item.imageUrl != null) AsyncImage(model = item.imageUrl, contentDescription = item.title, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 else Box(Modifier.fillMaxSize().background(placeholderBrush(item.title)))
                 Box(Modifier.align(Alignment.TopStart).padding(6.dp).clip(RoundedCornerShape(50)).background(Color(0x99000000)).padding(horizontal = 7.dp, vertical = 2.dp)) {
-                    Text(item.kind.label, fontSize = 9.sp, color = TvColors.text, letterSpacing = 0.5.sp)
+                    Text(item.kind.label, fontSize = 11.sp, color = TvColors.text, letterSpacing = 0.5.sp)
                 }
             }
         }
         Text(item.title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TvColors.text, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp))
-        Text(item.subtitle, fontSize = 11.sp, color = TvColors.textDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(item.subtitle, fontSize = 12.sp, color = TvColors.textDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -400,3 +518,57 @@ fun ProgramCard(p: tech.futureme.tvhome.data.ProgramEntry, isNow: Boolean, onCli
         }
     }
 }
+
+
+/**
+ * Rolagem de TV "mínima": só rola o necessário para o item focado caber, com uma margem para o
+ * brilho/escala do foco não encostar na borda. (O padrão do Compose em TVs fixa o foco a 30% da
+ * tela, o que desce a home sozinha no primeiro foco e corta o destaque.)
+ */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+val MinimalScroll = object : androidx.compose.foundation.gestures.BringIntoViewSpec {
+    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float {
+        val margin = 36f
+        val leading = offset - margin
+        val trailing = offset + size + margin
+        return when {
+            leading >= 0 && trailing <= containerSize -> 0f
+            leading < 0 || size + 2 * margin > containerSize -> leading
+            else -> trailing - containerSize
+        }
+    }
+}
+
+/** Cabeçalho padrão das páginas: título grande, uma linha de ajuda. Mesma posição em todas. */
+@Composable
+fun PageHeader(title: String, hint: String? = null, inset: Boolean = true) {
+    Column(Modifier.then(if (inset) Modifier.padding(sidePadding()) else Modifier).padding(top = 6.dp, bottom = 6.dp)) {
+        Text(title, fontSize = 28.sp, fontWeight = FontWeight.SemiBold, color = TvColors.text)
+        if (hint != null) Text(hint, fontSize = 13.sp, color = TvColors.text.copy(alpha = 0.72f))
+    }
+}
+
+/** Estado vazio com uma próxima ação (nunca uma página sem saída). */
+@Composable
+fun EmptyState(title: String, text: String, action: String? = null, onAction: () -> Unit = {}) {
+    Column(Modifier.padding(sidePadding()).padding(top = 18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(title, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = TvColors.text)
+        Text(text, fontSize = 14.sp, color = TvColors.text.copy(alpha = 0.72f))
+        if (action != null) Box(Modifier.padding(top = 6.dp)) { ActionButton(action, onAction) }
+    }
+}
+
+
+/** Botão em pílula, largura pelo texto (ações de estados vazios, avisos). */
+@Composable
+fun ActionButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    FocusSurface(onClick = onClick, shape = RoundedCornerShape(50), focusScale = 1.05f, modifier = modifier.height(48.dp)) {
+        Box(Modifier.fillMaxHeight().padding(horizontal = 24.dp), contentAlignment = Alignment.Center) {
+            Text(label, fontSize = 16.sp, fontWeight = FontWeight.Medium, color = TvColors.text, maxLines = 1)
+        }
+    }
+}
+
+
+/** O clima não respondeu (sem internet). */
+val LocalFeedFailed = compositionLocalOf { false }

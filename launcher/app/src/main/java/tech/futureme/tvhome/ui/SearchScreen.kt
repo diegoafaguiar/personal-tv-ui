@@ -12,6 +12,9 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.Alignment
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -39,6 +42,7 @@ fun SearchScreen(
     appLabel: (String) -> String,
     onOpenItem: (MediaItem) -> Unit,
     onOpenApp: (AppEntry) -> Unit,
+    onSearchYoutube: (String) -> Unit = {},
 ) {
     var query by remember { mutableStateOf("") }
     val focus = remember { FocusRequester() }
@@ -51,10 +55,10 @@ fun SearchScreen(
     }
     val appHits = remember(q, apps) { if (q.length < 2) emptyList() else apps.filter { fold(it.label).contains(q) } }
 
-    Column(Modifier.fillMaxSize().padding(rowPadding()).padding(top = 24.dp)) {
-        Text("Buscar", fontSize = d.titleSp.sp, color = TvColors.text)
-        Box(Modifier.fillMaxWidth().padding(vertical = 10.dp).background(Color(0x99151B23), CardShape).padding(14.dp)) {
-            if (query.isEmpty()) Text("Digite um título, série, time ou app…", fontSize = 18.sp, color = TvColors.textDim)
+    Column(Modifier.fillMaxSize().padding(rowPadding()).padding(top = 6.dp)) {
+        PageHeader("Buscar", "Filmes, séries, vídeos e apps de todos os seus serviços", inset = false)
+        Box(Modifier.fillMaxWidth().padding(vertical = 10.dp).glass(RoundedCornerShape(16.dp), strong = true).padding(16.dp)) {
+            if (query.isEmpty()) Text("Digite um título, série, time ou app…", fontSize = 18.sp, color = TvColors.text.copy(alpha = 0.6f))
             BasicTextField(
                 value = query, onValueChange = { query = it }, singleLine = true,
                 textStyle = TextStyle(color = TvColors.text, fontSize = 18.sp),
@@ -62,7 +66,14 @@ fun SearchScreen(
                 modifier = Modifier.fillMaxWidth().focusRequester(focus),
             )
         }
-        if (q.length >= 2) Text("${hits.size} resultados · ${appHits.size} apps", fontSize = 14.sp, color = TvColors.textDim)
+        if (q.length >= 2) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Text(
+                if (hits.isEmpty() && appHits.isEmpty()) "Nada nos seus apps para “$query”." else "${hits.size} títulos · ${appHits.size} apps",
+                fontSize = 14.sp, color = TvColors.text.copy(alpha = 0.78f), maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+            ActionButton(if (query.length > 24) "Buscar no YouTube" else "Buscar “$query” no YouTube", { onSearchYoutube(query) })
+        } else if (query.isNotEmpty()) Text("Continue digitando…", fontSize = 14.sp, color = TvColors.text.copy(alpha = 0.6f))
         LazyVerticalGrid(
             columns = GridCells.Adaptive(d.mediaW + 8.dp),
             contentPadding = PaddingValues(vertical = 12.dp),

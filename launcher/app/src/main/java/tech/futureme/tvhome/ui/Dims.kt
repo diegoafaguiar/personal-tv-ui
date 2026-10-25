@@ -21,6 +21,14 @@ data class Dims(
         val COMPACT = Dims(appW = 148.dp, appH = 84.dp, mediaW = 232.dp, mediaH = 130.dp, pillW = 148.dp, pillH = 84.dp, gap = 12.dp, side = 40.dp, titleSp = 20)
         fun of(name: String) = if (name == "normal") NORMAL else COMPACT
     }
+
+    /** Aplica o tamanho e o espaçamento dos cards escolhidos em Aparência. */
+    fun scaled(scale: Float, spacingDp: Int): Dims = copy(
+        appW = appW * scale, appH = appH * scale,
+        mediaW = mediaW * scale, mediaH = mediaH * scale,
+        pillW = pillW * scale, pillH = pillH * scale,
+        gap = spacingDp.dp,
+    )
 }
 
 val LocalDims = compositionLocalOf { Dims.COMPACT }

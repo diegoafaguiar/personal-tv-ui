@@ -1,9 +1,12 @@
+@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 package tech.futureme.tvhome.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.focusGroup
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -46,7 +50,7 @@ import tech.futureme.tvhome.data.TunerChannel
 import java.io.File
 import java.util.Calendar
 
-private enum class Screen { HOME, ALL_APPS, SETTINGS, DIAGNOSTICS, SEARCH, LIVE_TV, PIN_CHANGE, CATEGORY, READER }
+private enum class Screen { HOME, ALL_APPS, SETTINGS, DIAGNOSTICS, SEARCH, LIVE_TV, PIN_CHANGE, CATEGORY, READER, EXPLORE }
 
 @Composable
 fun App(
@@ -60,6 +64,7 @@ fun App(
     onRequestPermission: () -> Unit,
     onOpenUrl: (String) -> Boolean = { false },
     onOpenMusic: (String) -> Unit = {},
+    onOpenYoutube: (String) -> Unit = {},
 ) {
     val content by vm.content.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle()
@@ -77,11 +82,12 @@ fun App(
     var reading by remember { mutableStateOf<NewsItem?>(null) }
     // Notícia: navegador/app se houver; senão a tela de leitura
     fun openNews(item: NewsItem) { if (!onOpenUrl(item.link)) { reading = item; screen = Screen.READER } }
-    fun openYoutubeSearch(q: String) { onOpenMusic(q) }
+    fun openYoutubeSearch(q: String) { onOpenYoutube(q) }
     var focused by remember { mutableStateOf<MediaItem?>(null) }
     var liveChannel by remember { mutableStateOf<TunerChannel?>(null) }
     var category by remember { mutableStateOf(Nav.FILMES) }
     val contentFocus = remember { FocusRequester() }
+    var exploreCat by remember { mutableStateOf(Category.DESTAQUES) }
     // Home pressionado: qualquer tela volta ao Início (a TV ao vivo e a senha também fecham)
     LaunchedEffect(homeTick) { if (homeTick > 0) { screen = Screen.HOME; pendingProfile = null; reading = null } }
     val allChannels = content.tunerChannels + content.fastChannels
@@ -92,7 +98,9 @@ fun App(
     // Voltar: fecha a tela atual; na home não faz nada (como HOME, sair da Activity
     // faria o sistema reabri-la e o seletor de perfil voltar).
     BackHandler(enabled = true) {
-        if (pendingProfile != null) pendingProfile = null else if (screen != Screen.HOME) screen = Screen.HOME
+        if (pendingProfile != null) pendingProfile = null
+        else if (screen == Screen.PIN_CHANGE || screen == Screen.DIAGNOSTICS) { pinChangeFor = null; screen = Screen.SETTINGS }
+        else if (screen != Screen.HOME) screen = Screen.HOME
     }
 
     val profile = activeProfile
@@ -115,7 +123,13 @@ fun App(
             android.util.Log.w("TvHome", "Falha renderizando o papel de parede ${settings.background}", e)
         }
     }
-    CompositionLocalProvider(LocalDims provides Dims.of(settings.density), LocalGlass provides glass) {
+    CompositionLocalProvider(
+        LocalDims provides Dims.of(settings.density).scaled(settings.look.cardScale, settings.look.cardSpacing),
+        LocalGlass provides glass,
+        LocalLook provides settings.look,
+        LocalBringIntoViewSpec provides MinimalScroll,
+        LocalFeedFailed provides vm.weatherFailed.collectAsStateWithLifecycle().value,
+    ) {
         Box(Modifier.fillMaxSize().onSizeChanged { if (it != glass.screen) glass.screen = it }) {
             if (screen != Screen.LIVE_TV) BackgroundLayer(if (screen == Screen.HOME && profile != null && !settings.glass.lite) focused?.imageUri else null, settings.nightMode)   // modo leve: sem a arte em tela cheia (2 camadas a menos por quadro)
             // Sem perfil: seletor (e senha, se o perfil pedir)
@@ -147,10 +161,15 @@ fun App(
                 val ch = last ?: content.tunerChannels.firstOrNull { it.name.contains("globo", true) } ?: content.tunerChannels.firstOrNull()
                 if (ch != null) openChannel(ch)
             }
+            // Conteúdo de todos os apps (e vídeos do YouTube) agrupado por categoria, para o Explorar
+            val categories = remember(content, team, music, profile) {
+                groupByCategory((content.allItems + team.videos + music.clips + music.youtube).filter { profile.allows(it.packageName) }) { settings.appRank(it) }
+            }
             fun navigate(nav: Nav) {
                 when (nav) {
                     Nav.INICIO -> screen = Screen.HOME
                     Nav.APPS -> screen = Screen.ALL_APPS
+                    Nav.FILMES -> screen = Screen.EXPLORE
                     Nav.TV -> openTuner()
                     Nav.CONFIG -> screen = Screen.SETTINGS
                     else -> { category = nav; screen = Screen.CATEGORY }
@@ -158,14 +177,15 @@ fun App(
             }
             // Qual item da lateral corresponde à tela atual (marcado)
             val selectedNav = when (screen) {
-                Screen.HOME -> Nav.INICIO; Screen.ALL_APPS -> Nav.APPS; Screen.SETTINGS -> Nav.CONFIG
+                Screen.HOME -> Nav.INICIO; Screen.ALL_APPS -> Nav.APPS; Screen.SETTINGS -> Nav.CONFIG; Screen.EXPLORE -> Nav.FILMES
                 Screen.CATEGORY -> category; else -> null
             }
             // Lateral persistente em todas as telas (menos home, TV ao vivo, seletor/senha): navegar sem Voltar
             val withSidebar = settings.glass.enabled && screen != Screen.HOME && screen != Screen.LIVE_TV && screen != Screen.PIN_CHANGE
             // Ao abrir uma seção (pela lateral ou pela home), o foco entra no conteúdo dela
             LaunchedEffect(screen, category, withSidebar) {
-                if (withSidebar) { delay(250); runCatching { contentFocus.requestFocus() } }
+                // Explorar põe o foco na categoria escolhida sozinho (senão a primeira pílula a trocaria)
+                if (withSidebar && screen != Screen.EXPLORE) { delay(250); runCatching { contentFocus.requestFocus() } }
             }
             @Composable fun Shell(content: @Composable () -> Unit) {
                 if (!withSidebar) content() else Row(Modifier.fillMaxSize()) {
@@ -184,6 +204,8 @@ fun App(
                     onOpenChannel = ::openChannel, onOpenTuner = ::openTuner, onQuick = onQuick,
                     onNav = ::navigate,
                     resetKey = homeTick,
+                    categories = categories,
+                    onOpenCategory = { c -> exploreCat = c; screen = Screen.EXPLORE },
                     onOpenSearch = { screen = Screen.SEARCH },
                     onSwitchProfile = { vm.selectProfile(null); focused = null },
                     onRequestPermission = onRequestPermission,
@@ -201,45 +223,26 @@ fun App(
                     onSwitchProfile = { vm.selectProfile(null); focused = null },
                     onRequestPermission = onRequestPermission,
                 )
-                Screen.ALL_APPS -> LazyVerticalGrid(
-                    columns = GridCells.Adaptive(LocalDims.current.appW + 16.dp),
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(LocalDims.current.side),
-                    horizontalArrangement = Arrangement.spacedBy(LocalDims.current.gap),
-                    verticalArrangement = Arrangement.spacedBy(LocalDims.current.gap),
-                ) {
-                    items(content.apps.filter { it.packageName !in settings.hidden && profile.allows(it.packageName) }, key = { it.packageName }) { app ->
-                        AppCard(app, glassy = true) { onOpenApp(app) }
+                Screen.ALL_APPS -> {
+                    val all = content.apps.filter { it.packageName !in settings.hidden && profile.allows(it.packageName) }
+                    LazyVerticalGrid(
+                        columns = GridCells.Adaptive(LocalDims.current.appW + 16.dp),
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(start = LocalRowStart.current ?: LocalDims.current.side, end = LocalDims.current.side, top = 18.dp, bottom = 40.dp),
+                        horizontalArrangement = Arrangement.spacedBy(LocalDims.current.gap),
+                        verticalArrangement = Arrangement.spacedBy(LocalDims.current.gap),
+                    ) {
+                        item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
+                            PageHeader("Apps", "${all.size} instalados · ocultar e reordenar em Ajustes › Apps", inset = false)
+                        }
+                        items(all, key = { it.packageName }) { app -> AppCard(app, glassy = true) { onOpenApp(app) } }
                     }
                 }
                 Screen.SETTINGS -> SettingsScreen(
-                    apps = content.apps, settings = settings,
-                    onToggleDock = { scope.launch { vm.prefs.toggleDock(it) } },
-                    onMoveDock = { pkg, d -> scope.launch { vm.prefs.moveDock(pkg, d) } },
-                    onToggleHidden = { scope.launch { vm.prefs.toggleHidden(it) } },
-                    onToggleSection = { scope.launch { vm.prefs.toggleSection(it) } },
-                    onSetLiveTv = { scope.launch { vm.prefs.setLiveTv(it) } },
-                    onSetBackground = { scope.launch { vm.prefs.setBackground(it) } },
-                    onToggleDensity = { scope.launch { vm.prefs.toggleDensity() } },
-                    onToggleQuick = { scope.launch { vm.prefs.toggleQuick(it) } },
-                    onToggleRates = { scope.launch { vm.prefs.toggleRates() } },
-                    onToggleInputs = { scope.launch { vm.prefs.toggleInputs() } },
-                    onToggleWeather = { scope.launch { vm.prefs.toggleWeather() } },
-                    onToggleNight = { scope.launch { vm.prefs.toggleNight() } },
-                    onClearRecents = { scope.launch { vm.prefs.clearRecents() } },
-                    onToggleFast = { scope.launch { vm.prefs.toggleFast() } },
-                    onToggleTeam = { scope.launch { vm.prefs.toggleTeam() } },
-                    onToggleStatus = { scope.launch { vm.prefs.toggleStatus() } },
-                    onToggleHeroCompact = { scope.launch { vm.prefs.toggleHeroCompact() } },
-                    onMoveOrder = { pkg, d -> scope.launch { vm.prefs.moveOrder(pkg, d) } },
+                    vm = vm, apps = content.apps, settings = settings,
                     onChangePin = { p -> pinChangeFor = p; screen = Screen.PIN_CHANGE },
-                    onToggleGlass = { scope.launch { vm.prefs.toggleGlass() } },
-                    onAdjustTransparency = { d -> scope.launch { vm.prefs.adjustGlassTransparency(d) } },
-                    onAdjustFx = { d -> scope.launch { vm.prefs.adjustGlassFx(d) } },
-                    onAdjustBlur = { d -> scope.launch { vm.prefs.adjustGlassBlur(d) } },
-                    onToggleAnimations = { scope.launch { vm.prefs.toggleGlassAnimations() } },
-                    onToggleLite = { scope.launch { vm.prefs.toggleGlassLite() } },
                     onOpenTvSettings = { onQuick(QuickAction.CONFIG) },
+                    onOpenDiagnostics = { screen = Screen.DIAGNOSTICS },
                 )
                 Screen.PIN_CHANGE -> {
                     val p = pinChangeFor
@@ -262,7 +265,17 @@ fun App(
                         )
                     }
                     when (category) {
-                        Nav.JOGOS -> { val a = visibleApps.filter { it.isGame() }; CategoryScreen("Jogos", rowsFor(a), a, appLabel, onOpenItem, onOpenApp) { focused = it } }
+                        Nav.JOGOS -> {
+                            val a = visibleApps.filter { it.isGame() }
+                            if (a.isEmpty()) Column(Modifier.fillMaxSize().padding(top = 18.dp)) {
+                                PageHeader("Jogos")
+                                EmptyState(
+                                    "Nenhum jogo instalado",
+                                    "Os jogos que você instalar aparecem aqui, com o que eles publicarem para continuar jogando.",
+                                    "Procurar jogos na Play Store",
+                                ) { onOpenUrl("market://search?q=jogos&c=apps") }
+                            } else CategoryScreen("Jogos", rowsFor(a), a, appLabel, onOpenItem, onOpenApp) { focused = it }
+                        }
                         Nav.MUSICA -> {
                             val a = visibleApps.filter { it.isMusic() }
                             val pkgs = a.map { it.packageName }.toSet()
@@ -272,6 +285,7 @@ fun App(
                                 recents = settings.recents.filter { it.packageName in pkgs },
                                 appLabel = appLabel, onOpenApp = onOpenApp, onOpenItem = onOpenItem, onOpenRecent = onOpenRecent,
                                 onOpenMusic = { onOpenMusic(it.query) }, onFocused = { focused = it },
+                                failed = vm.musicFailed.collectAsStateWithLifecycle().value, onRetry = { vm.retryMusic() },
                             )
                         }
                         else -> CategoryScreen(
@@ -298,8 +312,12 @@ fun App(
                     )
                 }
                 Screen.SEARCH -> SearchScreen(
-                    items = content.allItems.filter { profile.allows(it.packageName) }, apps = content.apps.filter { it.packageName !in settings.hidden && profile.allows(it.packageName) },
-                    appLabel = appLabel, onOpenItem = onOpenItem, onOpenApp = onOpenApp,
+                    items = (content.allItems + team.videos + music.clips + music.youtube).filter { profile.allows(it.packageName) }, apps = content.apps.filter { it.packageName !in settings.hidden && profile.allows(it.packageName) },
+                    appLabel = appLabel, onOpenItem = onOpenItem, onOpenApp = onOpenApp, onSearchYoutube = onOpenYoutube,
+                )
+                Screen.EXPLORE -> ExploreScreen(
+                    groups = categories, initial = exploreCat, appLabel = appLabel, rank = { settings.appRank(it) },
+                    onOpenItem = onOpenItem, onFocused = { focused = it }, onCategoryChanged = { exploreCat = it },
                 )
                 Screen.READER -> { val r = reading; if (r == null) screen = Screen.HOME else ReaderScreen(r) }
             } }

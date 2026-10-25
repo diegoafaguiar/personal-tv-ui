@@ -12,8 +12,8 @@ android {
         applicationId = "tech.futureme.tvhome"
         minSdk = 28          // Android TV 9+
         targetSdk = 34
-        versionCode = 10
-        versionName = "0.8.1"
+        versionCode = 11
+        versionName = "0.9.0"
     }
 
     // Chave FIXA versionada no repositório, para que todo build (CI ou local)
@@ -71,4 +71,7 @@ dependencies {
 
     // Pôsteres: os apps publicam URLs http(s); Coil carrega e cacheia.
     implementation("io.coil-kt:coil-compose:2.7.0")
+
+    // QR code da notícia (abrir a matéria completa no celular): só o núcleo, sem câmera
+    implementation("com.google.zxing:core:3.5.3")
 }

@@ -13,6 +13,8 @@ data class AppEntry(
     val icon: Drawable? = null,
     /** ApplicationInfo.category (CATEGORY_GAME, CATEGORY_AUDIO…), -1 = não declarado. */
     val category: Int = -1,
+    /** O app publica um banner 16:9 de verdade (senão [banner] é o ícone). */
+    val hasBanner: Boolean = true,
 )
 
 /** Uma entrada de TV (HDMI ou sintonizador) vinda do TvInputManager. */
@@ -83,6 +85,8 @@ enum class Section(val title: String) {
     FILMES("Filmes"),
     SERIES("Séries"),
     OUTROS("Para você"),
+    LANCAMENTOS("Lançamentos"),
+    TECNOLOGIA("Tecnologia"),
 }
 
 /** Estado da TV para o widget do hero. */

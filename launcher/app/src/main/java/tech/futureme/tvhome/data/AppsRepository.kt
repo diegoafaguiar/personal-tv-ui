@@ -20,10 +20,10 @@ class AppsRepository(private val context: Context) {
             val pkg = ri.activityInfo.packageName
             if (pkg == context.packageName || !seen.add(pkg)) continue
             val intent = pm.getLeanbackLaunchIntentForPackage(pkg) ?: pm.getLaunchIntentForPackage(pkg) ?: continue
-            val banner = ri.activityInfo.loadBanner(pm) ?: ri.activityInfo.applicationInfo.loadBanner(pm)
-                ?: ri.activityInfo.loadIcon(pm)
+            val realBanner = ri.activityInfo.loadBanner(pm) ?: ri.activityInfo.applicationInfo.loadBanner(pm)
+            val banner = realBanner ?: ri.activityInfo.loadIcon(pm)
             val icon = runCatching { ri.activityInfo.loadIcon(pm) }.getOrNull()
-            out += AppEntry(pkg, ri.loadLabel(pm).toString(), banner, intent, icon = icon, category = ri.activityInfo.applicationInfo.category)
+            out += AppEntry(pkg, ri.loadLabel(pm).toString(), banner, intent, icon = icon, category = ri.activityInfo.applicationInfo.category, hasBanner = realBanner != null)
         }
         return out.sortedBy { it.label.lowercase() }
     }

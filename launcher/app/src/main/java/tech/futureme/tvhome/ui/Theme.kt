@@ -1,6 +1,8 @@
 package tech.futureme.tvhome.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
+import tech.futureme.tvhome.data.Look
 import androidx.compose.ui.graphics.Color
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.darkColorScheme
@@ -32,3 +34,7 @@ fun TvHomeTheme(content: @Composable () -> Unit) {
         content = content,
     )
 }
+
+/** Aparência escolhida em Ajustes › Aparência (tamanho, espaços, foco, cor de destaque…). */
+val LocalLook = compositionLocalOf { Look() }
+val Look.accentColor: Color get() = Color(accent.argb)

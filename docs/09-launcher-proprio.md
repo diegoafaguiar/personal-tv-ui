@@ -236,6 +236,25 @@ TV_HOST=192.168.100.28 scripts/90-rollback.sh --dry-run
 TV_HOST=192.168.100.28 scripts/50-launcher.sh restore     # volta a home do Google
 ```
 
+## v0.9.0: ajustes personalizáveis, Explorar, YouTube na Música, revisão de usabilidade
+
+- **Ajustes** no estilo Projectivy: painel à direita com prévia inclinada ao vivo e páginas
+  Aparência, Cards, Linhas, Card focado, Topo e destaque, Seções, Apps, Ícones do menu, Perfis e
+  Sistema. Cor de destaque, tamanho e formato dos cards, espaçamento, escurecer as linhas sem foco,
+  estilo do foco e "restaurar padrão".
+- **Explorar** (antigo "Filmes"): conteúdo de todos os apps por categoria (Em alta, Filmes, Séries,
+  Infantil, Esportes, Documentários, Novelas, Animes, Comédia, Ação e suspense, Música). As
+  categorias trocam ao focar o chip; ▼ desce ao destaque e Voltar sobe aos chips.
+- **Música**: clipes no YouTube das mais tocadas e vídeos musicais em alta, além das paradas da
+  Deezer. Sem rede aparece um aviso com "tentar de novo". Os vídeos vêm da página pública do
+  YouTube (`ytInitialData`, sem chave), porque o RSS deles devolve 404. É a única leitura de
+  página do launcher e pode quebrar se o YouTube mudar o HTML; nesse caso a linha some.
+- **Leitura de notícia** com QR code para abrir no celular. Resumos que só repetem a manchete
+  ficam de fora.
+- **Revisão de usabilidade**: Diagnóstico rola pelo controle; Voltar de Diagnóstico e Trocar PIN
+  volta aos Ajustes; o foco inicial cai no destaque; clima e música mostram estado de falha;
+  rótulos de acessibilidade no teclado do PIN.
+
 ## Por que isso funciona sem scraping
 
 No Android TV os apps publicam "Watch Next" e "canais de prévia" num banco do

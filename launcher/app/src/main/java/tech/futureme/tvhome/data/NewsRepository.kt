@@ -71,7 +71,10 @@ class NewsRepository {
                     if (title.isNotBlank()) {
                         // O título vem "Manchete - Fonte"; tira a fonte do fim quando repetida
                         val clean = if (source.isNotBlank() && title.endsWith(" - $source")) title.removeSuffix(" - $source") else title
-                        out += NewsItem(clean, link, source, date, desc?.let(::stripHtml)?.take(400), topic)
+                        // A descrição do Google Notícias é a manchete repetida + manchetes de outras fontes:
+                        // só vira resumo se trouxer texto próprio.
+                        val summary = desc?.let(::stripHtml)?.takeIf { d -> !d.startsWith(clean.take(40)) && !d.startsWith(title.take(40)) }?.take(400)
+                        out += NewsItem(clean, link, source, date, summary, topic)
                     }
                 }
             }

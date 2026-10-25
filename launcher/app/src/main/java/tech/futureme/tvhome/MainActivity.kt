@@ -34,6 +34,7 @@ class MainActivity : ComponentActivity() {
                     onOpenItem = ::openItem,
                     onOpenUrl = ::openUrl,
                     onOpenMusic = ::openMusic,
+                    onOpenYoutube = ::openYoutube,
                     onOpenApp = { vm.recordRecent(it.packageName, it.label, null); startSafely(it.launchIntent) },
                     onOpenRecent = ::openRecent,
                     onTuneFailed = ::tuneFailed,
@@ -129,6 +130,14 @@ class MainActivity : ComponentActivity() {
         // Android TV sem navegador resolve para um "stub" que não mostra nada: tratar como sem navegador
         if (target.packageName == "com.android.tv.frameworkpackagestubs") return false
         return try { startActivity(intent); true } catch (e: Exception) { false }
+    }
+
+    /** Busca no app do YouTube (Flamengo no YouTube, "buscar no YouTube" da busca). */
+    private fun openYoutube(query: String) {
+        val uri = android.net.Uri.parse("https://www.youtube.com/results?search_query=" + android.net.Uri.encode(query))
+        val yt = Intent(Intent.ACTION_VIEW, uri).setPackage("com.google.android.youtube.tv")
+        if (yt.resolveActivity(packageManager) != null) startSafely(yt)
+        else Toast.makeText(this, "Instale o YouTube para ver vídeos", Toast.LENGTH_SHORT).show()
     }
 
     /** Sugestão musical: busca no Spotify, senão no YouTube, senão abre o primeiro app de música. */

@@ -22,6 +22,10 @@ data class MusicContent(
     val albums: List<MusicItem> = emptyList(),
     val playlists: List<MusicItem> = emptyList(),
     val artists: List<MusicItem> = emptyList(),
+    /** Clipes no YouTube das mais tocadas (um por música). */
+    val clips: List<MediaItem> = emptyList(),
+    /** Vídeos musicais em alta no YouTube (ao vivo, coletâneas). */
+    val youtube: List<MediaItem> = emptyList(),
     val fetchedAt: Long = 0L,
 )
 

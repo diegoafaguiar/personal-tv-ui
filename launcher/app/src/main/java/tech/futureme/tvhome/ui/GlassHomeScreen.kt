@@ -1,8 +1,10 @@
+@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
 package tech.futureme.tvhome.ui
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +28,7 @@ import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.LiveTv
 import androidx.compose.material.icons.rounded.Movie
+import androidx.compose.material.icons.rounded.Explore
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -36,6 +39,8 @@ import androidx.compose.material.icons.rounded.SportsEsports
 import androidx.compose.material.icons.rounded.Wifi
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.gestures.BringIntoViewSpec
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.rememberCoroutineScope
@@ -95,7 +100,7 @@ import java.util.Locale
 enum class Nav(val label: String, val icon: ImageVector, val kids: Boolean) {
     INICIO("Início", Icons.Rounded.Home, true),
     APPS("Apps", Icons.Rounded.Apps, true),
-    FILMES("Filmes e Séries", Icons.Rounded.Movie, true),
+    FILMES("Explorar", Icons.Rounded.Explore, true),
     TV("TV ao Vivo", Icons.Rounded.LiveTv, true),
     JOGOS("Jogos", Icons.Rounded.SportsEsports, false),
     MUSICA("Música", Icons.Rounded.MusicNote, false),
@@ -140,6 +145,8 @@ fun GlassHomeScreen(
     onRequestPermission: () -> Unit,
     /** Muda a cada Home pressionado: volta a lista e a linha de apps ao começo e foca o primeiro app. */
     resetKey: Int = 0,
+    categories: Map<Category, List<MediaItem>> = emptyMap(),
+    onOpenCategory: (Category) -> Unit = {},
 ) {
     val kids = profile.isKids
     val visibleApps = content.apps.filter { it.packageName !in settings.hidden && profile.allows(it.packageName) }
@@ -163,14 +170,14 @@ fun GlassHomeScreen(
         featured.map<MediaItem, HeroSlide> { HeroSlide.Media(it) } + if (kids) emptyList() else hdmi.map { HeroSlide.Input(it) }
     }
     val firstApp = remember { FocusRequester() }
+    val heroFocus = remember { FocusRequester() }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val appsRow = rememberLazyListState()
     LaunchedEffect(yourApps.isNotEmpty(), resetKey) {
-        if (yourApps.isNotEmpty()) {
-            runCatching { listState.scrollToItem(0); appsRow.scrollToItem(0) }
-            delay(150); runCatching { firstApp.requestFocus() }
-        }
+        runCatching { listState.scrollToItem(0); appsRow.scrollToItem(0) }
+        delay(150)
+        runCatching { if (yourApps.isNotEmpty()) firstApp.requestFocus() else heroFocus.requestFocus() }
     }
     // Voltar com a lista rolada: volta ao topo e ao primeiro app (padrão das homes de TV)
     val scrolled by remember { derivedStateOf { listState.firstVisibleItemIndex > 1 } }
@@ -182,11 +189,22 @@ fun GlassHomeScreen(
         Row(Modifier.fillMaxSize()) {
             Sidebar(kids = kids, selected = Nav.INICIO, onNav = onNav)
             // A lateral já ocupa a zona segura da esquerda: as linhas começam a 16 dp dela.
-            CompositionLocalProvider(LocalRowStart provides 16.dp) {
-                LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = 40.dp)) {
+            val rowFocus = remember { RowFocusState() }
+            val look = LocalLook.current
+            val defaultSpec = LocalBringIntoViewSpec.current
+            // "Linha focada fixa": alinha o topo da linha focada a 12% da altura, em vez do mínimo necessário
+            val fixedSpec = remember {
+                object : BringIntoViewSpec {
+                    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float = offset - containerSize * 0.12f
+                }
+            }
+            CompositionLocalProvider(LocalRowStart provides 16.dp, LocalRowFocus provides rowFocus, LocalBringIntoViewSpec provides if (look.fixedFocusRow) fixedSpec else defaultSpec) {
+                LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = if (look.fixedFocusRow) 600.dp else 40.dp)) {
+                  // As linhas horizontais voltam ao comportamento normal (só a lista vertical fica "fixa")
+                  StyledRows(this, defaultSpec).run {
                     item(key = "hero") {
                         Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = side, top = 4.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Hero(slides, appLabel, onFocused, onOpenItem, onOpenInput, modifier = Modifier.weight(1f).height(196.dp))
+                            Hero(slides, appLabel, onFocused, onOpenItem, onOpenInput, modifier = Modifier.weight(1f).height(196.dp).focusRequester(heroFocus))
                             Column(Modifier.width(150.dp).height(196.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 WeatherCard(weather, settings.showWeather, Modifier.weight(1f))
                                 if (!kids && hdmi.isNotEmpty()) InputsCard(hdmi, onOpenInput, Modifier.weight(1f))
@@ -196,14 +214,23 @@ fun GlassHomeScreen(
                     }
                     if (yourApps.isNotEmpty()) item(key = "apps-title") { RowTitle("Seus aplicativos") }
                     if (yourApps.isNotEmpty()) item(key = "apps") {
-                        LazyRow(state = appsRow, contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        CompositionLocalProvider(LocalBringIntoViewSpec provides defaultSpec) {
+                        LazyRow(Modifier.rememberFocus(), state = appsRow, contentPadding = rowPadding(), horizontalArrangement = Arrangement.spacedBy(LocalDims.current.gap)) {
                             itemsIndexed(yourApps, key = { _, a -> a.packageName }) { i, app ->
                                 // Foco inicial da home: o primeiro app (não o ícone de perfil nem a lateral)
-                                AppIcon(app, modifier = if (i == 0) Modifier.focusRequester(firstApp) else Modifier) { onOpenApp(app) }
+                                val m = if (i == 0) Modifier.focusRequester(firstApp) else Modifier
+                                if (look.appTile == tech.futureme.tvhome.data.AppTile.BANNER) AppCard(app, modifier = m) { onOpenApp(app) }
+                                else AppIcon(app, modifier = m) { onOpenApp(app) }
                             }
                         }
+                        }
+                    }
+                    if (categories.size > 1) {
+                        item(key = "title-categorias") { RowTitle("Explorar por categoria", "conteúdo de todos os apps", icon = Icons.Rounded.Explore) }
+                        item(key = "row-categorias") { CategoryStrip(categories, onOpenCategory) }
                     }
                     homeRows(content, settings, profile, team, appLabel, onOpenItem, onOpenChannel, onOpenRecent, onFocused, onRequestPermission, news, onOpenNews, onOpenYoutubeSearch)
+                  }
                 }
             }
         }
@@ -213,9 +240,10 @@ fun GlassHomeScreen(
 @Composable
 private fun TopBar(kids: Boolean, who: String, rates: List<RatesRepository.Rate>, onOpenSearch: () -> Unit, onQuick: (QuickAction) -> Unit, onSwitchProfile: () -> Unit) {
     var now by remember { mutableStateOf(Date()) }
-    LaunchedEffect(Unit) { while (true) { now = Date(); delay(15_000) } }
+    val seconds = LocalLook.current.clockSeconds
+    LaunchedEffect(seconds) { while (true) { now = Date(); delay(if (seconds) 1_000 else 15_000) } }
     val locale = Locale("pt", "BR")
-    val time = remember(now) { SimpleDateFormat("HH:mm", locale).format(now) }
+    val time = remember(now, seconds) { SimpleDateFormat(if (seconds) "HH:mm:ss" else "HH:mm", locale).format(now) }
     val date = remember(now) { SimpleDateFormat("EEE, d 'de' MMMM", locale).format(now).replaceFirstChar { it.uppercase() } }
     Row(Modifier.fillMaxWidth().padding(horizontal = LocalDims.current.side, vertical = 10.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
@@ -230,7 +258,7 @@ private fun TopBar(kids: Boolean, who: String, rates: List<RatesRepository.Rate>
                     Text(money.format(r.bid), fontSize = 17.sp, fontWeight = FontWeight.Medium, color = TvColors.text)
                     Text(
                         "${if (r.code == "USD") "Dólar" else if (r.code == "EUR") "Euro" else r.code} ${if (r.pctChange > 0) "▲" else if (r.pctChange < 0) "▼" else "•"} ${String.format(locale, "%.2f%%", kotlin.math.abs(r.pctChange))}",
-                        fontSize = 11.sp, color = if (r.pctChange > 0) Color(0xFFE57373) else if (r.pctChange < 0) Color(0xFF81C784) else TvColors.textDim,
+                        fontSize = 12.sp, color = if (r.pctChange > 0) Color(0xFFE57373) else if (r.pctChange < 0) Color(0xFF81C784) else TvColors.textDim,
                     )
                 }
             }
@@ -238,7 +266,7 @@ private fun TopBar(kids: Boolean, who: String, rates: List<RatesRepository.Rate>
         Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             if (!kids) IconButton(Icons.Rounded.Search, "Buscar", onOpenSearch)
             if (!kids) IconButton(Icons.Rounded.Wifi, "Rede") { onQuick(QuickAction.REDE) }
-            IconButton(Icons.Rounded.Person, who, onSwitchProfile)
+            IconButton(Icons.Rounded.Person, "Trocar perfil ($who)", onSwitchProfile)
         }
     }
 }
@@ -248,8 +276,12 @@ private fun TopBar(kids: Boolean, who: String, rates: List<RatesRepository.Rate>
 fun Sidebar(kids: Boolean, selected: Nav?, onNav: (Nav) -> Unit, rightTarget: FocusRequester? = null) {
     var expanded by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(22.dp)
+    val reqs = remember { Nav.entries.associateWith { FocusRequester() } }
     Column(
         Modifier.padding(start = LocalDims.current.side - 8.dp, top = 4.dp, bottom = 16.dp)
+            // Ao entrar na lateral (◀), o foco cai na página atual, não no item mais próximo
+            .focusProperties { enter = { reqs[selected ?: Nav.INICIO] ?: FocusRequester.Default } }
+            .focusGroup()
             // → sai da lateral direto para o conteúdo (sem depender da geometria da tela)
             .then(if (rightTarget != null) Modifier.focusProperties { right = rightTarget } else Modifier)
             .glass(shape)
@@ -261,16 +293,16 @@ fun Sidebar(kids: Boolean, selected: Nav?, onNav: (Nav) -> Unit, rightTarget: Fo
     ) {
         for (nav in Nav.entries) {
             if (kids && !nav.kids) continue
-            NavItem(nav, expanded, selected = nav == selected) { onNav(nav) }
+            NavItem(nav, expanded, selected = nav == selected, modifier = Modifier.focusRequester(reqs.getValue(nav))) { onNav(nav) }
         }
     }
 }
 
 @Composable
-private fun NavItem(nav: Nav, expanded: Boolean, selected: Boolean, onClick: () -> Unit) {
+private fun NavItem(nav: Nav, expanded: Boolean, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     val tint = if (focused || selected) TvColors.text else TvColors.textDim
-    FocusSurface(onClick = onClick, shape = RoundedCornerShape(14.dp), glowColor = TvColors.accent, modifier = Modifier.fillMaxWidth().height(40.dp).onFocusChanged { focused = it.isFocused }) {
+    FocusSurface(onClick = onClick, shape = RoundedCornerShape(14.dp), glowColor = TvColors.accent, modifier = modifier.fillMaxWidth().height(40.dp).onFocusChanged { focused = it.isFocused }) {
         Row(
             Modifier.fillMaxSize().then(if (selected && !focused) Modifier.background(Color(0x2AFFFFFF)) else Modifier).padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -339,7 +371,7 @@ private fun Hero(items: List<HeroSlide>, appLabel: (String) -> String, onFocused
                     Text("Tudo em um lugar", fontSize = 30.sp, fontWeight = FontWeight.SemiBold, color = TvColors.text)
                     Text("Os apps publicam aqui o que você está assistindo e as novidades.", fontSize = 13.sp, color = TvColors.textDim)
                 } else {
-                    Text(appLabel(item.packageName).uppercase(), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TvColors.textDim, letterSpacing = 1.sp)
+                    Text(appLabel(item.packageName).uppercase(), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TvColors.textDim, letterSpacing = 1.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(item.title, fontSize = 30.sp, fontWeight = FontWeight.SemiBold, color = TvColors.text, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 34.sp)
                     val sub = item.episodeTitle ?: item.description
                     if (!sub.isNullOrBlank()) Text(sub, fontSize = 13.sp, color = TvColors.textDim, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp))
@@ -363,16 +395,16 @@ private fun Hero(items: List<HeroSlide>, appLabel: (String) -> String, onFocused
 }
 
 @Composable
-private fun WeatherCard(weather: WeatherRepository.Weather?, enabled: Boolean, modifier: Modifier = Modifier) {
+private fun WeatherCard(weather: WeatherRepository.Weather?, enabled: Boolean, modifier: Modifier = Modifier, weatherFailed: Boolean = LocalFeedFailed.current) {
     Column(modifier.glass(RoundedCornerShape(18.dp)).padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         if (weather != null && enabled) {
             Text(weather.icon, fontSize = 26.sp)
             Text("${weather.tempC.toInt()}°", fontSize = 30.sp, fontWeight = FontWeight.Light, color = TvColors.text)
-            Text(weather.label, fontSize = 11.sp, color = TvColors.textDim, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 13.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-            Text("${weather.minC.toInt()}° / ${weather.maxC.toInt()}°", fontSize = 11.sp, color = TvColors.textDim)
+            Text(weather.label, fontSize = 12.sp, color = TvColors.textDim, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 13.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            Text("${weather.minC.toInt()}° / ${weather.maxC.toInt()}°", fontSize = 12.sp, color = TvColors.textDim)
         } else {
             Text("Clima", fontSize = 13.sp, color = TvColors.textDim)
-            Text(if (enabled) "carregando…" else "desligado", fontSize = 11.sp, color = TvColors.textDim)
+            Text(if (!enabled) "desligado" else if (weatherFailed) "sem conexão" else "carregando…", fontSize = 12.sp, color = TvColors.textDim)
         }
     }
 }
@@ -382,12 +414,12 @@ private fun InputsCard(hdmi: List<InputEntry>, onOpenInput: (InputEntry) -> Unit
     val first = hdmi.first()
     FocusSurface(onClick = { onOpenInput(first) }, shape = RoundedCornerShape(18.dp), modifier = modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxSize().padding(14.dp), verticalArrangement = Arrangement.Center) {
-            Text("Entradas", fontSize = 11.sp, color = TvColors.textDim, letterSpacing = 1.sp)
+            Text("Entradas", fontSize = 12.sp, color = TvColors.textDim, letterSpacing = 1.sp)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
                 Icon(Icons.Rounded.SettingsInputHdmi, contentDescription = null, tint = TvColors.text, modifier = Modifier.size(22.dp))
                 Text(first.label, fontSize = 16.sp, fontWeight = FontWeight.Medium, color = TvColors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            if (hdmi.size > 1) Text("+${hdmi.size - 1} no menu Apps", fontSize = 11.sp, color = TvColors.textDim, modifier = Modifier.padding(top = 4.dp))
+            if (hdmi.size > 1) Text("+${hdmi.size - 1} no menu Apps", fontSize = 12.sp, color = TvColors.textDim, modifier = Modifier.padding(top = 4.dp))
         }
     }
 }
@@ -396,7 +428,7 @@ private fun InputsCard(hdmi: List<InputEntry>, onOpenInput: (InputEntry) -> Unit
 private fun TunerCard(onOpenTuner: () -> Unit, modifier: Modifier = Modifier) {
     FocusSurface(onClick = onOpenTuner, shape = RoundedCornerShape(18.dp), modifier = modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxSize().padding(14.dp), verticalArrangement = Arrangement.Center) {
-            Text("TV aberta", fontSize = 11.sp, color = TvColors.textDim, letterSpacing = 1.sp)
+            Text("TV aberta", fontSize = 12.sp, color = TvColors.textDim, letterSpacing = 1.sp)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
                 Icon(Icons.Rounded.LiveTv, contentDescription = null, tint = TvColors.text, modifier = Modifier.size(22.dp))
                 Text("Último canal", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = TvColors.text)
@@ -420,7 +452,7 @@ fun CategoryScreen(
 ) {
     val side = LocalDims.current.side
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = 24.dp, bottom = 40.dp)) {
-        item { Text(title, fontSize = 26.sp, fontWeight = FontWeight.SemiBold, color = TvColors.text, modifier = Modifier.padding(sidePadding())) }
+        item { PageHeader(title, if (apps.isEmpty()) null else "seus apps e o que eles publicaram") }
         if (apps.isNotEmpty()) {
             item(key = "apps-title") { RowTitle(if (apps.size == 1) "1 app" else "${apps.size} apps") }
             item(key = "apps") {

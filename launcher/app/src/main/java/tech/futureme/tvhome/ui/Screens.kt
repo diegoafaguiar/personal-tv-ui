@@ -1,5 +1,6 @@
 package tech.futureme.tvhome.ui
 
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Row
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -46,18 +53,14 @@ fun MusicScreen(
     onOpenRecent: (RecentEntry) -> Unit,
     onOpenMusic: (MusicItem) -> Unit,
     onFocused: (MediaItem?) -> Unit,
+    failed: Boolean = false,
+    onRetry: () -> Unit = {},
 ) {
     val side = LocalDims.current.side
     val gap = 12.dp
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = 24.dp, bottom = 40.dp)) {
         item {
-            Column(Modifier.padding(start = LocalRowStart.current ?: side, end = side)) {
-                Text("Música", fontSize = 26.sp, fontWeight = FontWeight.SemiBold, color = TvColors.text)
-                Text(
-                    if (apps.any { it.packageName == "com.spotify.tv.android" }) "OK numa sugestão abre a busca no Spotify" else "OK numa sugestão abre a busca no YouTube",
-                    fontSize = 13.sp, color = TvColors.textDim,
-                )
-            }
+            PageHeader("Música", if (apps.any { it.packageName == "com.spotify.tv.android" }) "OK numa capa toca no Spotify · OK num vídeo abre no YouTube" else "OK numa capa ou vídeo abre no YouTube")
         }
         if (apps.isNotEmpty()) {
             item(key = "apps-title") { RowTitle("Seus apps de música") }
@@ -75,8 +78,17 @@ fun MusicScreen(
                 }
             }
         }
+        if (music.clips.isNotEmpty()) {
+            item(key = "t-clips") { RowTitle("Clipes das mais tocadas", "no YouTube") }
+            item(key = "r-clips") { MediaRow(music.clips, appLabel, onOpenItem, onFocused) }
+        }
+        if (music.youtube.isNotEmpty()) {
+            item(key = "t-ytm") { RowTitle("Vídeos musicais no YouTube", "shows e ao vivo em alta") }
+            item(key = "r-ytm") { MediaRow(music.youtube, appLabel, onOpenItem, onFocused) }
+        }
         if (music.fetchedAt == 0L) {
-            item { RowTitle("Sugestões", "carregando as paradas… (precisa de internet)") }
+            if (failed) item { EmptyState("Sem conexão", "Não foi possível buscar as paradas e os vídeos agora.", "Tentar de novo", onRetry) }
+            else item { RowTitle("Sugestões", "carregando as paradas…") }
         } else {
             for ((title, sub, list) in listOf(
                 Triple("Mais tocadas no Brasil", "paradas de hoje", music.tracks),
@@ -102,17 +114,32 @@ fun ReaderScreen(item: NewsItem) {
     val side = LocalDims.current.side
     Box(Modifier.fillMaxSize().padding(start = (LocalRowStart.current ?: side), end = side, top = 24.dp, bottom = 24.dp)) {
         Column(
-            Modifier.width(620.dp).glass(RoundedCornerShape(22.dp)).padding(28.dp).verticalScroll(rememberScrollState()),
+            Modifier.width(620.dp).focusable().glass(RoundedCornerShape(22.dp)).padding(28.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text(item.topic.uppercase(), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = TvColors.accent, letterSpacing = 1.sp)
+            Text(item.topic.uppercase(), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TvColors.accent, letterSpacing = 1.sp)
             Text(item.title, fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = TvColors.text, lineHeight = 28.sp)
             Text(
                 listOfNotNull(item.source.ifBlank { null }, if (item.publishedMs > 0) SimpleDateFormat("EEEE, d 'de' MMMM 'às' HH:mm", Locale("pt", "BR")).format(Date(item.publishedMs)) else null).joinToString(" · "),
                 fontSize = 13.sp, color = TvColors.textDim,
             )
             if (!item.summary.isNullOrBlank()) Text(item.summary, fontSize = 15.sp, color = TvColors.text, lineHeight = 21.sp)
-            Text("Esta TV não tem navegador: leia a matéria completa no celular, em ${item.source.ifBlank { "o site da fonte" }}. Voltar fecha.", fontSize = 12.sp, color = TvColors.textDim, modifier = Modifier.padding(top = 8.dp))
+            Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                val qr = remember(item.link) { qrBitmap(item.link, 480) }
+                if (qr != null) androidx.compose.foundation.Image(qr, contentDescription = "QR code da matéria", modifier = Modifier.size(172.dp).clip(RoundedCornerShape(10.dp)))
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Leia a matéria completa no celular", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TvColors.text)
+                    Text("Aponte a câmera para o código. Abre em ${item.source.ifBlank { "o site da fonte" }}.", fontSize = 13.sp, color = TvColors.text.copy(alpha = 0.75f))
+                    Text("Voltar fecha", fontSize = 12.sp, color = TvColors.text.copy(alpha = 0.6f))
+                }
+            }
         }
     }
 }
+
+/** QR code (zxing core) como ImageBitmap branco e preto com margem. */
+fun qrBitmap(text: String, sizePx: Int): androidx.compose.ui.graphics.ImageBitmap? = runCatching {
+    val m = com.google.zxing.qrcode.QRCodeWriter().encode(text, com.google.zxing.BarcodeFormat.QR_CODE, sizePx, sizePx, mapOf(com.google.zxing.EncodeHintType.MARGIN to 2))
+    val px = IntArray(m.width * m.height) { i -> if (m.get(i % m.width, i / m.width)) 0xFF000000.toInt() else 0xFFFFFFFF.toInt() }
+    android.graphics.Bitmap.createBitmap(px, m.width, m.height, android.graphics.Bitmap.Config.ARGB_8888).asImageBitmap()
+}.getOrNull()
