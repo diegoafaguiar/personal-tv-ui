@@ -1,6 +1,6 @@
 # Atalhos para o fluxo. Cada alvo chama um script em android-tv/scripts/ ou roku/scripts/; leia-os.
 # Uso: make connect | backup | inventory | debloat | tune | launcher-status | rollback   (Android TV)
-#      make emulator-setup | emulator | dev | dev-logs | dev-push   (launcher local, android-tv/docs/09)
+#      make up   (tudo de uma vez)  |  make emulator-setup | emulator | dev | dev-logs | dev-push   (launcher local, docs/rodar-localmente.md)
 #      make roku-connect | roku-inventory | roku-apps                (Roku TV)
 #      make test | lint
 # Escolha a TV com TV=<nome> (ficha em devices/<nome>.env): make inventory TV=tcl-g13
@@ -56,6 +56,9 @@ rollback-plan: ## Mostra o que o rollback faria (dry-run)
 rollback: ## Volta ao último backup
 	@$(A)/scripts/90-rollback.sh
 
+up: ## Um comando: prepara o que faltar, liga o emulador e abre o launcher
+	@$(A)/scripts/81-up.sh
+
 emulator-setup: ## Uma vez: JDK 17 + SDK + imagem Android TV + AVD "tvhome"
 	@$(A)/scripts/80-emulator.sh setup
 
@@ -94,4 +97,4 @@ lint: ## shellcheck + bash -n
 	@for f in $(SCRIPTS); do bash -n "$$f" || exit 1; done
 	@shellcheck -x $(SCRIPTS)
 
-.PHONY: roku-connect roku-inventory roku-apps emulator-setup emulator emulator-stop dev dev-build dev-logs dev-push help connect backup inventory review finish debloat-plan debloat verify tune launcher-status benchmark rollback-plan rollback test lint
+.PHONY: up roku-connect roku-inventory roku-apps emulator-setup emulator emulator-stop dev dev-build dev-logs dev-push help connect backup inventory review finish debloat-plan debloat verify tune launcher-status benchmark rollback-plan rollback test lint

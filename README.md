@@ -12,10 +12,21 @@ em pastas por marca (ex.: `android-tv/config/profiles/tcl/`).
 | **Android TV / Google TV** | TCL G09 (sala), TCL G13 | adb pela rede (porta 5555) | backup, debloat, ajustes, launcher próprio "Minha TV", rollback | [android-tv/README.md](android-tv/README.md) |
 | **Roku OS** | Philco Roku TV 58" | ECP pela rede (porta 8060) | inventário, controle remoto pelo terminal, roteiro de limpeza e privacidade | [roku/README.md](roku/README.md) |
 
+## Por onde começar
+
+| Quero… | Guia |
+|---|---|
+| Ver o launcher "Minha TV" rodando no Mac (dois cliques ou `make up`) | [docs/rodar-localmente.md](docs/rodar-localmente.md) |
+| Controlar as TVs pelo celular | [docs/controle-pelo-celular.md](docs/controle-pelo-celular.md) |
+| Limpar e acelerar uma TV Android (TCL) | [android-tv/README.md](android-tv/README.md) |
+| Inventariar e limpar a Roku | [roku/README.md](roku/README.md) |
+
 ## Estrutura
 
 ```
 personal-tv-ui/
+├── rodar-mac.command dois cliques: launcher no emulador do Mac
+├── docs/             guias que valem para todas as TVs (rodar no Mac, controle pelo celular)
 ├── devices/          uma ficha por TV (IP, sistema, modelo); escolha com TV=<nome>
 ├── android-tv/       tudo que fala adb: scripts, perfis por marca, launcher, testes, docs
 ├── roku/             tudo que fala ECP: scripts, notas de canais, testes, docs

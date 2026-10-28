@@ -91,6 +91,9 @@ completo: compila no Mac, roda num emulador Android TV, você navega com o
 teclado ou o mouse, lê o logcat e só então manda para a TV. Detalhes em
 [android-tv/docs/09-launcher-proprio.md](docs/09-launcher-proprio.md).
 
+> Atalho: `make up` (ou dois cliques em `rodar-mac.command`) faz os passos 1 e 2 de uma vez.
+> Guia curto: [../docs/rodar-localmente.md](../docs/rodar-localmente.md).
+
 ### 1. Preparar (uma vez)
 
 ```bash
