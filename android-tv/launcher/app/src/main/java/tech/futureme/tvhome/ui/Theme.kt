@@ -45,3 +45,18 @@ fun changeColor(pct: Double): androidx.compose.ui.graphics.Color = when {
     pct < 0 -> androidx.compose.ui.graphics.Color(0xFFE57373)
     else -> TvColors.textDim
 }
+
+/**
+ * Fonte da interface, com as famílias que a TV já tem (Roboto, Roboto Condensed, Noto Serif):
+ * nada a baixar. Os pesos (Light…Bold) vêm da própria fonte do sistema.
+ */
+val tech.futureme.tvhome.data.FontChoice.family: androidx.compose.ui.text.font.FontFamily
+    get() = when (this) {
+        tech.futureme.tvhome.data.FontChoice.PADRAO -> androidx.compose.ui.text.font.FontFamily.SansSerif
+        tech.futureme.tvhome.data.FontChoice.CLASSICA -> androidx.compose.ui.text.font.FontFamily.Serif
+        tech.futureme.tvhome.data.FontChoice.CONDENSADA -> androidx.compose.ui.text.font.FontFamily(
+            listOf(300, 400, 500, 600, 700).map { w ->
+                androidx.compose.ui.text.font.Font(androidx.compose.ui.text.font.DeviceFontFamilyName("sans-serif-condensed"), androidx.compose.ui.text.font.FontWeight(w))
+            },
+        )
+    }

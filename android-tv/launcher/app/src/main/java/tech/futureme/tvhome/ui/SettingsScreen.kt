@@ -49,6 +49,7 @@ import androidx.compose.material.icons.rounded.Opacity
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PhoneAndroid
+import androidx.compose.material.icons.rounded.TextFields
 import androidx.compose.material.icons.rounded.PhotoSizeSelectLarge
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.RestartAlt
@@ -107,6 +108,7 @@ import tech.futureme.tvhome.data.Accent
 import tech.futureme.tvhome.data.TileStyle
 import tech.futureme.tvhome.data.LabelMode
 import tech.futureme.tvhome.data.StylePreset
+import tech.futureme.tvhome.data.FontChoice
 import tech.futureme.tvhome.data.AppEntry
 import tech.futureme.tvhome.data.AppTile
 import tech.futureme.tvhome.data.Background
@@ -206,6 +208,9 @@ fun SettingsScreen(
                         item { ChoiceRow(Icons.Rounded.Palette, "Cor de destaque", look.accent.label, swatch = Color(look.accent.argb),
                             onPrev = { go { prefs.cycleEnum("look_accent", Accent.entries, Accent.BRANCO, -1) } },
                             onNext = { go { prefs.cycleEnum("look_accent", Accent.entries, Accent.BRANCO, +1) } }) }
+                        item { ChoiceRow(Icons.Rounded.TextFields, "Fonte", look.font.label,
+                            onPrev = { go { prefs.cycleEnum("look_font", FontChoice.entries, FontChoice.PADRAO, -1) } },
+                            onNext = { go { prefs.cycleEnum("look_font", FontChoice.entries, FontChoice.PADRAO, +1) } }) }
                         item { ToggleRow(Icons.Rounded.AutoAwesome, "Estilo vidro", g.enabled) { go { prefs.toggleGlass() } } }
                         item { SliderRow(Icons.Rounded.Opacity, "Transparência dos painéis", (g.transparency * 100).toInt(), 10, 100, 10, "%") { d -> go { prefs.adjustGlassTransparency(d) } } }
                         item { SliderRow(Icons.Rounded.ShowChart, "Intensidade dos reflexos", (g.fx * 100).toInt(), 0, 150, 25, "%") { d -> go { prefs.adjustGlassFx(d) } } }

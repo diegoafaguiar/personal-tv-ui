@@ -255,6 +255,18 @@ TV_HOST=192.168.100.28 android-tv/scripts/50-launcher.sh restore     # volta a h
   volta aos Ajustes; o foco inicial cai no destaque; clima e música mostram estado de falha;
   rótulos de acessibilidade no teclado do PIN.
 
+## v0.12.0 (Fase 4): copiar o visual entre TVs e escolher a fonte
+
+- **Backup dos ajustes** pela página do celular (aba Visual › Copiar o visual para outra TV):
+  "Baixar ajustes desta TV" gera `minha-tv-ajustes.json`; "Restaurar" na outra TV deixa os
+  ajustes exportáveis iguais aos do arquivo (o que não veio volta ao padrão). Ficam em cada
+  TV: senhas, perfil ativo, código do controle, recentes, último canal e o **modo leve** (cada
+  GPU pede o seu). "Minha imagem" não vai junto: mande a foto de novo pelo celular.
+  Endpoints: `GET /api/settings` e `POST /api/settings` (ver `remote/RemoteServer.kt`).
+- **Aparência › Fonte**: Padrão (Roboto), Condensada (Roboto Condensed) e Clássica (Noto
+  Serif), fontes que a TV já tem: nada a baixar nem a mais no APK. Vale para a interface
+  inteira e é independente do estilo (trocar de estilo não muda a fonte). Também pelo celular.
+
 ## v0.11.0 (Fase 3): controle pelo celular por QR code
 
 - **Ajustes › Sistema › Controle pelo celular**: QR com o endereço da TV e um código de acesso;

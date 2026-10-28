@@ -135,6 +135,7 @@ fun App(
         LocalDims provides Dims.of(settings.density).scaled(settings.look.cardScale, settings.look.cardSpacing),
         LocalGlass provides glass,
         LocalLook provides settings.look,
+        androidx.tv.material3.LocalTextStyle provides androidx.tv.material3.LocalTextStyle.current.copy(fontFamily = settings.look.font.family),
         LocalBringIntoViewSpec provides MinimalScroll,
         LocalFeedFailed provides vm.weatherFailed.collectAsStateWithLifecycle().value,
     ) {

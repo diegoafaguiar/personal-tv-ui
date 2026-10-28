@@ -146,6 +146,13 @@
     <input type="file" id="photo" accept="image/*" hidden>
     <h2>Cor de destaque</h2>
     <div class="swatches" id="accents"></div>
+    <h2>Fonte</h2>
+    <div class="chips" id="fonts"></div>
+    <h2>Copiar o visual para outra TV</h2>
+    <p class="hint" style="margin:0 4px 10px">Baixe os ajustes desta TV e restaure na outra (abra a página da outra TV pelo QR dela). Senhas, perfis, recentes e o modo leve ficam em cada TV.</p>
+    <a class="btn ghost" id="exportLink" download="minha-tv-ajustes.json" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box">Baixar ajustes desta TV</a>
+    <button class="btn ghost" id="importBtn">Restaurar ajustes de um arquivo</button>
+    <input type="file" id="importFile" accept="application/json,.json" hidden>
   </section>
 </main>
 
@@ -239,6 +246,12 @@
     $("accents").innerHTML = S.accents.map(function (a) {
       return '<button class="swatch' + (a.name === S.accent ? " on" : "") + '" style="background:' + a.color + '" aria-label="' + esc(a.label) + '" data-accent="' + a.name + '"></button>';
     }).join("");
+    $("fonts").innerHTML = S.fonts.map(function (f) {
+      return '<button class="chip card' + (f.name === S.font ? " on" : "") + '" data-font="' + f.name + '">' + esc(f.label) + "</button>";
+    }).join("");
+    $("fonts").querySelectorAll("[data-font]").forEach(function (b) {
+      b.addEventListener("click", function () { buzz(); api("/api/font", { name: b.getAttribute("data-font") }).then(refresh); });
+    });
     $("accents").querySelectorAll("[data-accent]").forEach(function (b) {
       b.addEventListener("click", function () { buzz(); api("/api/accent", { name: b.getAttribute("data-accent") }).then(refresh); });
     });
@@ -293,6 +306,17 @@
     };
     img.onerror = function () { toast("Não consegui ler essa imagem", true); };
     img.src = URL.createObjectURL(f);
+    this.value = "";
+  });
+
+  // ---- backup dos ajustes: baixar (link com o código) e restaurar de um arquivo .json
+  $("exportLink").href = "/api/settings?t=" + encodeURIComponent(token || "");
+  $("importBtn").addEventListener("click", function () { $("importFile").click(); });
+  $("importFile").addEventListener("change", function () {
+    var f = this.files && this.files[0]; if (!f) return;
+    f.text().then(function (txt) {
+      return api("/api/settings", undefined, new Blob([txt], { type: "application/json" }));
+    }).then(function (j) { if (j && j.ok) { toast(j.applied + " ajustes aplicados na TV"); refresh(); } });
     this.value = "";
   });
 

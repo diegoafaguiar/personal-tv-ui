@@ -14,6 +14,7 @@ import org.json.JSONObject
 import tech.futureme.tvhome.data.Accent
 import tech.futureme.tvhome.data.AppsRepository
 import tech.futureme.tvhome.data.Background
+import tech.futureme.tvhome.data.FontChoice
 import tech.futureme.tvhome.data.Prefs
 import tech.futureme.tvhome.data.StylePreset
 import java.io.ByteArrayOutputStream
@@ -39,6 +40,8 @@ import java.util.concurrent.Executors
  * - POST /api/style        {"name":"VIDRO"} · /api/background {"name":"NOITE"} · /api/accent {"name":"CIANO"}
  * - POST /api/dock         {"pkgs":[…]} (favoritos em ordem)
  * - POST /api/wallpaper    corpo = JPEG/PNG da foto (vira "Minha imagem")
+ * - POST /api/font         {"name":"CONDENSADA"}
+ * - GET  /api/settings     backup dos ajustes (JSON para baixar) · POST /api/settings restaura
  *
  * Toda chamada /api precisa do código do QR (cabeçalho X-Token ou ?t=). Só aceita conexões de
  * endereços da rede local (10.x, 172.16–31.x, 192.168.x, link-local). Setas e OK chegam
@@ -106,8 +109,16 @@ class RemoteServer(private val context: Context) {
             val png = icon(p.removePrefix("/api/icon/")) ?: return respond(out, 404, "text/plain", ByteArray(0))
             return respond(out, 200, "image/png", png, cache = true)
         }
+        if (req.method == "GET" && p == "/api/settings") {
+            val body = runBlocking { prefs.exportJson() }.toByteArray()
+            return respond(out, 200, "application/json; charset=utf-8", body, attachment = "minha-tv-ajustes.json")
+        }
         if (req.method != "POST") return respond(out, 405, "text/plain", ByteArray(0))
         if (p == "/api/wallpaper") return json(out, 200, wallpaper(req.body))
+        if (p == "/api/settings") {
+            val n = runBlocking { prefs.importJson(String(req.body)) }
+            return json(out, if (n > 0) 200 else 400, if (n > 0) ok().put("applied", n) else err("Arquivo não é um backup da Minha TV"))
+        }
         val b = runCatching { JSONObject(String(req.body)) }.getOrDefault(JSONObject())
         val result: JSONObject = when (p) {
             "/api/key" -> key(b.optString("key"))
@@ -125,6 +136,10 @@ class RemoteServer(private val context: Context) {
             "/api/accent" -> {
                 val a = Accent.entries.firstOrNull { it.name == b.optString("name") } ?: return json(out, 400, err("Cor desconhecida"))
                 runBlocking { prefs.setAccent(a) }; ok()
+            }
+            "/api/font" -> {
+                val f = FontChoice.entries.firstOrNull { it.name == b.optString("name") } ?: return json(out, 400, err("Fonte desconhecida"))
+                runBlocking { prefs.setFont(f) }; ok()
             }
             "/api/dock" -> {
                 val arr = b.optJSONArray("pkgs") ?: JSONArray()
@@ -190,6 +205,8 @@ class RemoteServer(private val context: Context) {
             .put("styles", JSONArray(StylePreset.entries.map { JSONObject().put("name", it.name).put("label", it.label).put("hint", it.hint) }))
             .put("background", s.background.name)
             .put("backgrounds", JSONArray(Background.entries.map { JSONObject().put("name", it.name).put("label", it.label) }))
+            .put("font", s.look.font.name)
+            .put("fonts", JSONArray(FontChoice.entries.map { JSONObject().put("name", it.name).put("label", it.label) }))
             .put("accent", s.look.accent.name)
             .put("accents", JSONArray(Accent.entries.map { JSONObject().put("name", it.name).put("label", it.label).put("color", String.format("#%06X", it.argb and 0xFFFFFF)) }))
     }
@@ -227,10 +244,12 @@ class RemoteServer(private val context: Context) {
         return Request(parts[0], path, query, headers, body)
     }
 
-    private fun respond(out: OutputStream, code: Int, type: String, body: ByteArray, cache: Boolean = false) {
+    private fun respond(out: OutputStream, code: Int, type: String, body: ByteArray, cache: Boolean = false, attachment: String? = null) {
         val status = when (code) { 200 -> "OK"; 400 -> "Bad Request"; 401 -> "Unauthorized"; 403 -> "Forbidden"; 404 -> "Not Found"; 405 -> "Method Not Allowed"; else -> "Error" }
         val head = "HTTP/1.1 $code $status\r\nContent-Type: $type\r\nContent-Length: ${body.size}\r\n" +
-            "Cache-Control: ${if (cache) "max-age=86400" else "no-store"}\r\nConnection: close\r\n\r\n"
+            "Cache-Control: ${if (cache) "max-age=86400" else "no-store"}\r\n" +
+            (if (attachment != null) "Content-Disposition: attachment; filename=\"$attachment\"\r\n" else "") +
+            "Connection: close\r\n\r\n"
         out.write(head.toByteArray()); out.write(body); out.flush()
     }
 

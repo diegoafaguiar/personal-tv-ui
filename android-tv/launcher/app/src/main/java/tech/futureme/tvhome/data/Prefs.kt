@@ -14,6 +14,12 @@ import kotlinx.coroutines.flow.map
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "tvhome")
 
+/** Ajustes que não vão no backup: são desta TV (ver Prefs.exportJson). */
+private val NOT_EXPORTED = setOf(
+    "pins", "active_profile", "active_profile_boot", "remote_token", "recents", "last_channel",
+    "bg_migrated_v7b", "wallpaper_rev", "glass_lite",
+)
+
 /** Fundos predefinidos. "imagem" usa o arquivo enviado por scripts/58-launcher-wallpaper.sh. */
 enum class Background(val label: String) {
     HORIZONTE("Horizonte (foto)"), AURORA("Aurora"), OCEANO("Oceano"), OCASO("Ocaso"),
@@ -49,6 +55,9 @@ enum class AppTile(val label: String) { ICONE("Ícone quadrado (1/1)"), BANNER("
 
 /** O que o bloco de cada app mostra. */
 enum class LabelMode(val label: String) { ICONE_NOME("Ícone e nome"), ICONE("Só o ícone"), NOME("Só o nome") }
+
+/** Fonte da interface (fontes que a TV já tem: nada a baixar, nada a mais no APK). */
+enum class FontChoice(val label: String) { PADRAO("Padrão"), CONDENSADA("Condensada"), CLASSICA("Clássica, com serifa") }
 
 /** Fundo do bloco de cada app em "Seus aplicativos". */
 enum class TileStyle(val label: String) { VIDRO("Vidro"), MARCA("Cor da marca"), ESCURO("Escuro liso") }
@@ -90,6 +99,7 @@ data class Look(
     val tileStyle: TileStyle = TileStyle.VIDRO,
     /** "Boa noite, Diego" na linha da data. */
     val greeting: Boolean = true,
+    val font: FontChoice = FontChoice.PADRAO,
     /** Segundos no relógio. */
     val clockSeconds: Boolean = false,
 )
@@ -222,6 +232,7 @@ class Prefs(private val context: Context) {
                     ?: if (p[booleanPreferencesKey("look_app_labels")] == false) LabelMode.ICONE else LabelMode.ICONE_NOME,
                 tileStyle = p[stringPreferencesKey("look_tile_style")]?.let { v -> TileStyle.entries.firstOrNull { it.name == v } } ?: TileStyle.VIDRO,
                 greeting = p[booleanPreferencesKey("look_greeting")] ?: true,
+                font = p[stringPreferencesKey("look_font")]?.let { v -> FontChoice.entries.firstOrNull { it.name == v } } ?: FontChoice.PADRAO,
                 clockSeconds = p[booleanPreferencesKey("look_clock_seconds")] ?: false,
             ),
             glass = Glass(
@@ -378,7 +389,8 @@ class Prefs(private val context: Context) {
      * não pesar uma TV com pouca memória).
      */
     suspend fun applyStyle(style: StylePreset) = context.dataStore.edit { p ->
-        p.asMap().keys.filter { it.name.startsWith("look_") }.forEach { p.remove(it) }
+        // A fonte é escolha à parte: o estilo não mexe nela
+        p.asMap().keys.filter { it.name.startsWith("look_") && it.name != "look_font" }.forEach { p.remove(it) }
         val l = style.look
         p[floatKey("look_card_scale")] = l.cardScale
         p[intKey("look_card_spacing")] = l.cardSpacing
@@ -405,6 +417,62 @@ class Prefs(private val context: Context) {
         if (style.lite) p[glassLiteKey] = true
     }
 
+    // ---------- Backup dos ajustes (copiar o visual de uma TV para outra) ----------
+    /**
+     * Tudo o que é aparência e preferência, em JSON. Fica de fora o que é desta TV: senhas,
+     * perfil ativo, código do controle, recentes, último canal, migrações e o modo leve (depende
+     * da GPU de cada TV). "Minha imagem" não vai junto (é um arquivo).
+     */
+    suspend fun exportJson(): String {
+        val values = org.json.JSONObject()
+        for ((k, v) in context.dataStore.data.first().asMap()) {
+            if (k.name in NOT_EXPORTED) continue
+            val (t, jv) = when (v) {
+                is String -> "s" to v
+                is Boolean -> "b" to v
+                is Int -> "i" to v
+                is Long -> "l" to v
+                is Float -> "f" to v.toDouble()
+                is Set<*> -> "ss" to org.json.JSONArray(v.map { it.toString() })
+                else -> continue
+            }
+            values.put(k.name, org.json.JSONObject().put("t", t).put("v", jv))
+        }
+        return org.json.JSONObject().put("app", "tvhome").put("version", 1)
+            .put("exportedAt", System.currentTimeMillis()).put("values", values).toString(2)
+    }
+
+    /**
+     * Aplica um backup de [exportJson] substituindo os ajustes exportáveis (o que não veio volta ao
+     * padrão). Devolve quantos ajustes entraram (0 = arquivo inválido, nada é mudado).
+     */
+    suspend fun importJson(text: String): Int {
+        val root = runCatching { org.json.JSONObject(text) }.getOrNull() ?: return 0
+        if (root.optString("app") != "tvhome") return 0
+        val values = root.optJSONObject("values") ?: return 0
+        var n = 0
+        context.dataStore.edit { p ->
+            // Cópia fiel: o que não veio no arquivo volta ao padrão (só os ajustes exportáveis)
+            p.asMap().keys.filter { it.name !in NOT_EXPORTED }.forEach { p.remove(it) }
+            for (name in values.keys()) {
+                if (name in NOT_EXPORTED) continue
+                val e = values.optJSONObject(name) ?: continue
+                when (e.optString("t")) {
+                    "s" -> p[stringPreferencesKey(name)] = e.optString("v")
+                    "b" -> p[booleanPreferencesKey(name)] = e.optBoolean("v")
+                    "i" -> p[intKey(name)] = e.optInt("v")
+                    "l" -> p[androidx.datastore.preferences.core.longPreferencesKey(name)] = e.optLong("v")
+                    "f" -> p[floatKey(name)] = e.optDouble("v").toFloat()
+                    "ss" -> p[androidx.datastore.preferences.core.stringSetPreferencesKey(name)] =
+                        e.optJSONArray("v")?.let { a -> (0 until a.length()).map { a.getString(it) }.toSet() } ?: emptySet()
+                    else -> continue
+                }
+                n++
+            }
+        }
+        return n
+    }
+
     // ---------- Controle pelo celular ----------
     suspend fun setRemoteEnabled(on: Boolean) = context.dataStore.edit { it[booleanPreferencesKey("remote_enabled")] = on }
 
@@ -422,6 +490,7 @@ class Prefs(private val context: Context) {
         return t
     }
 
+    suspend fun setFont(font: FontChoice) = context.dataStore.edit { it[stringPreferencesKey("look_font")] = font.name }
     suspend fun setAccent(accent: Accent) = context.dataStore.edit { it[stringPreferencesKey("look_accent")] = accent.name }
 
     /** Ordem e escolha dos favoritos ("Seus aplicativos") de uma vez, vinda do celular. */

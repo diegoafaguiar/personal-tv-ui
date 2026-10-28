@@ -68,7 +68,11 @@ computador ligado.
 |---|---|
 | Controle | setas, OK, Voltar, Início, volume, **buscar digitando no celular**, TV ao vivo |
 | Apps | abrir qualquer app com um toque; **Organizar favoritos** (★ escolhe, ▲▼ ordena) |
-| Visual | estilos prontos, papel de parede, cor de destaque e **foto do celular como fundo** |
+| Visual | estilos prontos, papel de parede, cor de destaque, fonte, **foto do celular como fundo** e backup dos ajustes |
+
+**Copiar o visual de uma TV para outra:** na aba Visual da TV de origem, **Baixar ajustes
+desta TV**; depois abra a página da outra TV (pelo QR dela) e use **Restaurar ajustes de um
+arquivo**. Senhas, perfis, recentes e o modo leve continuam os de cada TV.
 
 **Limite do Android:** setas, OK e Voltar comandam a tela inicial. Dentro de outros apps
 (Netflix, YouTube) o celular faz Início, volume e abre apps; para navegar dentro deles, use o

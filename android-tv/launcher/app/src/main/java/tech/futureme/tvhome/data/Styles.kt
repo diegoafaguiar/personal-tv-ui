@@ -3,7 +3,8 @@ package tech.futureme.tvhome.data
 /**
  * Estilos prontos: um clique muda papel de parede, vidro e todos os ajustes de Aparência.
  * Depois dá para mexer em qualquer ajuste; a tela mostra "Personalizado" até voltar a bater
- * com um estilo. Aplicar: Prefs.applyStyle. Detectar: [StylePreset.current].
+ * com um estilo. Aplicar: Prefs.applyStyle. Detectar: [StylePreset.current]. A fonte fica de
+ * fora (escolha à parte, vale para qualquer estilo).
  */
 enum class StylePreset(
     val label: String,
@@ -46,7 +47,7 @@ enum class StylePreset(
 
     /** Os ajustes atuais são exatamente este estilo? (modo leve só conta no estilo Leve) */
     fun matches(s: Settings): Boolean =
-        s.background == background && s.look == look && s.glass.enabled &&
+        s.background == background && s.look.copy(font = FontChoice.PADRAO) == look && s.glass.enabled &&
             s.glass.transparency == transparency && s.glass.fx == fx && s.glass.animations == animations &&
             (!lite || s.glass.lite)
 
