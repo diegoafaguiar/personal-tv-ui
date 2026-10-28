@@ -206,13 +206,9 @@ fun GlassHomeScreen(
                   StyledRows(this, defaultSpec).run {
                     item(key = "hero") {
                         Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = side, top = 4.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Hero(slides, appLabel, onFocused, onOpenItem, onOpenInput, modifier = Modifier.weight(1f).height(196.dp).focusRequester(heroFocus))
-                            // Clima do mesmo tamanho do destaque (meio a meio); entrada HDMI / TV aberta numa faixa embaixo
-                            Column(Modifier.weight(1f).height(196.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                WeatherCard(weather, settings.showWeather, Modifier.weight(1f).fillMaxWidth())
-                                if (!kids && hdmi.isNotEmpty()) InputsCard(hdmi, onOpenInput, Modifier.height(54.dp))
-                                else if (content.tunerChannels.isNotEmpty() || content.inputs.any { it.isTuner }) TunerCard(onOpenTuner, Modifier.height(54.dp))
-                            }
+                            Hero(slides, appLabel, onFocused, onOpenItem, onOpenInput, modifier = Modifier.weight(1.6f).height(196.dp).focusRequester(heroFocus))
+                            // Clima ao lado, mais discreto que o destaque e com a mesma altura
+                            WeatherCard(weather, settings.showWeather, Modifier.weight(1f).height(196.dp))
                         }
                     }
                     if (yourApps.isNotEmpty()) item(key = "apps-title") { RowTitle("Seus aplicativos") }
@@ -225,6 +221,11 @@ fun GlassHomeScreen(
                                 if (look.appTile == tech.futureme.tvhome.data.AppTile.BANNER) AppCard(app, modifier = m) { onOpenApp(app) }
                                 else AppIcon(app, modifier = m) { onOpenApp(app) }
                             }
+                            // Atalhos da própria TV no fim da linha: antena e entradas HDMI
+                            if (!kids && (content.tunerChannels.isNotEmpty() || content.inputs.any { it.isTuner })) {
+                                item(key = "tv-aberta") { ShortcutTile(Icons.Rounded.LiveTv, "TV aberta", onOpenTuner) }
+                            }
+                            if (!kids) items(hdmi, key = { "in-" + it.id }) { input -> ShortcutTile(Icons.Rounded.SettingsInputHdmi, input.label) { onOpenInput(input) } }
                         }
                         }
                     }
@@ -406,33 +407,30 @@ private fun Hero(items: List<HeroSlide>, appLabel: (String) -> String, onFocused
 
 @Composable
 private fun WeatherCard(weather: WeatherRepository.Weather?, enabled: Boolean, modifier: Modifier = Modifier, weatherFailed: Boolean = LocalFeedFailed.current) {
-    Row(modifier.glass(RoundedCornerShape(18.dp)).padding(horizontal = 20.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier.glass(RoundedCornerShape(18.dp)).padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         if (weather != null && enabled) {
             // Agora: ícone e temperatura grandes, condição e detalhes embaixo
             Column(Modifier.weight(1.25f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text("AGORA", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = TvColors.textDim, letterSpacing = 1.sp)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(weather.icon, fontSize = 34.sp)
-                    Text("${weather.tempC.roundToInt()}°", fontSize = 46.sp, fontWeight = FontWeight.Light, color = TvColors.text)
+                    Text(weather.icon, fontSize = 26.sp)
+                    Text("${weather.tempC.roundToInt()}°", fontSize = 36.sp, fontWeight = FontWeight.Light, color = TvColors.text)
                 }
-                Text(weather.label, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = TvColors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(weather.label, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TvColors.text, maxLines = 2, lineHeight = 15.sp, overflow = TextOverflow.Ellipsis)
                 Text("mín ${weather.minC.roundToInt()}° · máx ${weather.maxC.roundToInt()}°", fontSize = 12.sp, color = TvColors.textDim, maxLines = 1)
-                Text(
-                    listOfNotNull(weather.feelsC?.let { "sensação ${it.roundToInt()}°" }, weather.rainPct.takeIf { it > 0 }?.let { "chuva $it%" }).joinToString(" · "),
-                    fontSize = 12.sp, color = TvColors.textDim, maxLines = 1,
-                )
+                weather.feelsC?.let { Text("sensação ${it.roundToInt()}°", fontSize = 12.sp, color = TvColors.textDim, maxLines = 1) }
             }
             // Próximos 3 dias, separados do "agora" por um fio
             if (weather.next.isNotEmpty()) {
-                Box(Modifier.padding(horizontal = 14.dp).width(1.dp).fillMaxHeight(0.8f).background(TvColors.textDim.copy(alpha = 0.25f)))
+                Box(Modifier.padding(horizontal = 10.dp).width(1.dp).fillMaxHeight(0.7f).background(TvColors.textDim.copy(alpha = 0.25f)))
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.SpaceEvenly) {
                     for (d in weather.next) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(weekday(d.date), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TvColors.textDim)
-                            Text(d.icon, fontSize = 24.sp)
-                            Text("${d.maxC.roundToInt()}°", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = TvColors.text)
-                            Text("${d.minC.roundToInt()}°", fontSize = 13.sp, color = TvColors.textDim)
-                            Text(if (d.rainPct > 0) "${d.rainPct}%" else " ", fontSize = 11.sp, color = Color(0xFF8CC8FF))
+                            Text(weekday(d.date), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TvColors.textDim)
+                            Text(d.icon, fontSize = 19.sp)
+                            Text("${d.maxC.roundToInt()}°", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TvColors.text)
+                            Text("${d.minC.roundToInt()}°", fontSize = 12.sp, color = TvColors.textDim)
+                            Text(if (d.rainPct > 0) "${d.rainPct}%" else " ", fontSize = 10.sp, color = Color(0xFF8CC8FF))
                         }
                     }
                 }
@@ -450,30 +448,19 @@ private fun weekday(date: String): String = runCatching {
         .trimEnd('.').replaceFirstChar { it.uppercase() }
 }.getOrDefault("")
 
+/** Atalho da TV (antena, HDMI) com o mesmo tamanho e rótulo dos ícones de app. */
 @Composable
-private fun InputsCard(hdmi: List<InputEntry>, onOpenInput: (InputEntry) -> Unit, modifier: Modifier = Modifier) {
-    val first = hdmi.first()
-    FocusSurface(onClick = { onOpenInput(first) }, shape = RoundedCornerShape(16.dp), modifier = modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxSize().padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Icon(Icons.Rounded.SettingsInputHdmi, contentDescription = null, tint = TvColors.text, modifier = Modifier.size(22.dp))
-            Column(Modifier.weight(1f)) {
-                Text("Entrada", fontSize = 11.sp, color = TvColors.textDim, letterSpacing = 1.sp)
-                Text(first.label, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = TvColors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+private fun ShortcutTile(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+    val look = LocalLook.current
+    val side = 84.dp * look.cardScale
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(side)) {
+        FocusSurface(onClick = onClick, shape = RoundedCornerShape(20.dp), modifier = Modifier.size(side)) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Icon(icon, contentDescription = label, tint = TvColors.text, modifier = Modifier.size(side * 0.42f))
             }
-            if (hdmi.size > 1) Text("+${hdmi.size - 1} em Apps", fontSize = 11.sp, color = TvColors.textDim)
         }
-    }
-}
-
-@Composable
-private fun TunerCard(onOpenTuner: () -> Unit, modifier: Modifier = Modifier) {
-    FocusSurface(onClick = onOpenTuner, shape = RoundedCornerShape(16.dp), modifier = modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxSize().padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Icon(Icons.Rounded.LiveTv, contentDescription = null, tint = TvColors.text, modifier = Modifier.size(22.dp))
-            Column {
-                Text("TV aberta", fontSize = 11.sp, color = TvColors.textDim, letterSpacing = 1.sp)
-                Text("Último canal", fontSize = 15.sp, fontWeight = FontWeight.Medium, color = TvColors.text)
-            }
+        if (look.labelMode != tech.futureme.tvhome.data.LabelMode.ICONE) {
+            Text(label, fontSize = 12.sp, color = TvColors.textDim, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp))
         }
     }
 }

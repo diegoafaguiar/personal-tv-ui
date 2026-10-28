@@ -310,9 +310,10 @@ TV_HOST=192.168.100.28 android-tv/scripts/50-launcher.sh restore     # volta a h
   são focáveis; OK abre a página **Câmbio**: compra, venda, máxima e mínima do dia, gráfico
   dos últimos 30 dias (AwesomeAPI `json/daily`) e notícias de câmbio (Google Notícias). Voltar
   de uma notícia retorna ao Câmbio.
-- **Clima** do mesmo tamanho do destaque (meio a meio, desde a v0.10.1): agora, mín/máx,
-  sensação, chuva e os **próximos 3 dias** com chance de chuva (Open-Meteo). A entrada HDMI /
-  TV aberta virou uma faixa embaixo dele.
+- **Clima** ao lado do destaque, com a mesma altura e mais discreto que ele (destaque ~62% da
+  largura, desde a v0.12.1): agora, mín/máx, sensação e os **próximos 3 dias** com chance de
+  chuva (Open-Meteo). Antena (TV aberta) e entradas HDMI viraram blocos no fim de "Seus
+  aplicativos", do tamanho dos ícones de app.
 - **Em alta**: o que os streamings em que você está logado destacam (canais de prévia), sem o
   que já está em Continuar assistindo; os apps mais usados nos últimos 30 dias primeiro, até 4
   itens de cada. A ordem vem do acesso a "uso de apps", que o `50-launcher.sh grant` (e o
