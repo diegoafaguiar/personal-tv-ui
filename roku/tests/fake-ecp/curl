@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Falso "curl" para os testes da Roku: responde ao ECP com as fixtures de roku/tests/fixtures
+# e registra cada POST em $FAKE_ECP_STATE/posts. FAKE_ECP_LIMITED=1 simula o modo "Limitado".
+method=GET url=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -X) method="$2"; shift 2 ;;
+    -m|-d) shift 2 ;;
+    -s) shift ;;
+    http*) url="$1"; shift ;;
+    *) shift ;;
+  esac
+done
+path="/${url#http://*/}"
+fixtures="$(cd "$(dirname "${BASH_SOURCE[0]}")/../fixtures" && pwd)"
+if [[ "$method" == POST ]]; then
+  echo "$path" >> "$FAKE_ECP_STATE/posts"; exit 0
+fi
+if [[ "${FAKE_ECP_LIMITED:-0}" == 1 && "$path" != /query/device-info ]]; then
+  echo "ECP command not allowed in Limited mode."; exit 0
+fi
+case "$path" in
+  /query/device-info) cat "$fixtures/device-info.xml" ;;
+  /query/apps) cat "$fixtures/apps.xml" ;;
+  /query/active-app) printf '<?xml version="1.0" encoding="UTF-8" ?>\n<active-app>\n\t<app>Roku</app>\n</active-app>\n' ;;
+  *) exit 7 ;;
+esac

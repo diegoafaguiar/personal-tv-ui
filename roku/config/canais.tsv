@@ -1,0 +1,10 @@
+# roku/config/canais.tsv — notas por canal (ID do ECP<TAB>nota), usadas no inventário.
+# Só fatos úteis para decidir se mantém; canal sem nota não tem nada de especial.
+2213	player oficial da Roku para vídeos e fotos de pendrive ou da rede (DLNA)
+121979	espelhamento de tela do celular (receptor de terceiros)
+557030	exige assinatura SKY
+624140	o Star+ foi incorporado ao Disney+ em 2024; confira se o canal ainda abre conteúdo
+876351	filmes e séries grátis com anúncios (Mercado Livre)
+197959	infantil
+855948	canal pouco conhecido; confira se alguém da casa usa
+795885	canal pouco conhecido; confira se alguém da casa usa

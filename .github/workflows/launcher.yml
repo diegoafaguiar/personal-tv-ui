@@ -2,9 +2,9 @@ name: Launcher APK
 
 on:
   push:
-    paths: ["launcher/**", ".github/workflows/launcher.yml"]
+    paths: ["android-tv/launcher/**", ".github/workflows/launcher.yml"]
   pull_request:
-    paths: ["launcher/**"]
+    paths: ["android-tv/launcher/**"]
   workflow_dispatch:
 
 jobs:
@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: launcher
+        working-directory: android-tv/launcher
     steps:
       - uses: actions/checkout@v4
 
@@ -37,6 +37,6 @@ jobs:
         with:
           name: tvhome-apk
           path: |
-            launcher/app/build/outputs/apk/debug/app-debug.apk
-            launcher/app/build/outputs/apk/release/app-release.apk
+            android-tv/launcher/app/build/outputs/apk/debug/app-debug.apk
+            android-tv/launcher/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error

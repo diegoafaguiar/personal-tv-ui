@@ -1,5 +1,7 @@
-# Configuração local com o IP da sua TV (não versionar: é específico da sua rede)
-config/tv.env
+# Configuração local com o IP de cada TV (não versionar: é específico da sua rede)
+android-tv/config/tv.env
+devices/*.env
+roku/config/roku.env
 
 # Backups e relatórios gerados a partir da TV.
 # Contêm dumps de settings que podem incluir SSID de Wi-Fi, contas Google e
@@ -11,7 +13,8 @@ reports/*
 !reports/.gitkeep
 
 # Artefatos de teste
-tests/.state/
+android-tv/tests/.state/
+roku/tests/.state/
 
 # Sistema
 .DS_Store
@@ -19,12 +22,15 @@ tests/.state/
 vendor/
 
 # Launcher Android (Gradle)
-launcher/.gradle/
-launcher/build/
-launcher/app/build/
-launcher/local.properties
-launcher/.idea/
-launcher/*.iml
-launcher/app/*.iml
-launcher/.kotlin/
-launcher/dist/
+android-tv/launcher/.gradle/
+android-tv/launcher/build/
+android-tv/launcher/app/build/
+android-tv/launcher/local.properties
+android-tv/launcher/.idea/
+android-tv/launcher/*.iml
+android-tv/launcher/app/*.iml
+android-tv/launcher/.kotlin/
+android-tv/launcher/dist/
+
+# Planos gerados pela revisão interativa (android-tv/scripts/25-review.sh): são da sua TV
+android-tv/config/profiles/planos/

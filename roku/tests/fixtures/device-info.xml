@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<device-info>
+	<vendor-name>Philco</vendor-name>
+	<model-name>PTV58G7UR2CSBL4K</model-name>
+	<model-number>G510X</model-number>
+	<friendly-model-name>Philco•Roku TV</friendly-model-name>
+	<user-device-name>58" Philco Roku TV</user-device-name>
+	<software-version>16.0.4</software-version>
+	<software-build>842</software-build>
+	<ui-resolution>1080p</ui-resolution>
+	<tuner-type>ISDB</tuner-type>
+	<network-type>wifi</network-type>
+	<language>pt</language>
+	<country>BR</country>
+	<ecp-setting-mode>permissive</ecp-setting-mode>
+	<power-mode>PowerOn</power-mode>
+	<developer-enabled>false</developer-enabled>
+	<voice-search-enabled>true</voice-search-enabled>
+</device-info>
