@@ -255,6 +255,22 @@ TV_HOST=192.168.100.28 android-tv/scripts/50-launcher.sh restore     # volta a h
   volta aos Ajustes; o foco inicial cai no destaque; clima e música mostram estado de falha;
   rótulos de acessibilidade no teclado do PIN.
 
+## v0.9.2: câmbio, clima de 3 dias, Em alta
+
+- **Cotações**: subida em verde e queda em vermelho (convenção de mercado). Os chips do topo
+  são focáveis; OK abre a página **Câmbio**: compra, venda, máxima e mínima do dia, gráfico
+  dos últimos 30 dias (AwesomeAPI `json/daily`) e notícias de câmbio (Google Notícias). Voltar
+  de uma notícia retorna ao Câmbio.
+- **Clima** maior, ao lado do destaque: agora, mín/máx, sensação, chuva e os **próximos 3 dias**
+  (Open-Meteo). A entrada HDMI / TV aberta virou uma faixa embaixo dele.
+- **Em alta**: o que os streamings em que você está logado destacam (canais de prévia), sem o
+  que já está em Continuar assistindo; os apps mais usados nos últimos 30 dias primeiro, até 4
+  itens de cada. A ordem vem do acesso a "uso de apps", que o `50-launcher.sh grant` (e o
+  `make dev`) concedem por adb: `appops set tech.futureme.tvhome GET_USAGE_STATS allow`. Sem
+  ele, vale a ordem de apps dos Ajustes. Dá para esconder em Ajustes › Seções.
+- **Botões do topo**: o rótulo que aparece no foco tem altura fixa e não quebra linha; acabou o
+  deslocamento da tela ao focar "Perfil".
+
 ## v0.9.1: velocidade na TV com GPU fraca (TCL G13)
 
 Medido na G13 (Mali-G31 MP1, interface 720p), navegando pela home, mediana de 3 rodadas:

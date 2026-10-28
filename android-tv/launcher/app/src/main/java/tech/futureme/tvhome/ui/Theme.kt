@@ -38,3 +38,10 @@ fun TvHomeTheme(content: @Composable () -> Unit) {
 /** Aparência escolhida em Ajustes › Aparência (tamanho, espaços, foco, cor de destaque…). */
 val LocalLook = compositionLocalOf { Look() }
 val Look.accentColor: Color get() = Color(accent.argb)
+
+/** Variação de preço: subida verde, queda vermelha, estável apagado (convenção de mercado). */
+fun changeColor(pct: Double): androidx.compose.ui.graphics.Color = when {
+    pct > 0 -> androidx.compose.ui.graphics.Color(0xFF81C784)
+    pct < 0 -> androidx.compose.ui.graphics.Color(0xFFE57373)
+    else -> TvColors.textDim
+}

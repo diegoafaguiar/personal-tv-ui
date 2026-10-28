@@ -77,6 +77,8 @@ cmd_grant() {
     tv_run pm grant "$pkg" "$perm" || log_dim "($perm não aplicável, ignorado)"
   done
   if [[ "$pkg" == "tech.futureme.tvhome" ]]; then
+    # Acesso a "uso de apps": ordena a linha "Em alta" pelos apps mais usados
+    tv_run appops set "$pkg" GET_USAGE_STATS allow || log_dim "(uso de apps não concedido; Em alta usa a ordem dos Ajustes)"
     log_info "A permissão READ_TV_LISTINGS é o que libera 'Continuar assistindo' e as seções."
   fi
   if [[ "$pkg" == "com.spocky.projengmenu" ]]; then

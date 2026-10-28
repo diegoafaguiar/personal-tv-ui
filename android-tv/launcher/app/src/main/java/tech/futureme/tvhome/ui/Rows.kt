@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -24,6 +25,8 @@ import androidx.compose.material.icons.rounded.SportsSoccer
 import androidx.compose.material.icons.rounded.LiveTv
 import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.Tv
+import androidx.compose.material.icons.rounded.Whatshot
+import androidx.compose.material.icons.rounded.CurrencyExchange
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.NewReleases
 import androidx.compose.material.icons.rounded.Memory
@@ -252,6 +255,8 @@ fun rowIconFor(title: String): ImageVector? {
     val t = title.lowercase()
     return when {
         t.startsWith("continuar") -> Icons.Rounded.PlayCircle
+        t == "em alta" -> Icons.Rounded.Whatshot
+        t.contains("câmbio") -> Icons.Rounded.CurrencyExchange
         t.contains("flamengo") || t.contains("futebol") -> Icons.Rounded.SportsSoccer
         t.contains("tv aberta") || t.contains("tv globo") || t.contains("canais") -> Icons.Rounded.LiveTv
         t == "filmes" -> Icons.Rounded.Movie
@@ -429,7 +434,12 @@ fun IconButton(icon: ImageVector, label: String, onClick: () -> Unit) {
                 Icon(imageVector = icon, contentDescription = label, tint = if (focused) TvColors.background else TvColors.textDim, modifier = Modifier.size(22.dp))
             }
         }
-        Text(if (focused) label else " ", fontSize = 12.sp, color = TvColors.textDim, maxLines = 1, modifier = Modifier.padding(top = 4.dp))
+        // Altura fixa e sem quebra: o rótulo aparece no foco sem empurrar a barra (o texto pode
+        // passar dos 64 dp da coluna, centralizado, em vez de quebrar linha e mudar a altura).
+        Text(
+            if (focused) label else "", fontSize = 12.sp, color = TvColors.textDim, maxLines = 1, softWrap = false,
+            modifier = Modifier.padding(top = 4.dp).height(16.dp).wrapContentWidth(unbounded = true),
+        )
     }
 }
 

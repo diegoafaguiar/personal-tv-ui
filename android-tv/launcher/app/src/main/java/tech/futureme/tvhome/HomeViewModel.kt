@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tech.futureme.tvhome.data.AppsRepository
@@ -45,6 +46,37 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     private val newsRepo = NewsRepository()
     private val musicRepo = MusicRepository()
     private val youtubeRepo = tech.futureme.tvhome.data.YoutubeRepository()
+    private val usageRepo = tech.futureme.tvhome.data.UsageRepository(app)
+
+    /** Página do câmbio: histórico de 30 dias por moeda e notícias. */
+    data class RatesDetail(
+        val history: Map<String, List<RatesRepository.Point>> = emptyMap(),
+        val news: List<tech.futureme.tvhome.data.NewsItem> = emptyList(),
+        val loading: Boolean = false,
+        val fetchedAt: Long = 0L,
+    )
+    private val _ratesDetail = MutableStateFlow(RatesDetail())
+    val ratesDetail: StateFlow<RatesDetail> = _ratesDetail
+
+    /** Abre a página do câmbio: cotação na hora, histórico e notícias (cache de 10 min). */
+    fun loadRatesDetail() {
+        val cur = _ratesDetail.value
+        if (cur.loading || System.currentTimeMillis() - cur.fetchedAt < 10 * 60 * 1000L) return
+        _ratesDetail.value = cur.copy(loading = true)
+        viewModelScope.launch {
+            refreshRates(force = true)
+            val r = withContext(Dispatchers.IO) {
+                coroutineScope {
+                    val usd = async { ratesRepo.history("USD") }
+                    val eur = async { ratesRepo.history("EUR") }
+                    val news = async { newsRepo.search("dólar OR euro cotação câmbio", topic = "Câmbio", max = 12) }
+                    RatesDetail(mapOf("USD" to usd.await(), "EUR" to eur.await()), news.await(), false, System.currentTimeMillis())
+                }
+            }
+            // Falhou tudo? Não guarda o horário, para tentar de novo na próxima abertura.
+            _ratesDetail.value = if (r.history.values.all { it.isEmpty() } && r.news.isEmpty()) r.copy(fetchedAt = 0L) else r
+        }
+    }
 
     private val _news = MutableStateFlow(NewsContent())
     val news: StateFlow<NewsContent> = _news
@@ -125,12 +157,21 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 val perApp = loaded.items.filter { !it.isWatchNext }.groupBy { it.packageName }.mapValues { dedupe(it.value) }
                     .toSortedMap(byApp)
 
+                // Em alta: o que cada app destaca (canais de prévia, com imagem), sem o que já está em
+                // Continuar assistindo; os apps mais usados nos últimos 30 dias primeiro, até 4 itens de cada.
+                val usage = usageRepo.foregroundTime()
+                val inContinue = continueRow.map { it.packageName + it.title }.toSet()
+                val hot = perApp.entries
+                    .sortedWith(compareByDescending<Map.Entry<String, List<MediaItem>>> { usage[it.key] ?: 0L }.thenBy(byApp) { it.key })
+                    .flatMap { (_, items) -> items.filter { it.imageUri != null && it.packageName + it.title !in inContinue }.take(4) }
+                    .take(24)
+
                 val broadcast = loaded.tuner.filter { it.isBroadcast }
                 val fast = loaded.tuner.filter { !it.isBroadcast }
                 val sports = (broadcast + fast).filter { Classifier.isSportsChannel(it) }
                 val globo = broadcast.firstOrNull { it.name.contains("globo", true) }
                 val schedule = try { globo?.let { tvRepo.programs(it, 10) } ?: emptyList() } catch (e: Exception) { emptyList() }
-                HomeContent(apps, inputs, grouped, perApp, broadcast, fast, sports, tvRepo.hasPermission(), loaded.diagnostics, statusRepo.read(), globo, schedule)
+                HomeContent(apps, inputs, grouped, perApp, broadcast, fast, sports, tvRepo.hasPermission(), loaded.diagnostics, statusRepo.read(), globo, schedule, hot, usage.isNotEmpty())
             }
             _content.value = result
             _loading.value = false

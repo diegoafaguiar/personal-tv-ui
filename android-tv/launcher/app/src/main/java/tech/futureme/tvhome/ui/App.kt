@@ -50,7 +50,7 @@ import tech.futureme.tvhome.data.TunerChannel
 import java.io.File
 import java.util.Calendar
 
-private enum class Screen { HOME, ALL_APPS, SETTINGS, DIAGNOSTICS, SEARCH, LIVE_TV, PIN_CHANGE, CATEGORY, READER, EXPLORE }
+private enum class Screen { HOME, ALL_APPS, SETTINGS, DIAGNOSTICS, SEARCH, LIVE_TV, PIN_CHANGE, CATEGORY, READER, EXPLORE, RATES }
 
 @Composable
 fun App(
@@ -80,8 +80,12 @@ fun App(
     val news by vm.news.collectAsStateWithLifecycle()
     val music by vm.music.collectAsStateWithLifecycle()
     var reading by remember { mutableStateOf<NewsItem?>(null) }
+    // De onde a leitura foi aberta: Voltar retorna para lá (ex.: página do câmbio)
+    var readerFrom by remember { mutableStateOf(Screen.HOME) }
     // Notícia: navegador/app se houver; senão a tela de leitura
-    fun openNews(item: NewsItem) { if (!onOpenUrl(item.link)) { reading = item; screen = Screen.READER } }
+    fun openNews(item: NewsItem) { if (!onOpenUrl(item.link)) { reading = item; readerFrom = screen; screen = Screen.READER } }
+    val ratesDetail by vm.ratesDetail.collectAsStateWithLifecycle()
+    fun openRates() { vm.loadRatesDetail(); screen = Screen.RATES }
     fun openYoutubeSearch(q: String) { onOpenYoutube(q) }
     var focused by remember { mutableStateOf<MediaItem?>(null) }
     var liveChannel by remember { mutableStateOf<TunerChannel?>(null) }
@@ -100,6 +104,7 @@ fun App(
     BackHandler(enabled = true) {
         if (pendingProfile != null) pendingProfile = null
         else if (screen == Screen.PIN_CHANGE || screen == Screen.DIAGNOSTICS) { pinChangeFor = null; screen = Screen.SETTINGS }
+        else if (screen == Screen.READER) { reading = null; screen = readerFrom }
         else if (screen != Screen.HOME) screen = Screen.HOME
     }
 
@@ -207,6 +212,7 @@ fun App(
                     resetKey = homeTick,
                     categories = categories,
                     onOpenCategory = { c -> exploreCat = c; screen = Screen.EXPLORE },
+                    onOpenRates = ::openRates,
                     onOpenSearch = { screen = Screen.SEARCH },
                     onSwitchProfile = { vm.selectProfile(null); focused = null },
                     onRequestPermission = onRequestPermission,
@@ -321,6 +327,7 @@ fun App(
                     onOpenItem = onOpenItem, onFocused = { focused = it }, onCategoryChanged = { exploreCat = it },
                 )
                 Screen.READER -> { val r = reading; if (r == null) screen = Screen.HOME else ReaderScreen(r) }
+                Screen.RATES -> RatesScreen(rates, ratesDetail, ::openNews)
             } }
         }
     }

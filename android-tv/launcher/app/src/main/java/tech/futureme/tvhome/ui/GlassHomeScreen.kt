@@ -95,6 +95,7 @@ import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.roundToInt
 
 /** Destinos da barra lateral. */
 enum class Nav(val label: String, val icon: ImageVector, val kids: Boolean) {
@@ -147,6 +148,7 @@ fun GlassHomeScreen(
     resetKey: Int = 0,
     categories: Map<Category, List<MediaItem>> = emptyMap(),
     onOpenCategory: (Category) -> Unit = {},
+    onOpenRates: () -> Unit = {},
 ) {
     val kids = profile.isKids
     val visibleApps = content.apps.filter { it.packageName !in settings.hidden && profile.allows(it.packageName) }
@@ -185,7 +187,7 @@ fun GlassHomeScreen(
         scope.launch { listState.animateScrollToItem(0); delay(80); runCatching { firstApp.requestFocus() } }
     }
     Column(Modifier.fillMaxSize()) {
-        TopBar(kids = kids, who = profile.name, rates = if (settings.showRates) rates else emptyList(), onOpenSearch = onOpenSearch, onQuick = onQuick, onSwitchProfile = onSwitchProfile)
+        TopBar(kids = kids, who = profile.name, rates = if (settings.showRates) rates else emptyList(), onOpenSearch = onOpenSearch, onQuick = onQuick, onSwitchProfile = onSwitchProfile, onOpenRates = onOpenRates)
         Row(Modifier.fillMaxSize()) {
             Sidebar(kids = kids, selected = Nav.INICIO, onNav = onNav)
             // A lateral já ocupa a zona segura da esquerda: as linhas começam a 16 dp dela.
@@ -205,10 +207,11 @@ fun GlassHomeScreen(
                     item(key = "hero") {
                         Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = side, top = 4.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             Hero(slides, appLabel, onFocused, onOpenItem, onOpenInput, modifier = Modifier.weight(1f).height(196.dp).focusRequester(heroFocus))
-                            Column(Modifier.width(150.dp).height(196.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                WeatherCard(weather, settings.showWeather, Modifier.weight(1f))
-                                if (!kids && hdmi.isNotEmpty()) InputsCard(hdmi, onOpenInput, Modifier.weight(1f))
-                                else if (content.tunerChannels.isNotEmpty() || content.inputs.any { it.isTuner }) TunerCard(onOpenTuner, Modifier.weight(1f))
+                            // Clima com previsão de 3 dias em cima; entrada HDMI / TV aberta numa faixa embaixo
+                            Column(Modifier.width(264.dp).height(196.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                WeatherCard(weather, settings.showWeather, Modifier.weight(1f).fillMaxWidth())
+                                if (!kids && hdmi.isNotEmpty()) InputsCard(hdmi, onOpenInput, Modifier.height(54.dp))
+                                else if (content.tunerChannels.isNotEmpty() || content.inputs.any { it.isTuner }) TunerCard(onOpenTuner, Modifier.height(54.dp))
                             }
                         }
                     }
@@ -238,7 +241,7 @@ fun GlassHomeScreen(
 }
 
 @Composable
-private fun TopBar(kids: Boolean, who: String, rates: List<RatesRepository.Rate>, onOpenSearch: () -> Unit, onQuick: (QuickAction) -> Unit, onSwitchProfile: () -> Unit) {
+private fun TopBar(kids: Boolean, who: String, rates: List<RatesRepository.Rate>, onOpenSearch: () -> Unit, onQuick: (QuickAction) -> Unit, onSwitchProfile: () -> Unit, onOpenRates: () -> Unit) {
     var now by remember { mutableStateOf(Date()) }
     val seconds = LocalLook.current.clockSeconds
     LaunchedEffect(seconds) { while (true) { now = Date(); delay(if (seconds) 1_000 else 15_000) } }
@@ -251,22 +254,24 @@ private fun TopBar(kids: Boolean, who: String, rates: List<RatesRepository.Rate>
                 Text(time, fontSize = 34.sp, fontWeight = FontWeight.Light, color = TvColors.text)
                 Text(date, fontSize = 13.sp, color = TvColors.textDim)
             }
-            // Cotações sempre à vista (dólar primeiro), em chips de vidro
+            // Cotações sempre à vista (dólar primeiro), em chips de vidro; OK abre a página do câmbio
             val money = NumberFormat.getCurrencyInstance(locale)
             for (r in rates.sortedBy { if (it.code == "USD") 0 else 1 }) {
-                Column(Modifier.glass(RoundedCornerShape(14.dp)).padding(horizontal = 12.dp, vertical = 6.dp)) {
-                    Text(money.format(r.bid), fontSize = 17.sp, fontWeight = FontWeight.Medium, color = TvColors.text)
-                    Text(
-                        "${if (r.code == "USD") "Dólar" else if (r.code == "EUR") "Euro" else r.code} ${if (r.pctChange > 0) "▲" else if (r.pctChange < 0) "▼" else "•"} ${String.format(locale, "%.2f%%", kotlin.math.abs(r.pctChange))}",
-                        fontSize = 12.sp, color = if (r.pctChange > 0) Color(0xFFE57373) else if (r.pctChange < 0) Color(0xFF81C784) else TvColors.textDim,
-                    )
+                FocusSurface(onClick = onOpenRates, shape = RoundedCornerShape(14.dp), focusScale = 1.06f, modifier = Modifier.width(124.dp).height(50.dp)) {
+                    Column(Modifier.fillMaxSize().padding(horizontal = 12.dp), verticalArrangement = Arrangement.Center) {
+                        Text(money.format(r.bid), fontSize = 17.sp, fontWeight = FontWeight.Medium, color = TvColors.text)
+                        Text(
+                            "${r.label} ${if (r.pctChange > 0) "▲" else if (r.pctChange < 0) "▼" else "•"} ${String.format(locale, "%.2f%%", kotlin.math.abs(r.pctChange))}",
+                            fontSize = 12.sp, color = changeColor(r.pctChange),
+                        )
+                    }
                 }
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             if (!kids) IconButton(Icons.Rounded.Search, "Buscar", onOpenSearch)
             if (!kids) IconButton(Icons.Rounded.Wifi, "Rede") { onQuick(QuickAction.REDE) }
-            IconButton(Icons.Rounded.Person, "Trocar perfil ($who)", onSwitchProfile)
+            IconButton(Icons.Rounded.Person, "Perfil: $who", onSwitchProfile)
         }
     }
 }
@@ -396,12 +401,32 @@ private fun Hero(items: List<HeroSlide>, appLabel: (String) -> String, onFocused
 
 @Composable
 private fun WeatherCard(weather: WeatherRepository.Weather?, enabled: Boolean, modifier: Modifier = Modifier, weatherFailed: Boolean = LocalFeedFailed.current) {
-    Column(modifier.glass(RoundedCornerShape(18.dp)).padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+    Column(modifier.glass(RoundedCornerShape(18.dp)).padding(horizontal = 14.dp, vertical = 10.dp), verticalArrangement = Arrangement.SpaceEvenly) {
         if (weather != null && enabled) {
-            Text(weather.icon, fontSize = 26.sp)
-            Text("${weather.tempC.toInt()}°", fontSize = 30.sp, fontWeight = FontWeight.Light, color = TvColors.text)
-            Text(weather.label, fontSize = 12.sp, color = TvColors.textDim, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 13.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-            Text("${weather.minC.toInt()}° / ${weather.maxC.toInt()}°", fontSize = 12.sp, color = TvColors.textDim)
+            // Agora: ícone e temperatura grandes; condição, mín/máx e sensação ao lado
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(weather.icon, fontSize = 30.sp)
+                Text("${weather.tempC.roundToInt()}°", fontSize = 38.sp, fontWeight = FontWeight.Light, color = TvColors.text)
+                Column {
+                    Text(weather.label, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TvColors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text("mín ${weather.minC.roundToInt()}° · máx ${weather.maxC.roundToInt()}°", fontSize = 12.sp, color = TvColors.textDim, maxLines = 1)
+                    weather.feelsC?.let { Text("sensação ${it.roundToInt()}°", fontSize = 12.sp, color = TvColors.textDim, maxLines = 1) }
+                    if (weather.rainPct >= 20) Text("chuva ${weather.rainPct}%", fontSize = 12.sp, color = TvColors.textDim, maxLines = 1)
+                }
+            }
+            // Próximos 3 dias
+            if (weather.next.isNotEmpty()) Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                for (d in weather.next) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                        Text(weekday(d.date), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TvColors.textDim)
+                        Text(d.icon, fontSize = 18.sp)
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text("${d.maxC.roundToInt()}°", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TvColors.text)
+                            Text(" ${d.minC.roundToInt()}°", fontSize = 12.sp, color = TvColors.textDim)
+                        }
+                    }
+                }
+            }
         } else {
             Text("Clima", fontSize = 13.sp, color = TvColors.textDim)
             Text(if (!enabled) "desligado" else if (weatherFailed) "sem conexão" else "carregando…", fontSize = 12.sp, color = TvColors.textDim)
@@ -409,29 +434,35 @@ private fun WeatherCard(weather: WeatherRepository.Weather?, enabled: Boolean, m
     }
 }
 
+/** "2026-10-29" → "Qui" (dia da semana abreviado, em português). */
+private fun weekday(date: String): String = runCatching {
+    java.time.LocalDate.parse(date).dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, Locale("pt", "BR"))
+        .trimEnd('.').replaceFirstChar { it.uppercase() }
+}.getOrDefault("")
+
 @Composable
 private fun InputsCard(hdmi: List<InputEntry>, onOpenInput: (InputEntry) -> Unit, modifier: Modifier = Modifier) {
     val first = hdmi.first()
-    FocusSurface(onClick = { onOpenInput(first) }, shape = RoundedCornerShape(18.dp), modifier = modifier.fillMaxWidth()) {
-        Column(Modifier.fillMaxSize().padding(14.dp), verticalArrangement = Arrangement.Center) {
-            Text("Entradas", fontSize = 12.sp, color = TvColors.textDim, letterSpacing = 1.sp)
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
-                Icon(Icons.Rounded.SettingsInputHdmi, contentDescription = null, tint = TvColors.text, modifier = Modifier.size(22.dp))
-                Text(first.label, fontSize = 16.sp, fontWeight = FontWeight.Medium, color = TvColors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    FocusSurface(onClick = { onOpenInput(first) }, shape = RoundedCornerShape(16.dp), modifier = modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxSize().padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Icon(Icons.Rounded.SettingsInputHdmi, contentDescription = null, tint = TvColors.text, modifier = Modifier.size(22.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Entrada", fontSize = 11.sp, color = TvColors.textDim, letterSpacing = 1.sp)
+                Text(first.label, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = TvColors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            if (hdmi.size > 1) Text("+${hdmi.size - 1} no menu Apps", fontSize = 12.sp, color = TvColors.textDim, modifier = Modifier.padding(top = 4.dp))
+            if (hdmi.size > 1) Text("+${hdmi.size - 1} em Apps", fontSize = 11.sp, color = TvColors.textDim)
         }
     }
 }
 
 @Composable
 private fun TunerCard(onOpenTuner: () -> Unit, modifier: Modifier = Modifier) {
-    FocusSurface(onClick = onOpenTuner, shape = RoundedCornerShape(18.dp), modifier = modifier.fillMaxWidth()) {
-        Column(Modifier.fillMaxSize().padding(14.dp), verticalArrangement = Arrangement.Center) {
-            Text("TV aberta", fontSize = 12.sp, color = TvColors.textDim, letterSpacing = 1.sp)
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
-                Icon(Icons.Rounded.LiveTv, contentDescription = null, tint = TvColors.text, modifier = Modifier.size(22.dp))
-                Text("Último canal", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = TvColors.text)
+    FocusSurface(onClick = onOpenTuner, shape = RoundedCornerShape(16.dp), modifier = modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxSize().padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Icon(Icons.Rounded.LiveTv, contentDescription = null, tint = TvColors.text, modifier = Modifier.size(22.dp))
+            Column {
+                Text("TV aberta", fontSize = 11.sp, color = TvColors.textDim, letterSpacing = 1.sp)
+                Text("Último canal", fontSize = 15.sp, fontWeight = FontWeight.Medium, color = TvColors.text)
             }
         }
     }

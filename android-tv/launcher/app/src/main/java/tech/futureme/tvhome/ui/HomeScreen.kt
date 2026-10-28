@@ -176,6 +176,15 @@ fun LazyListScope.homeRows(
         item(key = "row-continue") { MediaRow(cont, appLabel, onOpenItem, onFocused) }
     }
 
+    // Em alta: o que os streamings em que você está logado destacam, dos apps mais usados para os menos
+    val hot = content.hot.allowed()
+    if (hot.isNotEmpty() && Section.EM_ALTA.name !in settings.disabledSections) {
+        item(key = "title-hot") {
+            RowTitle(Section.EM_ALTA.title, if (content.usageRanked) "destaques dos seus streamings, dos que você mais usa primeiro" else "destaques dos seus streamings")
+        }
+        item(key = "row-hot") { MediaRow(hot, appLabel, onOpenItem, onFocused) }
+    }
+
     // TV Globo (perfil Letícia): canal com sintonia + grade das próximas horas
     if (profile.showGlobo && content.globo != null) {
         val g = content.globo
@@ -357,7 +366,7 @@ private fun Stat(value: String, caption: String, captionColor: Color = TvColors.
 
 private fun label(code: String) = when (code) { "USD" -> "Dólar"; "EUR" -> "Euro"; else -> code }
 private fun arrow(pct: Double) = if (pct > 0) "▲" else if (pct < 0) "▼" else "•"
-private fun arrowColor(pct: Double) = if (pct > 0) Color(0xFFE57373) else if (pct < 0) Color(0xFF81C784) else TvColors.textDim
+private fun arrowColor(pct: Double) = changeColor(pct)
 private fun statusLine(status: DeviceStatus, locale: Locale) = buildList {
     add(status.network)
     status.bluetoothOn?.let { add(if (it) "Bluetooth ligado" else "Bluetooth desligado") }

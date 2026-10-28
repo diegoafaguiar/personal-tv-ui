@@ -81,6 +81,7 @@ data class TunerChannel(
 /** Seções da home. A ordem aqui é a ordem na tela. */
 enum class Section(val title: String) {
     CONTINUE("Continuar assistindo"),
+    EM_ALTA("Em alta"),
     FUTEBOL("Futebol"),
     FILMES("Filmes"),
     SERIES("Séries"),
@@ -120,6 +121,10 @@ data class HomeContent(
     val status: DeviceStatus = DeviceStatus(),
     val globo: TunerChannel? = null,
     val globoSchedule: List<ProgramEntry> = emptyList(),
+    /** Em alta: destaques dos apps, os mais usados primeiro (ver HomeViewModel.refresh). */
+    val hot: List<MediaItem> = emptyList(),
+    /** A ordem do Em alta veio do tempo de uso real (acesso a "uso de apps" concedido). */
+    val usageRanked: Boolean = false,
 ) {
     val allItems: List<MediaItem> get() = sections.values.flatten() + perApp.values.flatten()
 }

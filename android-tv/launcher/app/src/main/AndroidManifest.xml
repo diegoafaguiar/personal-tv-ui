@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Lê o Watch Next e os canais de prévia que os apps publicam (nível "dangerous":
          pedido na tela ou concedido por adb shell pm grant). -->
     <uses-permission android:name="android.permission.READ_TV_LISTINGS" />
     <!-- Só para carregar os pôsteres pelas URLs que os próprios apps publicam. -->
+    <!-- Tempo de uso por app, para ordenar a linha "Em alta" pelos apps mais usados. Acesso especial:
+         na TV só por adb (appops set tech.futureme.tvhome GET_USAGE_STATS allow; 50-launcher.sh grant). -->
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Só para mostrar se o Bluetooth está ligado (Android ≤ 11; no 12+ isEnabled não exige permissão) -->
