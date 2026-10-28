@@ -107,6 +107,7 @@ fun App(
     val glass = remember { GlassState() }
     val context = LocalContext.current
     glass.config = settings.glass
+    glass.background = settings.background
     // Papel de parede renderizado uma vez por (fundo, tamanho, desfoque); ver Glass.kt.
     LaunchedEffect(settings.background, glass.screen, settings.glass.blur) {
         val sz = glass.screen

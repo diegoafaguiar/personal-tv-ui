@@ -210,6 +210,8 @@ fun Modifier.rowStyle(id: String, order: Int): Modifier = composed {
         .onFocusChanged { if (it.hasFocus) { st.id = id; st.order = order } }
         // Lido na fase de desenho: trocar de linha não recompõe a lista
         .graphicsLayer {
+            // ModulateAlpha: aplica a opacidade em cada desenho, sem camada fora da tela por linha (caro na Mali)
+            compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha
             val cur = st.id
             alpha = when {
                 cur == null || cur == id -> 1f

@@ -255,6 +255,28 @@ TV_HOST=192.168.100.28 android-tv/scripts/50-launcher.sh restore     # volta a h
   volta aos Ajustes; o foco inicial cai no destaque; clima e música mostram estado de falha;
   rótulos de acessibilidade no teclado do PIN.
 
+## v0.9.1: velocidade na TV com GPU fraca (TCL G13)
+
+Medido na G13 (Mali-G31 MP1, interface 720p), navegando pela home, mediana de 3 rodadas:
+
+| Desenho da home | Quadro |
+|---|---|
+| Papel de parede em bitmap (foto ou degradê) | ~95 ms |
+| Sem arte do destaque, ícones, capas, recortes, degradês ou painéis (cada um) | 90 a 98 ms: sem ganho |
+| Bitmap na GPU (HARDWARE), em RGB 565 ou em resolução cheia | sem ganho |
+| Degradê desenhado direto, sem bitmap | ~65 ms |
+| Cor lisa | ~37 ms |
+
+Quase todo o custo é cobrir a tela com a textura do papel de parede. Por isso:
+
+- **Modo leve + Preto, Azul-noite ou Gradiente**: o fundo é desenhado direto, sem bitmap, e o
+  escurecimento noturno entra nas cores (sem segunda passada de tela cheia).
+- **Modo leve** não lê mais a cor do item focado no fundo: trocar o foco redesenha só os cards.
+- **Opacidade das linhas sem foco** usa `CompositingStrategy.ModulateAlpha`: sem camada fora da
+  tela por linha.
+
+Para a G13: Ajustes › Aparência › Papel de parede › **Gradiente** (com o Modo leve ligado).
+
 ## Por que isso funciona sem scraping
 
 No Android TV os apps publicam "Watch Next" e "canais de prévia" num banco do

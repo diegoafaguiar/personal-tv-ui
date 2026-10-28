@@ -70,6 +70,8 @@ class GlassState {
     var darken by mutableStateOf(0f)
     /** Cor do app/item focado; tinge o fundo e o brilho do foco. */
     var focusColor by mutableStateOf(Color.Transparent)
+    /** Fundo escolhido; no modo leve os de cor/degradê são desenhados direto, sem bitmap. */
+    var background by mutableStateOf<Background?>(null)
 }
 
 val LocalGlass = staticCompositionLocalOf { GlassState() }
@@ -169,13 +171,18 @@ fun DrawScope.drawGradientWallpaper(bg: Background) {
 @Composable
 fun GlassBackground(modifier: Modifier = Modifier) {
     val glass = LocalGlass.current
-    val tint by animateColorAsState(glass.focusColor, tween(250), label = "tint")
+    // Só lê a cor do foco quando ela é desenhada: senão cada troca de foco anima o tint e
+    // invalida este fundo de tela cheia, e a GPU redesenha a tela toda em vez de só os cards.
+    val drawTint = glass.config.enabled && !glass.config.lite && glass.config.fx > 0f
+    val tint by animateColorAsState(if (drawTint) glass.focusColor else Color.Transparent, tween(250), label = "tint")
     Canvas(modifier.fillMaxSize()) {
         val wp = glass.wallpaper
-        if (wp == null) drawRect(TvColors.background)
+        val live = if (glass.config.lite) glass.background?.takeIf { it in LiveBackgrounds } else null
+        if (live != null) drawLiveWallpaper(live, glass.darken)
+        else if (wp == null) drawRect(TvColors.background)
         else drawImage(wp, dstSize = IntSize(size.width.toInt(), size.height.toInt()), filterQuality = FilterQuality.Low)
         val fx = glass.config.fx
-        if (glass.config.enabled && !glass.config.lite && tint.alpha > 0.01f && fx > 0f) {
+        if (drawTint && tint.alpha > 0.01f) {
             // Só a região central (não a tela inteira): o shader radial é caro por pixel na Mali
             val r = size.width * 0.45f
             val c = Offset(size.width * 0.5f, size.height * 0.6f)
@@ -184,7 +191,24 @@ fun GlassBackground(modifier: Modifier = Modifier) {
                 topLeft = Offset(c.x - r, c.y - r), size = Size(r * 2, r * 2),
             )
         }
-        if (glass.darken > 0f) drawRect(Color.Black.copy(alpha = glass.darken))
+        if (glass.darken > 0f && live == null) drawRect(Color.Black.copy(alpha = glass.darken))
+    }
+}
+
+/**
+ * Fundos de uma cor ou um degradê, desenhados direto (sem bitmap) no modo leve. Na Mali-G31 da
+ * TCL G13 o quadro da home levava ~95 ms com o papel de parede em bitmap (foto ou degradê),
+ * ~65 ms com o degradê calculado na GPU e ~37 ms com cor lisa. Sem vinheta (o radial é caro).
+ */
+private val LiveBackgrounds = setOf(Background.PRETO, Background.NOITE, Background.GRADIENTE)
+
+private fun DrawScope.drawLiveWallpaper(bg: Background, darken: Float) {
+    // O escurecimento noturno entra nas cores, sem uma segunda passada de tela cheia
+    fun c(argb: Long) = androidx.compose.ui.graphics.lerp(Color(argb), Color.Black, darken)
+    when (bg) {
+        Background.NOITE -> drawRect(Brush.verticalGradient(listOf(c(0xFF0B1220), c(0xFF0B0F14))))
+        Background.GRADIENTE -> drawRect(Brush.linearGradient(listOf(c(0xFF1B1F3A), c(0xFF0B0F14), c(0xFF10233A)), end = Offset(size.width, size.height)))
+        else -> drawRect(Color.Black)
     }
 }
 
