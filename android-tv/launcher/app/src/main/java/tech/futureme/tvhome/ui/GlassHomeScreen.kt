@@ -248,11 +248,16 @@ private fun TopBar(kids: Boolean, who: String, rates: List<RatesRepository.Rate>
     val locale = Locale("pt", "BR")
     val time = remember(now, seconds) { SimpleDateFormat(if (seconds) "HH:mm:ss" else "HH:mm", locale).format(now) }
     val date = remember(now) { SimpleDateFormat("EEE, d 'de' MMMM", locale).format(now).replaceFirstChar { it.uppercase() } }
+    // Saudação pela hora: bom dia (5h–12h), boa tarde (12h–18h), boa noite
+    val greeting = if (!LocalLook.current.greeting) null else remember(now, who) {
+        val h = java.util.Calendar.getInstance().apply { this.time = now }.get(java.util.Calendar.HOUR_OF_DAY)
+        (if (h in 5..11) "Bom dia" else if (h in 12..17) "Boa tarde" else "Boa noite") + ", $who"
+    }
     Row(Modifier.fillMaxWidth().padding(horizontal = LocalDims.current.side, vertical = 10.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
             Column {
                 Text(time, fontSize = 34.sp, fontWeight = FontWeight.Light, color = TvColors.text)
-                Text(date, fontSize = 13.sp, color = TvColors.textDim)
+                Text(listOfNotNull(greeting, date).joinToString(" · "), fontSize = 13.sp, color = TvColors.textDim, maxLines = 1)
             }
             // Cotações sempre à vista (dólar primeiro), em chips de vidro; OK abre a página do câmbio
             val money = NumberFormat.getCurrencyInstance(locale)

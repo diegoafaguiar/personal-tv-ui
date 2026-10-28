@@ -47,6 +47,12 @@ enum class Accent(val label: String, val argb: Long) {
 /** Como os apps aparecem em "Seus aplicativos". */
 enum class AppTile(val label: String) { ICONE("Ícone quadrado (1/1)"), BANNER("Banner do app (16/9)") }
 
+/** O que o bloco de cada app mostra. */
+enum class LabelMode(val label: String) { ICONE_NOME("Ícone e nome"), ICONE("Só o ícone"), NOME("Só o nome") }
+
+/** Fundo do bloco de cada app em "Seus aplicativos". */
+enum class TileStyle(val label: String) { VIDRO("Vidro"), MARCA("Cor da marca"), ESCURO("Escuro liso") }
+
 /** Formato do destaque do card focado. */
 enum class FocusStyle(val label: String) { BORDA("Borda"), BRILHO("Brilho, sem borda"), BORDA_BRILHO("Borda e brilho") }
 
@@ -78,8 +84,12 @@ data class Look(
     val focusStyle: FocusStyle = FocusStyle.BORDA,
     val accent: Accent = Accent.BRANCO,
     val appTile: AppTile = AppTile.ICONE,
-    /** Rótulo com o nome do app embaixo do ícone. */
-    val appLabels: Boolean = true,
+    /** O que cada app mostra: ícone e nome, só ícone ou só o nome. */
+    val labelMode: LabelMode = LabelMode.ICONE_NOME,
+    /** Fundo do bloco de cada app: vidro, a cor da marca ou escuro liso. */
+    val tileStyle: TileStyle = TileStyle.VIDRO,
+    /** "Boa noite, Diego" na linha da data. */
+    val greeting: Boolean = true,
     /** Segundos no relógio. */
     val clockSeconds: Boolean = false,
 )
@@ -203,7 +213,11 @@ class Prefs(private val context: Context) {
                 focusStyle = p[stringPreferencesKey("look_focus_style")]?.let { v -> FocusStyle.entries.firstOrNull { it.name == v } } ?: FocusStyle.BORDA,
                 accent = p[stringPreferencesKey("look_accent")]?.let { v -> Accent.entries.firstOrNull { it.name == v } } ?: Accent.BRANCO,
                 appTile = p[stringPreferencesKey("look_app_tile")]?.let { v -> AppTile.entries.firstOrNull { it.name == v } } ?: AppTile.ICONE,
-                appLabels = p[booleanPreferencesKey("look_app_labels")] ?: true,
+                // look_app_labels (liga/desliga, até a v0.9.2) vira "Só o ícone" quando estava desligado
+                labelMode = p[stringPreferencesKey("look_label_mode")]?.let { v -> LabelMode.entries.firstOrNull { it.name == v } }
+                    ?: if (p[booleanPreferencesKey("look_app_labels")] == false) LabelMode.ICONE else LabelMode.ICONE_NOME,
+                tileStyle = p[stringPreferencesKey("look_tile_style")]?.let { v -> TileStyle.entries.firstOrNull { it.name == v } } ?: TileStyle.VIDRO,
+                greeting = p[booleanPreferencesKey("look_greeting")] ?: true,
                 clockSeconds = p[booleanPreferencesKey("look_clock_seconds")] ?: false,
             ),
             glass = Glass(
@@ -350,6 +364,39 @@ class Prefs(private val context: Context) {
     }
     suspend fun resetLook() = context.dataStore.edit { p ->
         p.asMap().keys.filter { it.name.startsWith("look_") }.forEach { p.remove(it) }
+    }
+
+    /**
+     * Aplica um estilo pronto: troca o papel de parede, o vidro e todos os ajustes de Aparência
+     * (look_*) de uma vez. O modo leve só muda no estilo "Leve" (nos outros fica como está, para
+     * não pesar uma TV com pouca memória).
+     */
+    suspend fun applyStyle(style: StylePreset) = context.dataStore.edit { p ->
+        p.asMap().keys.filter { it.name.startsWith("look_") }.forEach { p.remove(it) }
+        val l = style.look
+        p[floatKey("look_card_scale")] = l.cardScale
+        p[intKey("look_card_spacing")] = l.cardSpacing
+        p[intKey("look_row_spacing")] = l.rowSpacing
+        p[floatKey("look_unselected_alpha")] = l.unselectedAlpha
+        p[booleanPreferencesKey("look_fixed_row")] = l.fixedFocusRow
+        p[booleanPreferencesKey("look_hide_above")] = l.hideRowsAbove
+        p[booleanPreferencesKey("look_remember_focus")] = l.rememberFocus
+        p[booleanPreferencesKey("look_row_icons")] = l.rowIcons
+        p[floatKey("look_focus_scale")] = l.focusScale
+        p[intKey("look_focus_border")] = l.focusBorder
+        p[stringPreferencesKey("look_focus_style")] = l.focusStyle.name
+        p[stringPreferencesKey("look_accent")] = l.accent.name
+        p[stringPreferencesKey("look_app_tile")] = l.appTile.name
+        p[stringPreferencesKey("look_label_mode")] = l.labelMode.name
+        p[stringPreferencesKey("look_tile_style")] = l.tileStyle.name
+        p[booleanPreferencesKey("look_greeting")] = l.greeting
+        p[booleanPreferencesKey("look_clock_seconds")] = l.clockSeconds
+        p[backgroundKey] = style.background.name
+        p[glassOnKey] = true
+        p[glassTransKey] = style.transparency.toString()
+        p[glassFxKey] = style.fx.toString()
+        p[glassAnimKey] = style.animations
+        if (style.lite) p[glassLiteKey] = true
     }
 
     suspend fun toggleGlass() = context.dataStore.edit { p -> p[glassOnKey] = !(p[glassOnKey] ?: true) }

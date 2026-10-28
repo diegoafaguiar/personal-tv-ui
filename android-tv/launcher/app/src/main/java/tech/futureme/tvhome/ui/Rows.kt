@@ -71,6 +71,9 @@ import androidx.tv.material3.Text
 import coil.compose.AsyncImage
 import android.media.tv.TvContract
 import tech.futureme.tvhome.data.AppEntry
+import androidx.compose.ui.graphics.luminance
+import tech.futureme.tvhome.data.TileStyle
+import tech.futureme.tvhome.data.LabelMode
 import tech.futureme.tvhome.data.InputEntry
 import tech.futureme.tvhome.data.MediaItem
 import tech.futureme.tvhome.data.MusicItem
@@ -106,21 +109,39 @@ fun AppIcon(app: AppEntry, modifier: Modifier = Modifier, onClick: () -> Unit) {
             onClick = onClick, shape = shape, glowColor = color,
             modifier = modifier.size(side).onFocusChanged { if (it.isFocused) glass.focusColor = color },
         ) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                if (app.icon != null) {
+            // Fundo do bloco: vidro (o do FocusSurface), a cor da marca ou escuro liso
+            val tile = tileBackground(look.tileStyle, color)
+            Box(Modifier.fillMaxSize().then(if (tile != null) Modifier.background(tile) else Modifier), contentAlignment = Alignment.Center) {
+                if (look.labelMode == LabelMode.NOME) {
+                    Text(
+                        app.label, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 17.sp,
+                        color = if (tile != null && tile.luminance() > 0.6f) Color(0xFF111111) else TvColors.text,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(8.dp),
+                    )
+                } else if (app.icon != null) {
                     AsyncImage(model = app.icon, contentDescription = app.label, modifier = Modifier.size(side * 0.67f).clip(RoundedCornerShape(14.dp)), contentScale = ContentScale.Fit)
                 } else {
                     Box(Modifier.size(side * 0.67f).clip(RoundedCornerShape(14.dp)).background(placeholderBrush(app.packageName)), contentAlignment = Alignment.Center) {
                         Text(app.label.take(2).uppercase(), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TvColors.text)
                     }
                 }
-                if (glass.config.enabled && !glass.config.lite && glass.config.fx > 0f) {
+                if (tile == null && glass.config.enabled && !glass.config.lite && glass.config.fx > 0f) {
                     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color.White.copy(alpha = 0.16f * glass.config.fx), 0.45f to Color.Transparent)))
                 }
             }
         }
-        if (look.appLabels) Text(app.label, fontSize = 12.sp, color = TvColors.textDim, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp))
+        if (look.labelMode == LabelMode.ICONE_NOME) Text(app.label, fontSize = 12.sp, color = TvColors.textDim, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp))
     }
+}
+
+/**
+ * Cor de fundo do bloco do app: null = vidro. Cor da marca vem do banner do app (média dos tons
+ * saturados); sem banner (branco), usa a matiz estável do nome, para não virar um bloco branco.
+ */
+fun tileBackground(style: TileStyle, brand: Color): Color? = when (style) {
+    TileStyle.VIDRO -> null
+    TileStyle.ESCURO -> Color(0xFF161A22)
+    TileStyle.MARCA -> if (brand == Color.White) null else brand.copy(alpha = 1f)
 }
 
 /** Gradiente estável derivado do nome: dois tons da mesma matiz, para placeholders com identidade. */

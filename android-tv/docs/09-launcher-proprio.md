@@ -255,6 +255,25 @@ TV_HOST=192.168.100.28 android-tv/scripts/50-launcher.sh restore     # volta a h
   volta aos Ajustes; o foco inicial cai no destaque; clima e música mostram estado de falha;
   rótulos de acessibilidade no teclado do PIN.
 
+## v0.10.0 (Fase 2): estilos prontos, cor da marca, rótulos, saudação
+
+- **Ajustes › Estilos prontos**: um clique muda papel de parede, vidro e todos os ajustes de
+  Aparência. A lista mostra o estilo em uso, ou "personalizado" depois de mexer em algo.
+
+  | Estilo | O que muda |
+  |---|---|
+  | Vidro | o padrão: vidro sobre a foto Horizonte |
+  | Ícones coloridos | apps na cor da marca, cards 10% maiores, brilho no foco, Azul-noite |
+  | Minimalista | fundo preto, só ícones em bloco escuro, linhas sem foco apagadas, sem reflexos |
+  | Cinema | cards 15% maiores, linha focada fixa no alto, as de cima escondidas, destaque âmbar |
+  | Leve | para TV fraca (TCL G13): Gradiente desenhado direto, modo leve, sem animações |
+
+  O modo leve só é ligado pelo estilo Leve; os outros não mexem nele.
+- **Cards › Fundo dos ícones**: Vidro, Cor da marca (média dos tons do banner do app) ou Escuro liso.
+- **Cards › O que cada app mostra**: ícone e nome, só o ícone ou só o nome (substitui o
+  liga/desliga "nome embaixo do ícone"; quem tinha desligado fica em "só o ícone").
+- **Topo › Saudação**: "Boa noite, Diego · Dom., 25 de outubro"; desliga em Topo e destaque.
+
 ## v0.9.2: câmbio, clima de 3 dias, Em alta
 
 - **Cotações**: subida em verde e queda em vermelho (convenção de mercado). Os chips do topo

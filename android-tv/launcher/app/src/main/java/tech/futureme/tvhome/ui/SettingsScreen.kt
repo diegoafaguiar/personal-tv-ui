@@ -103,6 +103,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import tech.futureme.tvhome.HomeViewModel
 import tech.futureme.tvhome.data.Accent
+import tech.futureme.tvhome.data.TileStyle
+import tech.futureme.tvhome.data.LabelMode
+import tech.futureme.tvhome.data.StylePreset
 import tech.futureme.tvhome.data.AppEntry
 import tech.futureme.tvhome.data.AppTile
 import tech.futureme.tvhome.data.Background
@@ -115,6 +118,7 @@ import tech.futureme.tvhome.data.Settings
 
 /** Grupos dos Ajustes (lista da esquerda do painel; OK entra, Voltar sai). */
 private enum class Page(val label: String, val hint: String, val icon: ImageVector) {
+    ESTILOS("Estilos prontos", "um clique muda o visual inteiro", Icons.Rounded.AutoAwesome),
     APARENCIA("Aparência", "papel de parede, cor de destaque, vidro", Icons.Rounded.Palette),
     CARDS("Cards", "tamanho, espaçamento, formato dos apps", Icons.Rounded.Dashboard),
     LINHAS("Linhas", "espaço, opacidade, linha fixa, ícones", Icons.Rounded.ViewDay),
@@ -174,8 +178,24 @@ fun SettingsScreen(
                 fun m(): Modifier = if (first) { first = false; Modifier.focusRequester(firstRow) } else Modifier
                 when (page) {
                     null -> items(Page.entries, key = { it.name }) { p ->
-                        val mod = if (p == (lastPage ?: Page.APARENCIA)) Modifier.focusRequester(firstRow) else Modifier
-                        NavRow(p.icon, p.label, p.hint, mod) { page = p }
+                        val mod = if (p == (lastPage ?: Page.ESTILOS)) Modifier.focusRequester(firstRow) else Modifier
+                        // Estilos: mostra qual está em uso (ou "Personalizado")
+                        val hint = if (p == Page.ESTILOS) "em uso: " + (StylePreset.current(settings)?.label ?: "personalizado") else p.hint
+                        NavRow(p.icon, p.label, hint, mod) { page = p }
+                    }
+                    Page.ESTILOS -> {
+                        val cur = StylePreset.current(settings)
+                        items(StylePreset.entries, key = { "style-" + it.name }) { st ->
+                            val mod = if (st == (cur ?: StylePreset.VIDRO)) Modifier.focusRequester(firstRow) else Modifier
+                            StyleRow(st, selected = st == cur, modifier = mod) { go { prefs.applyStyle(st) } }
+                        }
+                        item {
+                            Text(
+                                if (cur == null) "Visual personalizado: você mudou algum ajuste. Escolher um estilo substitui papel de parede, vidro e todos os ajustes de Aparência."
+                                else "Depois de escolher, ajuste o que quiser nas outras páginas; o estilo vira \"personalizado\".",
+                                fontSize = 12.sp, color = TvColors.textDim, modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                            )
+                        }
                     }
                     Page.APARENCIA -> {
                         item { ChoiceRow(Icons.Rounded.Wallpaper, "Papel de parede", settings.background.label, m(),
@@ -199,7 +219,12 @@ fun SettingsScreen(
                         item { ChoiceRow(Icons.Rounded.AspectRatio, "Formato dos apps", look.appTile.label,
                             onPrev = { go { prefs.cycleEnum("look_app_tile", AppTile.entries, AppTile.ICONE, -1) } },
                             onNext = { go { prefs.cycleEnum("look_app_tile", AppTile.entries, AppTile.ICONE, +1) } }) }
-                        item { ToggleRow(Icons.Rounded.Label, "Nome do app embaixo do ícone", look.appLabels) { go { prefs.toggleBool("look_app_labels", true) } } }
+                        item { ChoiceRow(Icons.Rounded.Label, "O que cada app mostra", look.labelMode.label,
+                            onPrev = { go { prefs.cycleEnum("look_label_mode", LabelMode.entries, look.labelMode, -1) } },
+                            onNext = { go { prefs.cycleEnum("look_label_mode", LabelMode.entries, look.labelMode, +1) } }) }
+                        item { ChoiceRow(Icons.Rounded.Palette, "Fundo dos ícones", look.tileStyle.label,
+                            onPrev = { go { prefs.cycleEnum("look_tile_style", TileStyle.entries, TileStyle.VIDRO, -1) } },
+                            onNext = { go { prefs.cycleEnum("look_tile_style", TileStyle.entries, TileStyle.VIDRO, +1) } }) }
                         item { ChoiceRow(Icons.Rounded.ViewAgenda, "Densidade das linhas de conteúdo", if (settings.density == "normal") "normal (~4 por linha)" else "compacta (~6 por linha)",
                             onPrev = { go { prefs.toggleDensity() } }, onNext = { go { prefs.toggleDensity() } }) }
                     }
@@ -220,6 +245,7 @@ fun SettingsScreen(
                     }
                     Page.TOPO -> {
                         item { ToggleRow(Icons.Rounded.Schedule, "Segundos no relógio", look.clockSeconds, m()) { go { prefs.toggleBool("look_clock_seconds", false) } } }
+                        item { ToggleRow(Icons.Rounded.Person, "Saudação com o nome do perfil", look.greeting) { go { prefs.toggleBool("look_greeting", true) } } }
                         item { ToggleRow(Icons.Rounded.ShowChart, "Cotações do dólar e do euro", settings.showRates) { go { prefs.toggleRates() } } }
                         item { ToggleRow(Icons.Rounded.CloudQueue, "Clima (Recreio dos Bandeirantes)", settings.showWeather) { go { prefs.toggleWeather() } } }
                         item { ToggleRow(Icons.Rounded.Info, "Estado da TV (rede, memória) na home clássica", settings.showStatus) { go { prefs.toggleStatus() } } }
@@ -359,6 +385,13 @@ private fun NavRow(icon: ImageVector, title: String, hint: String, modifier: Mod
 @Composable
 private fun ActionRow(icon: ImageVector, title: String, sub: String?, modifier: Modifier = Modifier, onClick: () -> Unit) =
     PanelRow(icon, title, modifier, sub = sub, onClick = onClick)
+
+/** Um estilo pronto: nome, o que ele muda e ✓ quando é o visual em uso. OK aplica. */
+@Composable
+private fun StyleRow(style: StylePreset, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) =
+    PanelRow(Icons.Rounded.AutoAwesome, style.label, modifier, sub = style.hint, onClick = onClick, trailing = { f ->
+        if (selected) Icon(Icons.Rounded.Check, contentDescription = "em uso", tint = if (f) TvColors.text else LocalLook.current.accentColor, modifier = Modifier.size(22.dp))
+    })
 
 /** Interruptor com ✓ (estilo das imagens de referência). OK alterna. */
 @Composable
@@ -501,13 +534,14 @@ private fun PreviewTile(app: AppEntry, look: tech.futureme.tvhome.data.Look, acc
         Box(
             Modifier.graphicsLayer { scaleX = scale; scaleY = scale }
                 .then(if (showGlow) Modifier.background(Brush.radialGradient(listOf(accent.copy(alpha = 0.55f), Color.Transparent)), shape) else Modifier)
-                .size(w, base).clip(shape).background(Color(0x55FFFFFF))
+                .size(w, base).clip(shape).background(if (banner) Color(0x55FFFFFF) else tileBackground(look.tileStyle, appColor(app)) ?: Color(0x55FFFFFF))
                 .then(if (showBorder) Modifier.border(BorderStroke((look.focusBorder * 0.6f).dp, accent), shape) else Modifier),
             contentAlignment = Alignment.Center,
         ) {
             val img = if (banner) app.banner ?: app.icon else app.icon ?: app.banner
-            if (img != null) AsyncImage(model = img, contentDescription = null, modifier = Modifier.fillMaxSize().padding(if (banner) 0.dp else 5.dp), contentScale = if (banner) ContentScale.Crop else ContentScale.Fit)
+            if (!banner && look.labelMode == LabelMode.NOME) Text(app.label, fontSize = 6.sp, color = TvColors.text, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            else if (img != null) AsyncImage(model = img, contentDescription = null, modifier = Modifier.fillMaxSize().padding(if (banner) 0.dp else 5.dp), contentScale = if (banner) ContentScale.Crop else ContentScale.Fit)
         }
-        if (!banner && look.appLabels) Text(app.label, fontSize = 6.sp, color = TvColors.textDim, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.offset(y = 2.dp))
+        if (!banner && look.labelMode == LabelMode.ICONE_NOME) Text(app.label, fontSize = 6.sp, color = TvColors.textDim, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.offset(y = 2.dp))
     }
 }
