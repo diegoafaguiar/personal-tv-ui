@@ -50,7 +50,7 @@ import tech.futureme.tvhome.data.TunerChannel
 import java.io.File
 import java.util.Calendar
 
-private enum class Screen { HOME, ALL_APPS, SETTINGS, DIAGNOSTICS, SEARCH, LIVE_TV, PIN_CHANGE, CATEGORY, READER, EXPLORE, RATES }
+private enum class Screen { HOME, ALL_APPS, SETTINGS, DIAGNOSTICS, SEARCH, LIVE_TV, PIN_CHANGE, CATEGORY, READER, EXPLORE, RATES, REMOTE }
 
 @Composable
 fun App(
@@ -74,6 +74,8 @@ fun App(
     val activeProfile by vm.profile.collectAsStateWithLifecycle()
     val restoring by vm.profileRestoring.collectAsStateWithLifecycle()
     val homeTick by vm.homePressed.collectAsStateWithLifecycle()
+    val remoteQuery by vm.remoteSearch.collectAsStateWithLifecycle()
+    val remoteLive by vm.remoteLiveTv.collectAsStateWithLifecycle()
     var pendingProfile by remember { mutableStateOf<Profile?>(null) }   // escolhido, aguardando senha
     var pinChangeFor by remember { mutableStateOf<Profile?>(null) }
     var screen by remember { mutableStateOf(Screen.HOME) }
@@ -103,7 +105,7 @@ fun App(
     // faria o sistema reabri-la e o seletor de perfil voltar).
     BackHandler(enabled = true) {
         if (pendingProfile != null) pendingProfile = null
-        else if (screen == Screen.PIN_CHANGE || screen == Screen.DIAGNOSTICS) { pinChangeFor = null; screen = Screen.SETTINGS }
+        else if (screen == Screen.PIN_CHANGE || screen == Screen.DIAGNOSTICS || screen == Screen.REMOTE) { pinChangeFor = null; screen = Screen.SETTINGS }
         else if (screen == Screen.READER) { reading = null; screen = readerFrom }
         else if (screen != Screen.HOME) screen = Screen.HOME
     }
@@ -114,7 +116,7 @@ fun App(
     glass.config = settings.glass
     glass.background = settings.background
     // Papel de parede renderizado uma vez por (fundo, tamanho, desfoque); ver Glass.kt.
-    LaunchedEffect(settings.background, glass.screen, settings.glass.blur) {
+    LaunchedEffect(settings.background, glass.screen, settings.glass.blur, settings.wallpaperRev) {
         val sz = glass.screen
         if (sz == IntSize.Zero) return@LaunchedEffect
         val file = File(context.getExternalFilesDir(null), "wallpaper.jpg")
@@ -171,6 +173,9 @@ fun App(
             val categories = remember(content, team, music, profile) {
                 groupByCategory((content.allItems + team.videos + music.clips + music.youtube).filter { profile.allows(it.packageName) }) { settings.appRank(it) }
             }
+            // Controle pelo celular: busca com o texto digitado lá e TV ao vivo
+            LaunchedEffect(remoteQuery) { if (remoteQuery != null) screen = Screen.SEARCH }
+            LaunchedEffect(remoteLive) { if (remoteLive > 0) openTuner() }
             fun navigate(nav: Nav) {
                 when (nav) {
                     Nav.INICIO -> screen = Screen.HOME
@@ -250,6 +255,7 @@ fun App(
                     onChangePin = { p -> pinChangeFor = p; screen = Screen.PIN_CHANGE },
                     onOpenTvSettings = { onQuick(QuickAction.CONFIG) },
                     onOpenDiagnostics = { screen = Screen.DIAGNOSTICS },
+                    onOpenRemote = { screen = Screen.REMOTE },
                 )
                 Screen.PIN_CHANGE -> {
                     val p = pinChangeFor
@@ -321,7 +327,9 @@ fun App(
                 Screen.SEARCH -> SearchScreen(
                     items = (content.allItems + team.videos + music.clips + music.youtube).filter { profile.allows(it.packageName) }, apps = content.apps.filter { it.packageName !in settings.hidden && profile.allows(it.packageName) },
                     appLabel = appLabel, onOpenItem = onOpenItem, onOpenApp = onOpenApp, onSearchYoutube = onOpenYoutube,
+                    initialQuery = remoteQuery?.first ?: "",
                 )
+                Screen.REMOTE -> RemoteScreen(vm.prefs, settings.remoteEnabled)
                 Screen.EXPLORE -> ExploreScreen(
                     groups = categories, initial = exploreCat, appLabel = appLabel, rank = { settings.appRank(it) },
                     onOpenItem = onOpenItem, onFocused = { focused = it }, onCategoryChanged = { exploreCat = it },

@@ -97,6 +97,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Incrementa quando o botão Home é pressionado com o launcher já aberto: a UI volta ao Início. */
     val homePressed = MutableStateFlow(0)
+    /** Controle pelo celular: busca pedida (abre a tela de busca com o texto) e TV ao vivo. */
+    val remoteSearch = MutableStateFlow<Pair<String, Int>?>(null)   // (texto, contador): repetir a mesma busca reabre
+    val remoteLiveTv = MutableStateFlow(0)
 
     fun selectProfile(p: Profile?) {
         profile.value = p

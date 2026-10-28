@@ -124,6 +124,10 @@ data class Settings(
     val teamLeague: String = "bra.1",
     val teamName: String = "Flamengo",
     val pins: Map<String, String> = emptyMap(),   // perfil -> senha (padrão 1234)
+    /** Controle pelo celular (servidor na rede local, ver remote/RemoteServer). */
+    val remoteEnabled: Boolean = true,
+    /** Muda a cada foto enviada como "Minha imagem": força o papel de parede a ser refeito. */
+    val wallpaperRev: Int = 0,
 ) {
     fun pinFor(profileId: String): String = pins[profileId] ?: Profiles.DEFAULT_PIN
     fun appRank(pkg: String): Int = appOrder.indexOf(pkg).let { if (it < 0) 999 else it }
@@ -244,6 +248,8 @@ class Prefs(private val context: Context) {
             heroCompact = p[heroKey] ?: false,
             lastChannelId = p[lastChKey]?.toLongOrNull() ?: 0L,
             teamYoutube = p[teamYtKey]?.split(',')?.filter { it.isNotBlank() } ?: listOf("UCOa-WaNwQaoyFHLCDk7qKIw"),
+            remoteEnabled = p[booleanPreferencesKey("remote_enabled")] ?: true,
+            wallpaperRev = p[intKey("wallpaper_rev")] ?: 0,
             pins = p[pinsKey]?.split(',')?.mapNotNull { e -> e.split('=').takeIf { it.size == 2 }?.let { it[0] to it[1] } }?.toMap() ?: emptyMap(),
         )
     }
@@ -397,6 +403,34 @@ class Prefs(private val context: Context) {
         p[glassFxKey] = style.fx.toString()
         p[glassAnimKey] = style.animations
         if (style.lite) p[glassLiteKey] = true
+    }
+
+    // ---------- Controle pelo celular ----------
+    suspend fun setRemoteEnabled(on: Boolean) = context.dataStore.edit { it[booleanPreferencesKey("remote_enabled")] = on }
+
+    /** Código que o celular precisa mandar (vai no QR). Cria um na primeira vez. */
+    suspend fun remoteToken(): String {
+        val k = stringPreferencesKey("remote_token")
+        context.dataStore.data.first()[k]?.let { return it }
+        return newRemoteToken()
+    }
+
+    /** Gera outro código: celulares pareados antes deixam de funcionar até lerem o QR novo. */
+    suspend fun newRemoteToken(): String {
+        val t = java.util.UUID.randomUUID().toString().replace("-", "").take(16)
+        context.dataStore.edit { it[stringPreferencesKey("remote_token")] = t }
+        return t
+    }
+
+    suspend fun setAccent(accent: Accent) = context.dataStore.edit { it[stringPreferencesKey("look_accent")] = accent.name }
+
+    /** Ordem e escolha dos favoritos ("Seus aplicativos") de uma vez, vinda do celular. */
+    suspend fun setDock(pkgs: List<String>) = context.dataStore.edit { it[dockKey] = pkgs.distinct().joinToString(",") }
+
+    /** Foto nova em wallpaper.jpg: liga "Minha imagem" e manda refazer o papel de parede. */
+    suspend fun wallpaperChanged() = context.dataStore.edit { p ->
+        p[backgroundKey] = Background.IMAGEM.name
+        p[intKey("wallpaper_rev")] = (p[intKey("wallpaper_rev")] ?: 0) + 1
     }
 
     suspend fun toggleGlass() = context.dataStore.edit { p -> p[glassOnKey] = !(p[glassOnKey] ?: true) }

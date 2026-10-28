@@ -11,6 +11,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import tech.futureme.tvhome.data.InputEntry
 import tech.futureme.tvhome.data.MediaItem
 import tech.futureme.tvhome.ui.App
@@ -44,6 +46,9 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
+        lifecycleScope.launch {
+            tech.futureme.tvhome.remote.RemoteBus.commands.collect { handleRemote(it) }
+        }
         if (ContextCompat.checkSelfPermission(this, READ_TV_LISTINGS) != PackageManager.PERMISSION_GRANTED) {
             askPermission.launch(READ_TV_LISTINGS)
         }
@@ -51,7 +56,37 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        tech.futureme.tvhome.remote.RemoteBus.foreground = true
         vm.refresh()   // voltou de um app: o Watch Next pode ter mudado
+    }
+
+    override fun onPause() {
+        tech.futureme.tvhome.remote.RemoteBus.foreground = false
+        super.onPause()
+    }
+
+    /** Pedidos do controle pelo celular (remote/RemoteServer). */
+    private fun handleRemote(cmd: tech.futureme.tvhome.remote.RemoteCommand) {
+        when (cmd) {
+            is tech.futureme.tvhome.remote.RemoteCommand.OpenApp -> {
+                val label = vm.content.value.apps.firstOrNull { it.packageName == cmd.packageName }?.label ?: cmd.packageName
+                vm.recordRecent(cmd.packageName, label, null); openApp(cmd.packageName)
+            }
+            is tech.futureme.tvhome.remote.RemoteCommand.Search -> { bringToFront(); vm.remoteSearch.value = cmd.query to ((vm.remoteSearch.value?.second ?: 0) + 1) }
+            is tech.futureme.tvhome.remote.RemoteCommand.Key -> {
+                // Mesmo caminho do controle físico: foco do Compose, Voltar, etc.
+                window.decorView.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, cmd.keyCode))
+                window.decorView.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, cmd.keyCode))
+            }
+            tech.futureme.tvhome.remote.RemoteCommand.Home -> { bringToFront(); vm.homePressed.value++ }
+            tech.futureme.tvhome.remote.RemoteCommand.LiveTv -> { bringToFront(); vm.remoteLiveTv.value++ }
+        }
+    }
+
+    /** Traz a home para a frente (com outro app aberto, precisa da permissão de sobreposição). */
+    private fun bringToFront() {
+        if (tech.futureme.tvhome.remote.RemoteBus.foreground) return
+        startSafely(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
     }
 
     /** A TV saiu do standby (tela acendeu): atualiza as áreas de recomendação. */

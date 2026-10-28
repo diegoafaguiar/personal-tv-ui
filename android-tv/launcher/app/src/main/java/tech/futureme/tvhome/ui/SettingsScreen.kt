@@ -48,6 +48,7 @@ import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Opacity
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.PhotoSizeSelectLarge
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.RestartAlt
@@ -144,6 +145,7 @@ fun SettingsScreen(
     onChangePin: (Profile) -> Unit,
     onOpenTvSettings: () -> Unit,
     onOpenDiagnostics: () -> Unit,
+    onOpenRemote: () -> Unit = {},
 ) {
     val prefs = vm.prefs
     val scope = rememberCoroutineScope()
@@ -279,6 +281,7 @@ fun SettingsScreen(
                     }
                     Page.SISTEMA -> {
                         item { ActionRow(Icons.Rounded.Settings, "Configurações da TV", "rede, som, imagem, apps", m()) { onOpenTvSettings() } }
+                        item { ActionRow(Icons.Rounded.PhoneAndroid, "Controle pelo celular", if (settings.remoteEnabled) "QR code para parear o celular" else "desligado") { onOpenRemote() } }
                         item { ActionRow(Icons.Rounded.Info, "Diagnóstico", "o que cada app publica") { onOpenDiagnostics() } }
                         item { ActionRow(Icons.Rounded.ClearAll, "Limpar abertos recentemente", "${settings.recents.size} itens") { go { prefs.clearRecents() } } }
                     }

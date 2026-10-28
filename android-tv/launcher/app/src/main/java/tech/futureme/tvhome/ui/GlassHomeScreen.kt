@@ -409,7 +409,7 @@ private fun WeatherCard(weather: WeatherRepository.Weather?, enabled: Boolean, m
     Row(modifier.glass(RoundedCornerShape(18.dp)).padding(horizontal = 20.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         if (weather != null && enabled) {
             // Agora: ícone e temperatura grandes, condição e detalhes embaixo
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Column(Modifier.weight(1.25f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text("AGORA", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = TvColors.textDim, letterSpacing = 1.sp)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(weather.icon, fontSize = 34.sp)
@@ -425,7 +425,7 @@ private fun WeatherCard(weather: WeatherRepository.Weather?, enabled: Boolean, m
             // Próximos 3 dias, separados do "agora" por um fio
             if (weather.next.isNotEmpty()) {
                 Box(Modifier.padding(horizontal = 14.dp).width(1.dp).fillMaxHeight(0.8f).background(TvColors.textDim.copy(alpha = 0.25f)))
-                Row(Modifier.weight(1.2f), horizontalArrangement = Arrangement.SpaceEvenly) {
+                Row(Modifier.weight(1f), horizontalArrangement = Arrangement.SpaceEvenly) {
                     for (d in weather.next) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(weekday(d.date), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TvColors.textDim)

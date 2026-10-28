@@ -255,6 +255,24 @@ TV_HOST=192.168.100.28 android-tv/scripts/50-launcher.sh restore     # volta a h
   volta aos Ajustes; o foco inicial cai no destaque; clima e música mostram estado de falha;
   rótulos de acessibilidade no teclado do PIN.
 
+## v0.11.0 (Fase 3): controle pelo celular por QR code
+
+- **Ajustes › Sistema › Controle pelo celular**: QR com o endereço da TV e um código de acesso;
+  botões Desligar e Novo código. Guia de uso: [docs/controle-pelo-celular.md](../../docs/controle-pelo-celular.md).
+- Servidor HTTP mínimo dentro do launcher (`remote/RemoteServer.kt`, porta 8787, sem
+  bibliotecas): só aceita a rede local e exige o código em toda chamada `/api`. A página do
+  celular é `assets/remote/index.html` (sem nada de fora).
+- As teclas não são injetadas (INJECT_EVENTS é só do sistema; o Android 14 recusa até na
+  própria janela): o servidor manda a tecla pelo `RemoteBus` e a Activity a despacha na
+  própria janela, como o controle físico. Volume usa o AudioManager (vale em qualquer tela).
+- Início, abrir app, buscar e TV ao vivo com outro app na frente usam a permissão de
+  sobreposição (`appops set tech.futureme.tvhome SYSTEM_ALERT_WINDOW allow`, no `50-launcher.sh
+  grant` e no `make dev`).
+- Busca vinda do celular abre a tela de busca já com o texto e sem o teclado da TV por cima.
+- Foto enviada pelo celular vira "Minha imagem" (reduzida para 1920 px) e o fundo é refeito na hora.
+- Foco sempre visível: com "Brilho, sem borda" e sem brilho possível (modo leve, reflexos em 0),
+  o card focado ganha uma borda fina.
+
 ## v0.10.0 (Fase 2): estilos prontos, cor da marca, rótulos, saudação
 
 - **Ajustes › Estilos prontos**: um clique muda papel de parede, vidro e todos os ajustes de

@@ -180,7 +180,14 @@ fun FocusSurface(
     var focused by remember { mutableStateOf(false) }
     val wanted = focusScale?.let { minOf(it, look.focusScale) } ?: look.focusScale
     val scale = if (glass.enabled && !glass.animations) 1f else wanted
-    val border = if (look.focusStyle == tech.futureme.tvhome.data.FocusStyle.BRILHO) 0 else look.focusBorder
+    // Sem brilho possível (modo leve, reflexos em 0 ou vidro desligado), "só brilho" viraria foco
+    // invisível: nesse caso vale uma borda fina.
+    val glowOk = glass.enabled && !glass.lite && glass.fx > 0f
+    val border = when {
+        look.focusStyle == tech.futureme.tvhome.data.FocusStyle.BRILHO -> if (glowOk) 0 else 2
+        !glowOk -> maxOf(look.focusBorder, 2)
+        else -> look.focusBorder
+    }
     val glow = if (look.focusStyle == tech.futureme.tvhome.data.FocusStyle.BORDA) glowColor
         else if (glowColor.alpha > 0f) glowColor else look.accentColor
     Surface(

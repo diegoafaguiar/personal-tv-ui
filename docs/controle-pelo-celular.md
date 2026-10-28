@@ -55,9 +55,26 @@ TV=philco-roku-58 roku/scripts/40-remote.sh key Home Down Select
 DEV_SERIAL=192.168.100.34:5555 android-tv/scripts/85-launcher-dev.sh remote   # setas do teclado do Mac
 ```
 
-## Em breve: controle "Minha TV" por QR code
+## Controle "Minha TV" por QR code (TCL com o launcher)
 
-Uma página para o celular servida pelo próprio launcher (QR em Ajustes): abrir apps com um
-toque, buscar digitando, trocar estilo, fundo e cor, mandar uma foto do celular como papel de
-parede e ordenar os apps arrastando. Dentro de outros apps (Netflix etc.), o Android só permite
-Home e Voltar a ele; para navegar dentro deles, continue com o app Google TV.
+Uma página para o celular servida pelo próprio launcher, sem instalar app nem deixar o
+computador ligado.
+
+1. Na TV: **Ajustes › Sistema › Controle pelo celular**.
+2. Com o celular no mesmo Wi-Fi, aponte a câmera para o QR. Abre a página do controle.
+3. Salve nos favoritos do celular: o código fica guardado nele.
+
+| Aba | O que faz |
+|---|---|
+| Controle | setas, OK, Voltar, Início, volume, **buscar digitando no celular**, TV ao vivo |
+| Apps | abrir qualquer app com um toque; **Organizar favoritos** (★ escolhe, ▲▼ ordena) |
+| Visual | estilos prontos, papel de parede, cor de destaque e **foto do celular como fundo** |
+
+**Limite do Android:** setas, OK e Voltar comandam a tela inicial. Dentro de outros apps
+(Netflix, YouTube) o celular faz Início, volume e abre apps; para navegar dentro deles, use o
+controle da TV ou o app Google TV. A página avisa quando a TV está em outro app.
+
+**Segurança:** só aparelhos da rede local conseguem falar com a TV (porta 8787), e toda ação
+exige o código que vai no QR. **Novo código** invalida os celulares que já leram o QR antigo;
+**Desligar** fecha o servidor. Para Início e abrir apps com outro app na frente, a TV precisa
+da permissão de sobreposição, concedida por `android-tv/scripts/50-launcher.sh grant`.

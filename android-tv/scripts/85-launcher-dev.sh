@@ -59,6 +59,7 @@ cmd_run() {
   [[ "$out" == *Success* ]] || die "Instalação falhou: $out"
   tv_shell pm grant "$PKG" android.permission.READ_TV_LISTINGS 2>/dev/null || log_warn "READ_TV_LISTINGS não concedida (aceite na tela)"
   tv_shell appops set "$PKG" GET_USAGE_STATS allow 2>/dev/null || true   # Em alta pelos apps mais usados
+  tv_shell appops set "$PKG" SYSTEM_ALERT_WINDOW allow 2>/dev/null || true   # controle pelo celular com outro app na frente
   tv_shell am force-stop "$PKG" >/dev/null 2>&1 || true
   tv_shell am start -n "$ACTIVITY" >/dev/null
   log_ok "Launcher aberto. Logs: android-tv/scripts/85-launcher-dev.sh logs"

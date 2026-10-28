@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0b0f14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Minha TV · controle</title>
+<style>
+  /* Controle "Minha TV": servido pelo próprio launcher na rede local. Sem nada de fora (fontes, CDN). */
+  :root {
+    --bg: #0b0f14; --panel: rgba(255,255,255,.07); --panel-2: rgba(255,255,255,.14); --edge: rgba(255,255,255,.12);
+    --text: #f2f5f8; --dim: rgba(242,245,248,.62); --accent: #5bc0eb; --ok: #6ee7a8; --bad: #ff7a6e;
+    --ui: -apple-system, "SF Pro Text", "Roboto", "Segoe UI", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--ui); -webkit-font-smoothing: antialiased; }
+  body { background: radial-gradient(120% 80% at 50% 0%, #17253a 0%, var(--bg) 60%) fixed; min-height: 100vh; }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; border: 0; background: none; }
+  .hidden { display: none !important; }
+  main { max-width: 520px; margin: 0 auto; padding: calc(env(safe-area-inset-top) + 14px) max(16px, env(safe-area-inset-right)) calc(env(safe-area-inset-bottom) + 112px) max(16px, env(safe-area-inset-left)); }
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+  header b { font-size: 20px; font-weight: 650; letter-spacing: -.2px; }
+  .conn { font-size: 13px; color: var(--dim); display: inline-flex; align-items: center; gap: 7px; }
+  .conn i { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); }
+  .conn.on i { background: var(--ok); } .conn.off i { background: var(--bad); }
+  .card { background: var(--panel); border: 1px solid var(--edge); border-radius: 22px; }
+  h2 { font-size: 13px; font-weight: 650; letter-spacing: 1.2px; text-transform: uppercase; color: var(--dim); margin: 26px 2px 10px; }
+  .pane { display: none; } .pane.on { display: block; }
+  /* direcional */
+  .pad { position: relative; width: min(300px, 82vw); aspect-ratio: 1; margin: 4px auto 18px; border-radius: 50%; }
+  .pad button { position: absolute; width: 30%; height: 30%; border-radius: 50%; display: grid; place-items: center; }
+  .pad button:active { background: var(--panel-2); }
+  .pad svg { width: 30px; height: 30px; fill: none; stroke: var(--text); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+  .pad .up { left: 35%; top: 2%; } .pad .down { left: 35%; bottom: 2%; } .pad .left { left: 2%; top: 35%; } .pad .right { right: 2%; top: 35%; }
+  .pad .ok { left: 31%; top: 31%; width: 38%; height: 38%; background: var(--text); color: #0b0f14; font-weight: 750; font-size: 19px; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+  .pad .ok:active { transform: scale(.95); }
+  .row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .row.two { grid-template-columns: 1fr 1fr; }
+  .key { height: 58px; border-radius: 18px; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15.5px; font-weight: 600; }
+  .key:active { background: var(--panel-2); transform: scale(.97); }
+  .key svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .search { display: flex; gap: 8px; padding: 6px; border-radius: 18px; }
+  .search input { flex: 1; min-width: 0; border: 0; background: transparent; outline: none; font-size: 16px; padding: 10px 12px; }
+  .search button { padding: 0 16px; border-radius: 13px; background: var(--text); color: #0b0f14; font-weight: 650; }
+  .hint { font-size: 13px; color: var(--dim); line-height: 1.45; margin: 10px 4px 0; }
+  /* apps */
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 10px; }
+  .app { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; color: var(--dim); text-align: center; min-width: 0; }
+  .app img { width: 62px; height: 62px; border-radius: 16px; background: var(--panel); object-fit: cover; }
+  .app span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .app:active img { transform: scale(.93); }
+  .list .item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; }
+  .list .item + .item { border-top: 1px solid var(--edge); }
+  .list img { width: 38px; height: 38px; border-radius: 10px; }
+  .list .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; }
+  .mini { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; font-size: 17px; color: var(--dim); }
+  .mini:active { background: var(--panel-2); }
+  .mini.star.on { color: #ffc857; }
+  .btn { width: 100%; padding: 15px; border-radius: 16px; font-size: 16px; font-weight: 650; }
+  .btn.primary { background: var(--text); color: #0b0f14; }
+  .btn.ghost { border: 1px solid var(--edge); margin-top: 10px; }
+  /* visual */
+  .styles { display: grid; gap: 8px; }
+  .style { text-align: left; padding: 13px 15px; border-radius: 16px; display: flex; align-items: center; gap: 12px; }
+  .style b { display: block; font-size: 15.5px; } .style span { font-size: 13px; color: var(--dim); }
+  .style.on { background: var(--text); color: #0b0f14; } .style.on span { color: #3b4350; }
+  .style .chk { margin-left: auto; font-size: 18px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { padding: 9px 14px; border-radius: 999px; font-size: 14px; }
+  .chip.on { background: var(--text); color: #0b0f14; }
+  .swatches { display: flex; flex-wrap: wrap; gap: 12px; }
+  .swatch { width: 40px; height: 40px; border-radius: 50%; border: 2px solid transparent; }
+  .swatch.on { border-color: var(--text); box-shadow: 0 0 0 3px var(--bg) inset; }
+  /* barra de abas */
+  nav { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom) + 12px); width: min(488px, calc(100% - 32px));
+        display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 6px; border-radius: 24px; background: rgba(20,26,36,.88);
+        border: 1px solid var(--edge); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); box-shadow: 0 14px 40px rgba(0,0,0,.4); }
+  nav button { border-radius: 18px; padding: 9px 4px 8px; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 12px; font-weight: 650; color: var(--dim); }
+  nav button svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  nav button.on { background: var(--text); color: #0b0f14; }
+  #toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom) + 96px); max-width: calc(100% - 40px);
+           background: #222b38; border: 1px solid var(--edge); border-radius: 14px; padding: 11px 15px; font-size: 14px; line-height: 1.4; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  #toast.show { opacity: 1; } #toast.err { border-color: var(--bad); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <b>Minha TV</b>
+    <span class="conn" id="conn"><i></i><span id="connText">conectando…</span></span>
+  </header>
+
+  <!-- CONTROLE -->
+  <section class="pane on" id="pane-remote">
+    <div class="pad card">
+      <button class="up" data-key="up" aria-label="Cima"><svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg></button>
+      <button class="left" data-key="left" aria-label="Esquerda"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <button class="ok" data-key="ok">OK</button>
+      <button class="right" data-key="right" aria-label="Direita"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+      <button class="down" data-key="down" aria-label="Baixo"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+    </div>
+    <div class="row two">
+      <button class="key card" data-key="back"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>Voltar</button>
+      <button class="key card" data-key="home"><svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7"/><path d="M6 10v10h12V10"/></svg>Início</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="key card" data-key="vol_down" aria-label="Volume menos">Vol −</button>
+      <button class="key card" data-key="mute" aria-label="Mudo">Mudo</button>
+      <button class="key card" data-key="vol_up" aria-label="Volume mais">Vol +</button>
+    </div>
+    <h2>Buscar na TV</h2>
+    <form class="search card" id="searchForm">
+      <input id="q" type="search" placeholder="Título, série, time ou app" autocomplete="off" enterkeyhint="search">
+      <button type="submit">Buscar</button>
+    </form>
+    <div class="row two" style="margin-top:10px">
+      <button class="key card" id="live">TV ao vivo</button>
+      <button class="key card" data-tab="apps">Abrir um app</button>
+    </div>
+    <p class="hint" id="fgHint">As setas e o OK comandam a tela inicial. Dentro de outros apps (Netflix, YouTube…) use Início, volume e abrir apps por aqui, e o controle da TV ou o app Google TV para navegar.</p>
+  </section>
+
+  <!-- APPS -->
+  <section class="pane" id="pane-apps">
+    <div id="appsView">
+      <div class="grid" id="appGrid"></div>
+      <button class="btn ghost" id="editDock">Organizar favoritos</button>
+    </div>
+    <div id="dockView" class="hidden">
+      <p class="hint" style="margin:0 4px 12px">★ marca o que aparece em "Seus aplicativos"; as setas mudam a ordem.</p>
+      <div class="list card" id="dockList"></div>
+      <button class="btn primary" id="saveDock" style="margin-top:14px">Salvar na TV</button>
+      <button class="btn ghost" id="cancelDock">Cancelar</button>
+    </div>
+  </section>
+
+  <!-- VISUAL -->
+  <section class="pane" id="pane-look">
+    <h2 style="margin-top:4px">Estilo</h2>
+    <div class="styles" id="styles"></div>
+    <h2>Papel de parede</h2>
+    <div class="chips" id="bgs"></div>
+    <button class="btn ghost" id="photoBtn">Usar uma foto do celular</button>
+    <input type="file" id="photo" accept="image/*" hidden>
+    <h2>Cor de destaque</h2>
+    <div class="swatches" id="accents"></div>
+  </section>
+</main>
+
+<nav>
+  <button class="on" data-tab="remote"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>Controle</button>
+  <button data-tab="apps"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.6"/><rect x="14" y="14" width="7" height="7" rx="1.6"/></svg>Apps</button>
+  <button data-tab="look"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 0 0 0 18c1.1 0 1.8-.8 1.8-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.5-.8-.5-1.2 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/></svg>Visual</button>
+</nav>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  // Código do QR: vem em ?t=; guardado para um favorito sem ele continuar funcionando
+  var token = new URLSearchParams(location.search).get("t");
+  try { if (token) localStorage.setItem("tvhome-token", token); else token = localStorage.getItem("tvhome-token"); } catch (e) {}
+  var S = null, dock = null;
+
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function buzz() { if (navigator.vibrate) navigator.vibrate(12); }
+  var toastTimer;
+  function toast(msg, isErr) {
+    var t = $("toast"); t.textContent = msg; t.className = "show" + (isErr ? " err" : "");
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.className = ""; }, 3200);
+  }
+  function api(path, body, raw) {
+    var opt = { method: body === undefined ? "GET" : "POST", headers: { "X-Token": token || "" } };
+    if (raw) { opt.body = raw; opt.headers["Content-Type"] = raw.type || "image/jpeg"; }
+    else if (body !== undefined) { opt.body = JSON.stringify(body); opt.headers["Content-Type"] = "application/json"; }
+    return fetch(path, opt).then(function (r) { return r.json(); }).then(function (j) {
+      setConn(true);
+      if (!j.ok && j.error) toast(j.error, true);
+      return j;
+    }).catch(function () { setConn(false); toast("A TV não respondeu. Celular e TV estão no mesmo Wi-Fi?", true); return { ok: false }; });
+  }
+  function setConn(on, fg) {
+    var c = $("conn");
+    c.className = "conn " + (on ? "on" : "off");
+    $("connText").textContent = !on ? "sem conexão" : (fg === false ? "TV em outro app" : "conectado");
+  }
+
+  // ---- abas
+  function tab(name) {
+    document.querySelectorAll(".pane").forEach(function (p) { p.classList.toggle("on", p.id === "pane-" + name); });
+    document.querySelectorAll("nav button").forEach(function (b) { b.classList.toggle("on", b.getAttribute("data-tab") === name); });
+    window.scrollTo(0, 0);
+  }
+  document.querySelectorAll("[data-tab]").forEach(function (b) { b.addEventListener("click", function () { tab(b.getAttribute("data-tab")); }); });
+  // #apps ou #look no endereço abre direto nessa aba (útil para favoritar)
+  if (/^#(remote|apps|look)$/.test(location.hash)) tab(location.hash.slice(1));
+
+  // ---- teclas
+  document.querySelectorAll("[data-key]").forEach(function (b) {
+    b.addEventListener("click", function () { buzz(); api("/api/key", { key: b.getAttribute("data-key") }); });
+  });
+  $("live").addEventListener("click", function () { buzz(); api("/api/live", {}).then(function (j) { if (j.ok) toast("Abrindo a TV ao vivo"); }); });
+  $("searchForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var q = $("q").value.trim(); if (!q) return;
+    api("/api/search", { q: q }).then(function (j) { if (j.ok) { toast("Buscando “" + q + "” na TV"); $("q").blur(); } });
+  });
+
+  // ---- estado
+  function iconUrl(pkg) { return "/api/icon/" + encodeURIComponent(pkg) + "?t=" + encodeURIComponent(token || ""); }
+  function render() {
+    if (!S) return;
+    setConn(true, S.foreground);
+    $("appGrid").innerHTML = S.apps.map(function (a) {
+      return '<button class="app" data-pkg="' + esc(a.pkg) + '"><img loading="lazy" alt="" src="' + iconUrl(a.pkg) + '"><span>' + esc(a.label) + "</span></button>";
+    }).join("");
+    $("appGrid").querySelectorAll(".app").forEach(function (b) {
+      b.addEventListener("click", function () {
+        buzz(); var pkg = b.getAttribute("data-pkg");
+        api("/api/open", { pkg: pkg }).then(function (j) { if (j.ok) toast("Abrindo " + b.textContent); });
+      });
+    });
+    $("styles").innerHTML = S.styles.map(function (s) {
+      var on = s.name === S.style;
+      return '<button class="style card' + (on ? " on" : "") + '" data-style="' + s.name + '"><div><b>' + esc(s.label) + "</b><span>" + esc(s.hint) + "</span></div>" + (on ? '<span class="chk">✓</span>' : "") + "</button>";
+    }).join("") + (S.style ? "" : '<p class="hint" style="margin-top:2px">Visual atual: personalizado.</p>');
+    $("styles").querySelectorAll("[data-style]").forEach(function (b) {
+      b.addEventListener("click", function () { buzz(); api("/api/style", { name: b.getAttribute("data-style") }).then(refresh); });
+    });
+    $("bgs").innerHTML = S.backgrounds.map(function (g) {
+      return '<button class="chip card' + (g.name === S.background ? " on" : "") + '" data-bg="' + g.name + '">' + esc(g.label) + "</button>";
+    }).join("");
+    $("bgs").querySelectorAll("[data-bg]").forEach(function (b) {
+      b.addEventListener("click", function () { buzz(); api("/api/background", { name: b.getAttribute("data-bg") }).then(refresh); });
+    });
+    $("accents").innerHTML = S.accents.map(function (a) {
+      return '<button class="swatch' + (a.name === S.accent ? " on" : "") + '" style="background:' + a.color + '" aria-label="' + esc(a.label) + '" data-accent="' + a.name + '"></button>';
+    }).join("");
+    $("accents").querySelectorAll("[data-accent]").forEach(function (b) {
+      b.addEventListener("click", function () { buzz(); api("/api/accent", { name: b.getAttribute("data-accent") }).then(refresh); });
+    });
+  }
+  function refresh() { return api("/api/state").then(function (j) { if (j.ok) { S = j; render(); } }); }
+
+  // ---- favoritos: ★ escolhe, setas ordenam, salvar manda a lista inteira
+  function renderDock() {
+    $("dockList").innerHTML = dock.map(function (a, i) {
+      return '<div class="item"><img alt="" src="' + iconUrl(a.pkg) + '"><span class="name">' + esc(a.label) + "</span>" +
+        '<button class="mini star' + (a.dock ? " on" : "") + '" data-i="' + i + '" data-act="star" aria-label="Favorito">★</button>' +
+        '<button class="mini" data-i="' + i + '" data-act="up" aria-label="Subir">▲</button>' +
+        '<button class="mini" data-i="' + i + '" data-act="down" aria-label="Descer">▼</button></div>';
+    }).join("");
+    $("dockList").querySelectorAll("[data-act]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var i = +b.getAttribute("data-i"), act = b.getAttribute("data-act");
+        if (act === "star") dock[i].dock = !dock[i].dock;
+        if (act === "up" && i > 0) dock.splice(i - 1, 0, dock.splice(i, 1)[0]);
+        if (act === "down" && i < dock.length - 1) dock.splice(i + 1, 0, dock.splice(i, 1)[0]);
+        renderDock();
+      });
+    });
+  }
+  $("editDock").addEventListener("click", function () {
+    if (!S) return;
+    dock = S.apps.map(function (a) { return { pkg: a.pkg, label: a.label, dock: a.dock }; });
+    $("appsView").classList.add("hidden"); $("dockView").classList.remove("hidden"); renderDock();
+  });
+  $("cancelDock").addEventListener("click", function () { $("dockView").classList.add("hidden"); $("appsView").classList.remove("hidden"); });
+  $("saveDock").addEventListener("click", function () {
+    var pkgs = dock.filter(function (a) { return a.dock; }).map(function (a) { return a.pkg; });
+    api("/api/dock", { pkgs: pkgs }).then(function (j) {
+      if (j.ok) { toast("Favoritos salvos na TV"); $("dockView").classList.add("hidden"); $("appsView").classList.remove("hidden"); refresh(); }
+    });
+  });
+
+  // ---- foto do celular como papel de parede (reduzida aqui para no máximo 1920 px)
+  $("photoBtn").addEventListener("click", function () { $("photo").click(); });
+  $("photo").addEventListener("change", function () {
+    var f = this.files && this.files[0]; if (!f) return;
+    toast("Enviando a foto…");
+    var img = new Image();
+    img.onload = function () {
+      var k = Math.min(1, 1920 / Math.max(img.width, img.height));
+      var c = document.createElement("canvas"); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      c.toBlob(function (blob) {
+        api("/api/wallpaper", undefined, blob).then(function (j) { if (j.ok) { toast("Foto aplicada na TV"); refresh(); } });
+        URL.revokeObjectURL(img.src);
+      }, "image/jpeg", 0.88);
+    };
+    img.onerror = function () { toast("Não consegui ler essa imagem", true); };
+    img.src = URL.createObjectURL(f);
+    this.value = "";
+  });
+
+  if (!token) { setConn(false); toast("Abra esta página pelo QR code da TV (Ajustes › Sistema › Controle pelo celular).", true); }
+  else { refresh(); setInterval(function () { if (!document.hidden) api("/api/ping").then(function (j) { if (j.ok) setConn(true, j.foreground); }); }, 6000); }
+})();
+</script>
+</body>
+</html>

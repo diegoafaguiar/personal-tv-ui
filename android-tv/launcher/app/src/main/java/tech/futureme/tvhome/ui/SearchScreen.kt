@@ -43,10 +43,17 @@ fun SearchScreen(
     onOpenItem: (MediaItem) -> Unit,
     onOpenApp: (AppEntry) -> Unit,
     onSearchYoutube: (String) -> Unit = {},
+    /** Texto vindo do controle pelo celular: a busca já abre com ele. */
+    initialQuery: String = "",
 ) {
-    var query by remember { mutableStateOf("") }
+    var query by remember(initialQuery) { mutableStateOf(initialQuery) }
     val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { focus.requestFocus() }
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    LaunchedEffect(initialQuery) {
+        focus.requestFocus()
+        // Busca vinda do celular: o texto já está pronto, o teclado da TV só cobriria os resultados
+        if (initialQuery.isNotBlank()) { kotlinx.coroutines.delay(300); keyboard?.hide() }
+    }
     val d = LocalDims.current
     val q = remember(query) { fold(query) }
     val hits = remember(q, items) {
