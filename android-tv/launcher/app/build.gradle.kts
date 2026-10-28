@@ -12,8 +12,8 @@ android {
         applicationId = "tech.futureme.tvhome"
         minSdk = 28          // Android TV 9+
         targetSdk = 34
-        versionCode = 14
-        versionName = "0.10.0"
+        versionCode = 15
+        versionName = "0.10.1"
     }
 
     // Chave FIXA versionada no repositório, para que todo build (CI ou local)

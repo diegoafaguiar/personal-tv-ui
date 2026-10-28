@@ -207,8 +207,8 @@ fun GlassHomeScreen(
                     item(key = "hero") {
                         Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = side, top = 4.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             Hero(slides, appLabel, onFocused, onOpenItem, onOpenInput, modifier = Modifier.weight(1f).height(196.dp).focusRequester(heroFocus))
-                            // Clima com previsão de 3 dias em cima; entrada HDMI / TV aberta numa faixa embaixo
-                            Column(Modifier.width(264.dp).height(196.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            // Clima do mesmo tamanho do destaque (meio a meio); entrada HDMI / TV aberta numa faixa embaixo
+                            Column(Modifier.weight(1f).height(196.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 WeatherCard(weather, settings.showWeather, Modifier.weight(1f).fillMaxWidth())
                                 if (!kids && hdmi.isNotEmpty()) InputsCard(hdmi, onOpenInput, Modifier.height(54.dp))
                                 else if (content.tunerChannels.isNotEmpty() || content.inputs.any { it.isTuner }) TunerCard(onOpenTuner, Modifier.height(54.dp))
@@ -406,33 +406,38 @@ private fun Hero(items: List<HeroSlide>, appLabel: (String) -> String, onFocused
 
 @Composable
 private fun WeatherCard(weather: WeatherRepository.Weather?, enabled: Boolean, modifier: Modifier = Modifier, weatherFailed: Boolean = LocalFeedFailed.current) {
-    Column(modifier.glass(RoundedCornerShape(18.dp)).padding(horizontal = 14.dp, vertical = 10.dp), verticalArrangement = Arrangement.SpaceEvenly) {
+    Row(modifier.glass(RoundedCornerShape(18.dp)).padding(horizontal = 20.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         if (weather != null && enabled) {
-            // Agora: ícone e temperatura grandes; condição, mín/máx e sensação ao lado
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(weather.icon, fontSize = 30.sp)
-                Text("${weather.tempC.roundToInt()}°", fontSize = 38.sp, fontWeight = FontWeight.Light, color = TvColors.text)
-                Column {
-                    Text(weather.label, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TvColors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text("mín ${weather.minC.roundToInt()}° · máx ${weather.maxC.roundToInt()}°", fontSize = 12.sp, color = TvColors.textDim, maxLines = 1)
-                    weather.feelsC?.let { Text("sensação ${it.roundToInt()}°", fontSize = 12.sp, color = TvColors.textDim, maxLines = 1) }
-                    if (weather.rainPct >= 20) Text("chuva ${weather.rainPct}%", fontSize = 12.sp, color = TvColors.textDim, maxLines = 1)
+            // Agora: ícone e temperatura grandes, condição e detalhes embaixo
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("AGORA", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = TvColors.textDim, letterSpacing = 1.sp)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(weather.icon, fontSize = 34.sp)
+                    Text("${weather.tempC.roundToInt()}°", fontSize = 46.sp, fontWeight = FontWeight.Light, color = TvColors.text)
                 }
+                Text(weather.label, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = TvColors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("mín ${weather.minC.roundToInt()}° · máx ${weather.maxC.roundToInt()}°", fontSize = 12.sp, color = TvColors.textDim, maxLines = 1)
+                Text(
+                    listOfNotNull(weather.feelsC?.let { "sensação ${it.roundToInt()}°" }, weather.rainPct.takeIf { it > 0 }?.let { "chuva $it%" }).joinToString(" · "),
+                    fontSize = 12.sp, color = TvColors.textDim, maxLines = 1,
+                )
             }
-            // Próximos 3 dias
-            if (weather.next.isNotEmpty()) Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                for (d in weather.next) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                        Text(weekday(d.date), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TvColors.textDim)
-                        Text(d.icon, fontSize = 18.sp)
-                        Row(verticalAlignment = Alignment.Bottom) {
-                            Text("${d.maxC.roundToInt()}°", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TvColors.text)
-                            Text(" ${d.minC.roundToInt()}°", fontSize = 12.sp, color = TvColors.textDim)
+            // Próximos 3 dias, separados do "agora" por um fio
+            if (weather.next.isNotEmpty()) {
+                Box(Modifier.padding(horizontal = 14.dp).width(1.dp).fillMaxHeight(0.8f).background(TvColors.textDim.copy(alpha = 0.25f)))
+                Row(Modifier.weight(1.2f), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    for (d in weather.next) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(weekday(d.date), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TvColors.textDim)
+                            Text(d.icon, fontSize = 24.sp)
+                            Text("${d.maxC.roundToInt()}°", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = TvColors.text)
+                            Text("${d.minC.roundToInt()}°", fontSize = 13.sp, color = TvColors.textDim)
+                            Text(if (d.rainPct > 0) "${d.rainPct}%" else " ", fontSize = 11.sp, color = Color(0xFF8CC8FF))
                         }
                     }
                 }
             }
-        } else {
+        } else Column {
             Text("Clima", fontSize = 13.sp, color = TvColors.textDim)
             Text(if (!enabled) "desligado" else if (weatherFailed) "sem conexão" else "carregando…", fontSize = 12.sp, color = TvColors.textDim)
         }
