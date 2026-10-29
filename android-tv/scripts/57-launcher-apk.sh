@@ -13,7 +13,7 @@
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 DIST="$ANDROID_ROOT/launcher/dist"
-PKG="tech.futureme.tvhome"
+PKG="io.github.diegoafaguiar.sintonia"
 
 main() {
   local variant=release file=""

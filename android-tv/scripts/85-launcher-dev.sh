@@ -21,7 +21,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
 android_sdk_env
 
 LAUNCHER_DIR="$ANDROID_ROOT/launcher"
-PKG="tech.futureme.tvhome"
+PKG="io.github.diegoafaguiar.sintonia"
 ACTIVITY="$PKG/.MainActivity"
 DEBUG_APK="$LAUNCHER_DIR/app/build/outputs/apk/debug/app-debug.apk"
 RELEASE_APK="$LAUNCHER_DIR/app/build/outputs/apk/release/app-release.apk"

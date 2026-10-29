@@ -1,5 +1,5 @@
 #!/bin/bash
-# rodar-mac.command — dois cliques no Finder para ver o launcher "Minha TV" no Mac (emulador).
+# rodar-mac.command — dois cliques no Finder para ver o launcher "Sintonia" no Mac (emulador).
 # Se o macOS disser que não pode abrir: botão direito › Abrir (só na primeira vez).
 # Faz o mesmo que "make up" no Terminal. Nada é instalado nas TVs.
 cd "$(dirname "$0")" || exit 1

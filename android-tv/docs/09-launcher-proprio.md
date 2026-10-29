@@ -1,4 +1,4 @@
-# 9. Launcher próprio: "Minha TV" (`android-tv/launcher/`)
+# 9. Launcher próprio: "Sintonia" (`android-tv/launcher/`)
 
 Fase 2 do projeto: uma home nativa, em Kotlin + Compose for TV, que unifica
 o que os streamings publicam e organiza em seções.
@@ -258,7 +258,7 @@ TV_HOST=192.168.100.28 android-tv/scripts/50-launcher.sh restore     # volta a h
 ## v0.12.0 (Fase 4): copiar o visual entre TVs e escolher a fonte
 
 - **Backup dos ajustes** pela página do celular (aba Visual › Copiar o visual para outra TV):
-  "Baixar ajustes desta TV" gera `minha-tv-ajustes.json`; "Restaurar" na outra TV deixa os
+  "Baixar ajustes desta TV" gera `sintonia-ajustes.json`; "Restaurar" na outra TV deixa os
   ajustes exportáveis iguais aos do arquivo (o que não veio volta ao padrão). Ficam em cada
   TV: senhas, perfil ativo, código do controle, recentes, último canal e o **modo leve** (cada
   GPU pede o seu). "Minha imagem" não vai junto: mande a foto de novo pelo celular.
@@ -278,7 +278,7 @@ TV_HOST=192.168.100.28 android-tv/scripts/50-launcher.sh restore     # volta a h
   própria janela): o servidor manda a tecla pelo `RemoteBus` e a Activity a despacha na
   própria janela, como o controle físico. Volume usa o AudioManager (vale em qualquer tela).
 - Início, abrir app, buscar e TV ao vivo com outro app na frente usam a permissão de
-  sobreposição (`appops set tech.futureme.tvhome SYSTEM_ALERT_WINDOW allow`, no `50-launcher.sh
+  sobreposição (`appops set io.github.diegoafaguiar.sintonia SYSTEM_ALERT_WINDOW allow`, no `50-launcher.sh
   grant` e no `make dev`).
 - Busca vinda do celular abre a tela de busca já com o texto e sem o teclado da TV por cima.
 - Foto enviada pelo celular vira "Minha imagem" (reduzida para 1920 px) e o fundo é refeito na hora.
@@ -317,7 +317,7 @@ TV_HOST=192.168.100.28 android-tv/scripts/50-launcher.sh restore     # volta a h
 - **Em alta**: o que os streamings em que você está logado destacam (canais de prévia), sem o
   que já está em Continuar assistindo; os apps mais usados nos últimos 30 dias primeiro, até 4
   itens de cada. A ordem vem do acesso a "uso de apps", que o `50-launcher.sh grant` (e o
-  `make dev`) concedem por adb: `appops set tech.futureme.tvhome GET_USAGE_STATS allow`. Sem
+  `make dev`) concedem por adb: `appops set io.github.diegoafaguiar.sintonia GET_USAGE_STATS allow`. Sem
   ele, vale a ordem de apps dos Ajustes. Dá para esconder em Ajustes › Seções.
 - **Botões do topo**: o rótulo que aparece no foco tem altura fixa e não quebra linha; acabou o
   deslocamento da tela ao focar "Perfil".
@@ -435,17 +435,17 @@ android-tv/scripts/00-connect.sh                           # pareia o adb (aceit
 android-tv/scripts/10-backup.sh                            # fotografa o estado original (obrigatório)
 android-tv/scripts/85-launcher-dev.sh push --release       # compila no Mac (JDK 17 + SDK: make emulator-setup) e instala
 #   ou, sem compilar: android-tv/scripts/57-launcher-apk.sh      (baixa o artefato da CI e instala)
-android-tv/scripts/50-launcher.sh grant tech.futureme.tvhome    # READ_TV_LISTINGS: libera Watch Next e seções
+android-tv/scripts/50-launcher.sh grant io.github.diegoafaguiar.sintonia    # READ_TV_LISTINGS: libera Watch Next e seções
 android-tv/scripts/50-launcher.sh status                        # confira os candidatos a HOME
 ```
 
 Nesse ponto o launcher é um app comum: abre pela lista de apps ou por
-`adb shell am start -n tech.futureme.tvhome/.MainActivity`. O botão Home continua
+`adb shell am start -n io.github.diegoafaguiar.sintonia/.MainActivity`. O botão Home continua
 com a tela de fábrica. Para o botão Home abrir o launcher (passo com guarda e
 reversão automática; num Google TV só funciona desligando a home de fábrica):
 
 ```bash
-ALLOW_STOCK_LAUNCHER_DISABLE=1 android-tv/scripts/50-launcher.sh set-default tech.futureme.tvhome
+ALLOW_STOCK_LAUNCHER_DISABLE=1 android-tv/scripts/50-launcher.sh set-default io.github.diegoafaguiar.sintonia
 ```
 
 **Atualizar** (mesma chave, ajustes preservados, sem precisar refazer o set-default):
@@ -462,7 +462,7 @@ v0.3.1 (chave antiga); o `57-launcher-apk.sh` oferece desinstalar e instalar de 
 
 ```bash
 android-tv/scripts/50-launcher.sh restore                  # reativa launcherx + setupwraith e devolve o HOME
-adb -s <ip>:5555 uninstall tech.futureme.tvhome # remove o app (opcional)
+adb -s <ip>:5555 uninstall io.github.diegoafaguiar.sintonia # remove o app (opcional)
 android-tv/scripts/90-rollback.sh --dry-run                # e, se quiser desfazer o debloat também, sem --dry-run
 ```
 
@@ -474,9 +474,9 @@ HOME; `restore` devolve a escolha ao sistema.
 **Verificar depois de instalar**
 
 ```bash
-adb -s <ip>:5555 shell dumpsys package tech.futureme.tvhome | grep -E "versionName|READ_TV_LISTINGS"
+adb -s <ip>:5555 shell dumpsys package io.github.diegoafaguiar.sintonia | grep -E "versionName|READ_TV_LISTINGS"
 adb -s <ip>:5555 logcat -d | grep -E "FATAL EXCEPTION"        # vazio = sem crash
-adb -s <ip>:5555 shell dumpsys gfxinfo tech.futureme.tvhome | grep -E "Janky|90th"   # fluidez
+adb -s <ip>:5555 shell dumpsys gfxinfo io.github.diegoafaguiar.sintonia | grep -E "Janky|90th"   # fluidez
 ```
 
 ## Estado da entrega (v0.8, 24/10/2026)
@@ -503,7 +503,7 @@ publicam no TvProvider (Spotify e a maioria dos jogos não publicam nada).
 ## Estrutura
 
 ```
-android-tv/launcher/app/src/main/java/tech/futureme/tvhome/
+android-tv/launcher/app/src/main/java/io/github/diegoafaguiar/sintonia/
   MainActivity.kt          HOME, permissão, abrir itens/apps/entradas, botão Input
   HomeViewModel.kt         carrega tudo em IO, agrupa por seção, dedup
   data/TvContentRepository.kt   Watch Next + canais/programas de prévia

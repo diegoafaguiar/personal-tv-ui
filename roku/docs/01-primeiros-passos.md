@@ -41,7 +41,7 @@ no roteador; senão, ele muda e os scripts não a acham (é só editar a ficha e
 ## Modo de desenvolvedor (opcional, só para um canal próprio)
 
 Necessário apenas se, no futuro, quisermos instalar um canal feito por nós (por exemplo, uma
-versão "Minha TV" para a Roku). Para inventário e controle **não precisa**.
+versão "Sintonia" para a Roku). Para inventário e controle **não precisa**.
 
 Com o controle, na tela inicial: **Home 3×, Cima 2×, Direita, Esquerda, Direita, Esquerda,
 Direita**. A TV mostra o IP, pede para aceitar o contrato e definir uma senha, e reinicia.

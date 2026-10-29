@@ -9,14 +9,14 @@ em pastas por marca (ex.: `android-tv/config/profiles/tcl/`).
 
 | Sistema | Marcas / modelos | Acesso | O que dá para fazer | Comece por |
 |---|---|---|---|---|
-| **Android TV / Google TV** | TCL G09 (sala), TCL G13 | adb pela rede (porta 5555) | backup, debloat, ajustes, launcher próprio "Minha TV", rollback | [android-tv/README.md](android-tv/README.md) |
+| **Android TV / Google TV** | TCL G09 (sala), TCL G13 | adb pela rede (porta 5555) | backup, debloat, ajustes, launcher próprio "Sintonia", rollback | [android-tv/README.md](android-tv/README.md) |
 | **Roku OS** | Philco Roku TV 58" | ECP pela rede (porta 8060) | inventário, controle remoto pelo terminal, roteiro de limpeza e privacidade | [roku/README.md](roku/README.md) |
 
 ## Por onde começar
 
 | Quero… | Guia |
 |---|---|
-| Ver o launcher "Minha TV" rodando no Mac (dois cliques ou `make up`) | [docs/rodar-localmente.md](docs/rodar-localmente.md) |
+| Ver o launcher "Sintonia" rodando no Mac (dois cliques ou `make up`) | [docs/rodar-localmente.md](docs/rodar-localmente.md) |
 | Controlar as TVs pelo celular | [docs/controle-pelo-celular.md](docs/controle-pelo-celular.md) |
 | Limpar e acelerar uma TV Android (TCL) | [android-tv/README.md](android-tv/README.md) |
 | Inventariar e limpar a Roku | [roku/README.md](roku/README.md) |

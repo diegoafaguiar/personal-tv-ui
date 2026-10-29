@@ -13,7 +13,7 @@
 
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
 
-PKG="tech.futureme.tvhome"
+PKG="io.github.diegoafaguiar.sintonia"
 ACT="$PKG/.MainActivity"
 
 main() {

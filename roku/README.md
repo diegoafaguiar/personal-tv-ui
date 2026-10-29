@@ -15,7 +15,7 @@ A Roku não é Android: o sistema (Roku OS) é fechado e não tem adb. O acesso 
 |---|---|
 | Backup completo e rollback | Não existe backup; o inventário registra o "antes" |
 | Desativar apps de fábrica (debloat) | Impossível; só remover canais, pelo controle |
-| Trocar a tela inicial (launcher "Minha TV") | Impossível; a tela inicial da Roku é fixa |
+| Trocar a tela inicial (launcher "Sintonia") | Impossível; a tela inicial da Roku é fixa |
 | Ajustes por comando (animações, DNS…) | Só pelo controle (roteiro em [docs/02-limpeza.md](docs/02-limpeza.md)) |
 | Controle e leitura pela rede | **Sim**: teclas, abrir canal, digitar, listar canais, ver o app aberto |
 

@@ -1,2 +1,2 @@
 # Mantém nomes de classes de dados para logs legíveis no diagnóstico.
--keep class tech.futureme.tvhome.data.** { *; }
+-keep class io.github.diegoafaguiar.sintonia.data.** { *; }

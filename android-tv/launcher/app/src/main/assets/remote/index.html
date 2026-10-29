@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="theme-color" content="#0b0f14">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>Minha TV · controle</title>
+<title>Sintonia · controle</title>
 <style>
-  /* Controle "Minha TV": servido pelo próprio launcher na rede local. Sem nada de fora (fontes, CDN). */
+  /* Controle "Sintonia": servido pelo próprio launcher na rede local. Sem nada de fora (fontes, CDN). */
   :root {
     --bg: #0b0f14; --panel: rgba(255,255,255,.07); --panel-2: rgba(255,255,255,.14); --edge: rgba(255,255,255,.12);
     --text: #f2f5f8; --dim: rgba(242,245,248,.62); --accent: #5bc0eb; --ok: #6ee7a8; --bad: #ff7a6e;
@@ -88,7 +88,7 @@
 <body>
 <main>
   <header>
-    <b>Minha TV</b>
+    <b>Sintonia</b>
     <span class="conn" id="conn"><i></i><span id="connText">conectando…</span></span>
   </header>
 
@@ -150,7 +150,7 @@
     <div class="chips" id="fonts"></div>
     <h2>Copiar o visual para outra TV</h2>
     <p class="hint" style="margin:0 4px 10px">Baixe os ajustes desta TV e restaure na outra (abra a página da outra TV pelo QR dela). Senhas, perfis, recentes e o modo leve ficam em cada TV.</p>
-    <a class="btn ghost" id="exportLink" download="minha-tv-ajustes.json" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box">Baixar ajustes desta TV</a>
+    <a class="btn ghost" id="exportLink" download="sintonia-ajustes.json" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box">Baixar ajustes desta TV</a>
     <button class="btn ghost" id="importBtn">Restaurar ajustes de um arquivo</button>
     <input type="file" id="importFile" accept="application/json,.json" hidden>
   </section>

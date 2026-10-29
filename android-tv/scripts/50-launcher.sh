@@ -14,7 +14,7 @@
 #   android-tv/scripts/50-launcher.sh set-default --dry-run      # --dry-run logo após o subcomando
 #
 # Launchers conhecidos:
-#   tech.futureme.tvhome     Minha TV (android-tv/launcher/ deste repositório; APK vem da CI)
+#   io.github.diegoafaguiar.sintonia  Sintonia (android-tv/launcher/ deste repositório; APK vem da CI)
 #   com.ansub.tvhome         TV Detox (instalado por 55-tv-detox.sh)
 #   com.spocky.projengmenu   Projectivy (padrão; mais configurável, gratuito)
 #   me.efesser.flauncher     FLauncher (open source, minimalista)
@@ -76,7 +76,7 @@ cmd_grant() {
   for perm in android.permission.READ_TV_LISTINGS android.permission.READ_EXTERNAL_STORAGE; do
     tv_run pm grant "$pkg" "$perm" || log_dim "($perm não aplicável, ignorado)"
   done
-  if [[ "$pkg" == "tech.futureme.tvhome" ]]; then
+  if [[ "$pkg" == "io.github.diegoafaguiar.sintonia" ]]; then
     # Acesso a "uso de apps": ordena a linha "Em alta" pelos apps mais usados
     tv_run appops set "$pkg" GET_USAGE_STATS allow || log_dim "(uso de apps não concedido; Em alta usa a ordem dos Ajustes)"
     # Controle pelo celular: Início e abrir apps com outro app na frente

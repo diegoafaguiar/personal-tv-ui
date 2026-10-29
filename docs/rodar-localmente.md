@@ -1,4 +1,4 @@
-# Rodar o launcher "Minha TV" no Mac
+# Rodar o launcher "Sintonia" no Mac
 
 O launcher roda num **emulador Android TV** no próprio Mac: você vê e navega como se fosse a
 TV, sem tocar nas TVs da casa.
@@ -12,7 +12,7 @@ No Finder, abra a pasta do projeto e dê dois cliques em **`rodar-mac.command`**
 - A primeira vez demora uns 10 minutos (baixa JDK 17, Android SDK e a imagem Android TV, ~6 GB).
   Das próximas, uns 30 segundos.
 
-No fim, a janela do emulador mostra a home "Minha TV".
+No fim, a janela do emulador mostra a home "Sintonia".
 
 ## Pelo Terminal: um comando
 
@@ -21,7 +21,7 @@ make up
 ```
 
 Faz o mesmo: prepara o que faltar, liga o emulador (se estiver desligado), compila, instala,
-abre o launcher e faz o botão Home do emulador abrir o "Minha TV".
+abre o launcher e faz o botão Home do emulador abrir o "Sintonia".
 
 ## Usando o emulador
 

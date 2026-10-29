@@ -7,10 +7,10 @@
     <uses-permission android:name="android.permission.READ_TV_LISTINGS" />
     <!-- Só para carregar os pôsteres pelas URLs que os próprios apps publicam. -->
     <!-- Tempo de uso por app, para ordenar a linha "Em alta" pelos apps mais usados. Acesso especial:
-         na TV só por adb (appops set tech.futureme.tvhome GET_USAGE_STATS allow; 50-launcher.sh grant). -->
+         na TV só por adb (appops set io.github.diegoafaguiar.sintonia GET_USAGE_STATS allow; 50-launcher.sh grant). -->
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
     <!-- Controle pelo celular: trazer a home para a frente e abrir apps com outro app aberto (início de
-         Activity em segundo plano). Concedida por adb: appops set tech.futureme.tvhome SYSTEM_ALERT_WINDOW allow. -->
+         Activity em segundo plano). Concedida por adb: appops set io.github.diegoafaguiar.sintonia SYSTEM_ALERT_WINDOW allow. -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -58,7 +58,7 @@
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
             <!-- Candidato a HOME. Só vence se o launcher de fábrica estiver desligado
-                 (scripts/50-launcher.sh set-default tech.futureme.tvhome). -->
+                 (scripts/50-launcher.sh set-default io.github.diegoafaguiar.sintonia). -->
             <intent-filter android:priority="1">
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.HOME" />

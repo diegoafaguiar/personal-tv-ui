@@ -82,9 +82,9 @@ Leitura sugerida enquanto executa:
 6. [Rollback: como funciona e o que não cobre](docs/06-rollback.md)
 7. [Troubleshooting: tela preta, controle mudo, "Success" que não fez nada](docs/07-troubleshooting.md)
 8. [Referências](docs/08-referencias.md)
-9. [Launcher próprio "Minha TV" (fase 2): seções unificadas de todos os streamings, estilo vidro (v0.7)](docs/09-launcher-proprio.md)
+9. [Launcher próprio "Sintonia" (fase 2): seções unificadas de todos os streamings, estilo vidro (v0.7)](docs/09-launcher-proprio.md)
 
-## Launcher "Minha TV": rodar no Mac, testar no emulador, publicar na TV
+## Launcher "Sintonia": rodar no Mac, testar no emulador, publicar na TV
 
 O launcher próprio (`android-tv/launcher/`, Kotlin + Compose for TV) tem um ciclo local
 completo: compila no Mac, roda num emulador Android TV, você navega com o
@@ -147,9 +147,9 @@ Séries ficam vazios; isso só se vê na TV.
 ```bash
 make dev-push                                            # compila o debug e instala na TV de android-tv/config/tv.env
 android-tv/scripts/85-launcher-dev.sh push --release     # ou o release (R8, menor)
-android-tv/scripts/50-launcher.sh grant tech.futureme.tvhome
+android-tv/scripts/50-launcher.sh grant io.github.diegoafaguiar.sintonia
 android-tv/scripts/50-launcher.sh status
-ALLOW_STOCK_LAUNCHER_DISABLE=1 android-tv/scripts/50-launcher.sh set-default tech.futureme.tvhome # botão Home abre o launcher
+ALLOW_STOCK_LAUNCHER_DISABLE=1 android-tv/scripts/50-launcher.sh set-default io.github.diegoafaguiar.sintonia # botão Home abre o launcher
 ```
 
 Build local e CI assinam com a mesma chave (`android-tv/launcher/keystore/`), então o APK do
@@ -184,7 +184,7 @@ android-tv/
 ├── scripts/NN-*.sh    um script por etapa, numerados na ordem da trilha
 ├── tests/             adb falso + asserções que cobrem o fluxo inteiro e as proteções
 ├── docs/              guias em português
-└── launcher/          app Android (Kotlin + Compose for TV): a home "Minha TV"; APK vem da CI
+└── launcher/          app Android (Kotlin + Compose for TV): a home "Sintonia"; APK vem da CI
                        ou do Mac: make emulator-setup && make dev (emulador), make dev-push (TV)
 ```
 

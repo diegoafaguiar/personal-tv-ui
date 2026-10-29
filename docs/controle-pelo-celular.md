@@ -55,7 +55,7 @@ TV=philco-roku-58 roku/scripts/40-remote.sh key Home Down Select
 DEV_SERIAL=192.168.100.34:5555 android-tv/scripts/85-launcher-dev.sh remote   # setas do teclado do Mac
 ```
 
-## Controle "Minha TV" por QR code (TCL com o launcher)
+## Controle "Sintonia" por QR code (TCL com o launcher)
 
 Uma página para o celular servida pelo próprio launcher, sem instalar app nem deixar o
 computador ligado.

@@ -5,15 +5,15 @@ plugins {
 }
 
 android {
-    namespace = "tech.futureme.tvhome"
+    namespace = "io.github.diegoafaguiar.sintonia"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "tech.futureme.tvhome"
+        applicationId = "io.github.diegoafaguiar.sintonia"
         minSdk = 28          // Android TV 9+
         targetSdk = 34
-        versionCode = 18
-        versionName = "0.12.1"
+        versionCode = 19
+        versionName = "0.13.0"
     }
 
     // Chave FIXA versionada no repositório, para que todo build (CI ou local)

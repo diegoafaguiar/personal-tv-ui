@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 81-up.sh — um comando para ver o launcher rodando no Mac: prepara o que faltar, liga o
-# emulador Android TV, compila, instala e abre o "Minha TV".
+# emulador Android TV, compila, instala e abre o "Sintonia".
 #
 # Uso:
 #   android-tv/scripts/81-up.sh          (ou: make up, ou dois cliques em rodar-mac.command)
