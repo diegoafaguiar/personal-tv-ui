@@ -350,6 +350,7 @@ private fun PanelRow(
     below: (@Composable () -> Unit)? = null,
 ) {
     var focused by remember { mutableStateOf(false) }
+    val okDown = remember { booleanArrayOf(false) }
     val accent = LocalLook.current.accentColor
     val shape = RoundedCornerShape(22.dp)
     Box(
@@ -357,11 +358,11 @@ private fun PanelRow(
             .background(if (focused) Color(0x33FFFFFF) else Color.Transparent)
             .onFocusChanged { focused = it.isFocused }
             .onPreviewKeyEvent { ev ->
+                if (okOnRelease(ev, okDown, onClick)) return@onPreviewKeyEvent true
                 if (ev.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 when (ev.key) {
                     Key.DirectionLeft -> if (onLeft != null) { onLeft(); true } else false
                     Key.DirectionRight -> if (onRight != null) { onRight(); true } else false
-                    Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> { onClick(); true }
                     else -> false
                 }
             }
@@ -455,16 +456,17 @@ private fun ChoiceRow(icon: ImageVector, title: String, value: String, modifier:
 @Composable
 private fun AppSettingRow(app: AppEntry, value: String, on: Boolean, modifier: Modifier = Modifier, onToggle: () -> Unit, onPrev: (() -> Unit)? = null, onNext: (() -> Unit)? = null) {
     var focused by remember { mutableStateOf(false) }
+    val okDown = remember { booleanArrayOf(false) }
     val accent = LocalLook.current.accentColor
     Box(
         modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(if (focused) Color(0x33FFFFFF) else Color.Transparent)
             .onFocusChanged { focused = it.isFocused }
             .onPreviewKeyEvent { ev ->
+                if (okOnRelease(ev, okDown, onToggle)) return@onPreviewKeyEvent true
                 if (ev.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 when (ev.key) {
                     Key.DirectionLeft -> if (onPrev != null) { onPrev(); true } else false
                     Key.DirectionRight -> if (onNext != null) { onNext(); true } else false
-                    Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> { onToggle(); true }
                     else -> false
                 }
             }
@@ -552,4 +554,19 @@ private fun PreviewTile(app: AppEntry, look: io.github.diegoafaguiar.sintonia.da
         }
         if (!banner && look.labelMode == LabelMode.ICONE_NOME) Text(app.label, fontSize = 6.sp, color = TvColors.textDim, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.offset(y = 2.dp))
     }
+}
+
+/**
+ * OK do controle dispara ao soltar, como os botões do tv-material. Disparar ao apertar trocava a
+ * tela antes do "soltar" (~80 ms no controle da TCL), e o soltar caía no botão que ganhou o foco:
+ * "Controle pelo celular" abria e o Início da lateral fechava a tela em seguida.
+ * Um soltar sem o apertar aqui (veio de outra tela) é engolido.
+ */
+private fun okOnRelease(ev: androidx.compose.ui.input.key.KeyEvent, down: BooleanArray, action: () -> Unit): Boolean {
+    if (ev.key != Key.DirectionCenter && ev.key != Key.Enter && ev.key != Key.NumPadEnter) return false
+    when (ev.type) {
+        KeyEventType.KeyDown -> down[0] = true
+        KeyEventType.KeyUp -> if (down[0]) { down[0] = false; action() }
+    }
+    return true
 }
