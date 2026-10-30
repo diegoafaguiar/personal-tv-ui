@@ -170,8 +170,9 @@ posição/duração que o app publica no Watch Next; a Apple TV publica, a Netfl
 de progresso branca.
 
 **Perfil restaurado**: o sistema mata o launcher quando um app pesado abre (2 GB); ao
-voltar, o perfil escolhido é restaurado se a TV não foi religada (`active_profile` +
-instante do boot). TV ligada de novo = seletor "Quem está assistindo?".
+voltar, o perfil escolhido é restaurado se a TV não foi religada nem foi para o standby
+(`active_profile` + instante do boot + tempo em sono). TV ligada de novo, inclusive saindo
+do standby pelo controle = seletor "Quem está assistindo?" (desde a v0.14.0).
 
 Também na v0.7: **Voltar na home não sai do launcher** (como HOME, sair fazia o
 sistema reabrir e o seletor de perfil voltar) e toque/clique do mouse aciona os cards
@@ -254,6 +255,40 @@ TV_HOST=192.168.100.28 android-tv/scripts/50-launcher.sh restore     # volta a h
 - **Revisão de usabilidade**: Diagnóstico rola pelo controle; Voltar de Diagnóstico e Trocar PIN
   volta aos Ajustes; o foco inicial cai no destaque; clima e música mostram estado de falha;
   rótulos de acessibilidade no teclado do PIN.
+
+## v0.14.0: seletor de perfil ao ligar, fotos novas e fundo rotativo
+
+- **Ligar a TV abre sempre "Quem está assistindo?"**. Antes só um reinício completo zerava o
+  perfil; ligar pelo controle tira a TV do standby sem reiniciar, e o perfil continuava. Agora a
+  tela apagando zera o perfil (`TvHomeApp`, vale com qualquer app na frente) e, se o launcher
+  estava morto nessa hora, o tempo em sono do aparelho (`elapsedRealtime - uptimeMillis`)
+  impede a restauração. O launcher morto pelo sistema com a TV ligada continua voltando direto
+  ao perfil.
+- **12 fotos novas** (1920x1080) do Wikimedia Commons, com licença livre: 4 do Brasil (pôr do
+  sol e amanhecer no Rio, araucárias da Serra da Bocaina, litoral de Santa Catarina) e 8
+  paisagens. Autor e licença aparecem em Ajustes › Aparência, embaixo do papel de parede, e na
+  aba Visual do celular; a lista completa com links está em
+  [`android-tv/launcher/FOTOS.md`](../launcher/FOTOS.md).
+- **Trocar o fundo sozinho** (Ajustes › Aparência, ou a aba Visual do celular): desligado, a
+  cada vez que a TV liga, a cada 15 min, a cada hora ou a cada 6 horas. Percorre todas as fotos
+  e os degradês desenhados (Aurora, Oceano, Ocaso), em ordem; cores lisas e "Minha imagem" ficam
+  de fora. Na TCL G13, foto custa mais por quadro que degradê (ver v0.9.1).
+- API do controle: `POST /api/rotation {"name": "H1"}`; `/api/state` traz `rotation` e o
+  `credit` de cada fundo.
+
+## v0.13.1: OK das linhas de Ajustes dispara ao soltar
+
+Na TCL, "Controle pelo celular" abria e fechava em menos de 1 s: a linha disparava ao apertar
+o OK, a tela trocava antes do soltar (~80 ms no controle), e o soltar caía no Início da
+lateral. Teclas injetadas por adb (apertar e soltar juntos) não reproduzem; teste com o
+controle de verdade ou `input keyevent --longpress`.
+
+## v0.13.0: nome Sintonia
+
+O launcher passa a se chamar Sintonia, pacote `io.github.diegoafaguiar.sintonia`. Trocar o
+pacote faz o Android tratá-lo como outro app: nas TVs, instale o novo, defina como tela
+inicial (`cmd package set-home-activity`) e desinstale o anterior; ajustes e senhas começam do
+padrão.
 
 ## v0.12.0 (Fase 4): copiar o visual entre TVs e escolher a fonte
 

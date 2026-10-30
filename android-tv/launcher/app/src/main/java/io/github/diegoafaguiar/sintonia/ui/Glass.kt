@@ -43,7 +43,6 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import io.github.diegoafaguiar.sintonia.R
 import io.github.diegoafaguiar.sintonia.data.AppEntry
 import io.github.diegoafaguiar.sintonia.data.Background
 import io.github.diegoafaguiar.sintonia.data.Glass
@@ -81,12 +80,12 @@ class Wallpaper(val sharp: ImageBitmap, val blur: ImageBitmap)
 
 /**
  * Renderiza o papel de parede no tamanho pedido (meia resolução da tela). Gradientes: um bitmap
- * só. Fotos (Horizonte embutida ou "Minha imagem"): a nítida escurecida de leve + a desfocada
+ * só. Fotos (embutidas ou "Minha imagem"): a nítida escurecida de leve + a desfocada
  * para os painéis. Chame fora da main thread.
  */
 suspend fun renderWallpaper(context: Context, bg: Background, imageFile: File?, width: Int, height: Int, blur: Int): Wallpaper = withContext(Dispatchers.Default) {
     val photo: Bitmap? = when {
-        bg == Background.HORIZONTE -> decodeScaled({ opts -> BitmapFactory.decodeResource(context.resources, R.drawable.wallpaper_horizonte, opts) }, width)
+        bg.photo != 0 -> decodeScaled({ opts -> BitmapFactory.decodeResource(context.resources, bg.photo, opts) }, width)
         bg == Background.IMAGEM && imageFile != null && imageFile.exists() -> decodeScaled({ opts -> BitmapFactory.decodeFile(imageFile.path, opts) }, width)
         else -> null
     }
@@ -160,7 +159,7 @@ fun DrawScope.drawGradientWallpaper(bg: Background) {
             drawRect(Brush.verticalGradient(listOf(Color(0xFF120A1F), Color(0xFF3A1744), Color(0xFF6E2B3B)), endY = h))
             blob(0.5f, 0.75f, 0.4f, Color(0xFFFF8A3D)); blob(0.15f, 0.3f, 0.3f, Color(0xFFFF3D77)); blob(0.85f, 0.25f, 0.36f, Color(0xFF5B2A9C))
         }
-        Background.IMAGEM, Background.HORIZONTE -> drawRect(Color.Black)
+        else -> drawRect(Color.Black)   // fotos e "Minha imagem": o bitmap vem de renderWallpaper
     }
 }
 

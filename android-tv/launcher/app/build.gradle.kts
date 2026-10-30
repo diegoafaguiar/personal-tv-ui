@@ -12,8 +12,8 @@ android {
         applicationId = "io.github.diegoafaguiar.sintonia"
         minSdk = 28          // Android TV 9+
         targetSdk = 34
-        versionCode = 20
-        versionName = "0.13.1"
+        versionCode = 21
+        versionName = "0.14.0"
     }
 
     // Chave FIXA versionada no repositório, para que todo build (CI ou local)

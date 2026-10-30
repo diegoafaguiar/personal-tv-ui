@@ -11,19 +11,47 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import io.github.diegoafaguiar.sintonia.R
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "tvhome")
 
 /** Ajustes que não vão no backup: são desta TV (ver Prefs.exportJson). */
 private val NOT_EXPORTED = setOf(
-    "pins", "active_profile", "active_profile_boot", "remote_token", "recents", "last_channel",
+    "pins", "active_profile", "active_profile_boot", "active_profile_sleep", "remote_token", "recents", "last_channel",
     "bg_migrated_v7b", "wallpaper_rev", "glass_lite",
 )
 
-/** Fundos predefinidos. "imagem" usa o arquivo enviado por scripts/58-launcher-wallpaper.sh. */
-enum class Background(val label: String) {
-    HORIZONTE("Horizonte (foto)"), AURORA("Aurora"), OCEANO("Oceano"), OCASO("Ocaso"),
+/**
+ * Fundos predefinidos. Fotos vêm em res/drawable-nodpi (1920x1080); as do Wikimedia Commons levam
+ * autor e licença em [credit] (CC BY/BY-SA pedem o crédito; ver android-tv/launcher/FOTOS.md).
+ * "Minha imagem" usa o arquivo enviado pelo celular ou por scripts/58-launcher-wallpaper.sh.
+ */
+enum class Background(val label: String, val photo: Int = 0, val credit: String? = null) {
+    HORIZONTE("Horizonte (foto)", R.drawable.wallpaper_horizonte),
+    PAO_DE_ACUCAR("Pôr do sol no Rio", R.drawable.wallpaper_pao_de_acucar, "Donatas Dabravolskas · CC BY-SA 4.0"),
+    RIO_AMANHECER("Rio ao amanhecer", R.drawable.wallpaper_rio_amanhecer, "Donatas Dabravolskas · CC BY-SA 4.0"),
+    SERRA_DA_BOCAINA("Araucárias, Serra da Bocaina", R.drawable.wallpaper_serra_da_bocaina, "Heris Luiz Cordeiro Rocha · CC BY-SA 3.0"),
+    BALEIA_FRANCA("Litoral de Santa Catarina", R.drawable.wallpaper_baleia_franca, "Claudio Seelig · CC BY-SA 4.0"),
+    TITICACA("Amanhecer no Titicaca (Peru)", R.drawable.wallpaper_titicaca, "Diego Delso · CC BY-SA 4.0"),
+    ARROZAL("Arrozal ao entardecer (Laos)", R.drawable.wallpaper_arrozal, "Basile Morin · CC BY-SA 4.0"),
+    LAKE_LOUISE("Lake Louise (Canadá)", R.drawable.wallpaper_lake_louise, "Chensiyuan · CC BY-SA 4.0"),
+    SYNEVYR("Outono nos Cárpatos", R.drawable.wallpaper_synevyr, "Rbrechko · CC BY-SA 4.0"),
+    AI_PETRI("Acima das nuvens (Crimeia)", R.drawable.wallpaper_ai_petri, "Dmytro Balkhovitin · CC BY-SA 4.0"),
+    SILVER_LAKE("Silver Lake (Califórnia)", R.drawable.wallpaper_silver_lake, "King of Hearts · CC BY-SA 4.0"),
+    LAKE_TAHOE("Manhã no Lago Tahoe", R.drawable.wallpaper_lake_tahoe, "John D. · CC BY 2.0"),
+    DOME_CREEK("Lago em Dome Creek (Canadá)", R.drawable.wallpaper_dome_creek, "Jakub Fryš · CC BY-SA 4.0"),
+    AURORA("Aurora"), OCEANO("Oceano"), OCASO("Ocaso"),
     PRETO("Preto"), GRAFITE("Grafite"), NOITE("Azul-noite"), GRADIENTE("Gradiente"), IMAGEM("Minha imagem");
+
+    companion object {
+        /** O que o fundo rotativo percorre: as fotos e os degradês desenhados (cores lisas e "Minha imagem" ficam de fora). */
+        val rotation: List<Background> get() = entries.filter { it.photo != 0 || it == AURORA || it == OCEANO || it == OCASO }
+    }
+}
+
+/** Fundo rotativo: troca para o próximo de [Background.rotation] sozinho. */
+enum class BgRotation(val label: String, val minutes: Int) {
+    DESLIGADO("desligado", 0), AO_LIGAR("a cada vez que a TV liga", 0), M15("a cada 15 min", 15), H1("a cada hora", 60), H6("a cada 6 horas", 360),
 }
 
 /**
@@ -111,6 +139,7 @@ data class Settings(
     val liveTvPackage: String = "com.tcl.tv",
     val disabledSections: Set<String> = emptySet(),
     val background: Background = Background.HORIZONTE,
+    val bgRotation: BgRotation = BgRotation.DESLIGADO,
     val glass: Glass = Glass(),
     val look: Look = Look(),
     val density: String = "compacta",
@@ -180,6 +209,7 @@ class Prefs(private val context: Context) {
     private val liveTvKey = stringPreferencesKey("live_tv")
     private val sectionsOffKey = stringSetPreferencesKey("sections_off")
     private val backgroundKey = stringPreferencesKey("background")
+    private val bgRotationKey = stringPreferencesKey("bg_rotation")
     private val densityKey = stringPreferencesKey("density")
     private val quickKey = stringSetPreferencesKey("quick")
     private val ratesKey = booleanPreferencesKey("show_rates")
@@ -199,6 +229,7 @@ class Prefs(private val context: Context) {
     private val pinsKey = stringPreferencesKey("pins")
     private val activeProfileKey = stringPreferencesKey("active_profile")
     private val profileBootKey = stringPreferencesKey("active_profile_boot")
+    private val profileSleepKey = stringPreferencesKey("active_profile_sleep")
     private val glassOnKey = booleanPreferencesKey("glass_on")
     private val glassTransKey = stringPreferencesKey("glass_transparency")
     private val glassFxKey = stringPreferencesKey("glass_fx")
@@ -213,6 +244,7 @@ class Prefs(private val context: Context) {
             liveTvPackage = p[liveTvKey] ?: "com.tcl.tv",
             disabledSections = p[sectionsOffKey] ?: emptySet(),
             background = p[backgroundKey]?.let { v -> Background.entries.firstOrNull { it.name == v } } ?: Background.HORIZONTE,
+            bgRotation = p[bgRotationKey]?.let { v -> BgRotation.entries.firstOrNull { it.name == v } } ?: BgRotation.DESLIGADO,
             look = Look(
                 cardScale = p[floatKey("look_card_scale")] ?: 1f,
                 cardSpacing = p[intKey("look_card_spacing")] ?: 12,
@@ -291,6 +323,15 @@ class Prefs(private val context: Context) {
 
     suspend fun setBackground(bg: Background) = context.dataStore.edit { it[backgroundKey] = bg.name }
 
+    suspend fun setBgRotation(r: BgRotation) = context.dataStore.edit { it[bgRotationKey] = r.name }
+
+    /** Fundo rotativo: o próximo da lista depois do atual (fora da lista, o primeiro). */
+    suspend fun nextBackground() = context.dataStore.edit { p ->
+        val pool = Background.rotation
+        val cur = pool.indexOfFirst { it.name == p[backgroundKey] }
+        p[backgroundKey] = pool[(cur + 1) % pool.size].name
+    }
+
     suspend fun toggleDensity() = context.dataStore.edit { p ->
         p[densityKey] = if ((p[densityKey] ?: "compacta") == "compacta") "normal" else "compacta"
     }
@@ -338,15 +379,26 @@ class Prefs(private val context: Context) {
      * passar pelo seletor; TV ligada de novo = boot novo = seletor.
      */
     suspend fun setActiveProfile(profileId: String?) = context.dataStore.edit { p ->
-        if (profileId == null) { p.remove(activeProfileKey); p.remove(profileBootKey) }
-        else { p[activeProfileKey] = profileId; p[profileBootKey] = bootId().toString() }
+        if (profileId == null) { p.remove(activeProfileKey); p.remove(profileBootKey); p.remove(profileSleepKey) }
+        else { p[activeProfileKey] = profileId; p[profileBootKey] = bootId().toString(); p[profileSleepKey] = sleptMs().toString() }
     }
+    /**
+     * Perfil a restaurar quando o sistema matou o launcher (ex.: Netflix aberto numa TV de 2 GB).
+     * Só vale se a TV não foi reiniciada nem dormiu (standby) desde a escolha: ligar a TV abre
+     * sempre o seletor. A tela apagando já zera o perfil (TvHomeApp); o sono cobre o caso de o
+     * processo estar morto nessa hora.
+     */
     suspend fun activeProfileForThisBoot(): String? {
         val p = context.dataStore.data.first()
         val boot = p[profileBootKey]?.toLongOrNull() ?: return null
-        return if (kotlin.math.abs(boot - bootId()) < 5_000) p[activeProfileKey] else null
+        val slept = p[profileSleepKey]?.toLongOrNull() ?: return null
+        if (kotlin.math.abs(boot - bootId()) >= 5_000) return null
+        if (sleptMs() - slept > 30_000) return null
+        return p[activeProfileKey]
     }
     private fun bootId(): Long = System.currentTimeMillis() - android.os.SystemClock.elapsedRealtime()
+    /** Tempo total em sono profundo desde o boot (o uptime para no standby; o elapsedRealtime não). */
+    private fun sleptMs(): Long = android.os.SystemClock.elapsedRealtime() - android.os.SystemClock.uptimeMillis()
 
     /** v0.7: quem estava num dos fundos lisos da v0.6 (preto, grafite, azul-noite, gradiente) passa para a foto Horizonte, uma vez só. */
     suspend fun migrateWallpaper() = context.dataStore.edit { p ->

@@ -14,6 +14,7 @@ import org.json.JSONObject
 import io.github.diegoafaguiar.sintonia.data.Accent
 import io.github.diegoafaguiar.sintonia.data.AppsRepository
 import io.github.diegoafaguiar.sintonia.data.Background
+import io.github.diegoafaguiar.sintonia.data.BgRotation
 import io.github.diegoafaguiar.sintonia.data.FontChoice
 import io.github.diegoafaguiar.sintonia.data.Prefs
 import io.github.diegoafaguiar.sintonia.data.StylePreset
@@ -133,6 +134,10 @@ class RemoteServer(private val context: Context) {
                 val bg = Background.entries.firstOrNull { it.name == b.optString("name") } ?: return json(out, 400, err("Fundo desconhecido"))
                 runBlocking { prefs.setBackground(bg) }; ok()
             }
+            "/api/rotation" -> {
+                val r = BgRotation.entries.firstOrNull { it.name == b.optString("name") } ?: return json(out, 400, err("Opção desconhecida"))
+                runBlocking { prefs.setBgRotation(r) }; ok()
+            }
             "/api/accent" -> {
                 val a = Accent.entries.firstOrNull { it.name == b.optString("name") } ?: return json(out, 400, err("Cor desconhecida"))
                 runBlocking { prefs.setAccent(a) }; ok()
@@ -204,7 +209,9 @@ class RemoteServer(private val context: Context) {
             .put("style", StylePreset.current(s)?.name ?: JSONObject.NULL)
             .put("styles", JSONArray(StylePreset.entries.map { JSONObject().put("name", it.name).put("label", it.label).put("hint", it.hint) }))
             .put("background", s.background.name)
-            .put("backgrounds", JSONArray(Background.entries.map { JSONObject().put("name", it.name).put("label", it.label) }))
+            .put("backgrounds", JSONArray(Background.entries.map { JSONObject().put("name", it.name).put("label", it.label).put("credit", it.credit ?: JSONObject.NULL) }))
+            .put("rotation", s.bgRotation.name)
+            .put("rotations", JSONArray(BgRotation.entries.map { JSONObject().put("name", it.name).put("label", it.label) }))
             .put("font", s.look.font.name)
             .put("fonts", JSONArray(FontChoice.entries.map { JSONObject().put("name", it.name).put("label", it.label) }))
             .put("accent", s.look.accent.name)

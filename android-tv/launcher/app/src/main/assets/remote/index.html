@@ -142,6 +142,9 @@
     <div class="styles" id="styles"></div>
     <h2>Papel de parede</h2>
     <div class="chips" id="bgs"></div>
+    <p class="hint" id="bgCredit" hidden></p>
+    <h2>Trocar o fundo sozinho</h2>
+    <div class="chips" id="rots"></div>
     <button class="btn ghost" id="photoBtn">Usar uma foto do celular</button>
     <input type="file" id="photo" accept="image/*" hidden>
     <h2>Cor de destaque</h2>
@@ -242,6 +245,15 @@
     }).join("");
     $("bgs").querySelectorAll("[data-bg]").forEach(function (b) {
       b.addEventListener("click", function () { buzz(); api("/api/background", { name: b.getAttribute("data-bg") }).then(refresh); });
+    });
+    var cur = S.backgrounds.filter(function (g) { return g.name === S.background; })[0];
+    $("bgCredit").hidden = !(cur && cur.credit);
+    if (cur && cur.credit) $("bgCredit").textContent = "Foto: " + cur.credit;
+    $("rots").innerHTML = S.rotations.map(function (r) {
+      return '<button class="chip card' + (r.name === S.rotation ? " on" : "") + '" data-rot="' + r.name + '">' + esc(r.label) + "</button>";
+    }).join("");
+    $("rots").querySelectorAll("[data-rot]").forEach(function (b) {
+      b.addEventListener("click", function () { buzz(); api("/api/rotation", { name: b.getAttribute("data-rot") }).then(refresh); });
     });
     $("accents").innerHTML = S.accents.map(function (a) {
       return '<button class="swatch' + (a.name === S.accent ? " on" : "") + '" style="background:' + a.color + '" aria-label="' + esc(a.label) + '" data-accent="' + a.name + '"></button>';

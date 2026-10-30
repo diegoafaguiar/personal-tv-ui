@@ -6,6 +6,10 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -21,6 +25,7 @@ import io.github.diegoafaguiar.sintonia.data.HomeContent
 import io.github.diegoafaguiar.sintonia.data.MediaItem
 import io.github.diegoafaguiar.sintonia.data.Prefs
 import io.github.diegoafaguiar.sintonia.data.Profile
+import io.github.diegoafaguiar.sintonia.data.BgRotation
 import io.github.diegoafaguiar.sintonia.data.Profiles
 import io.github.diegoafaguiar.sintonia.data.RatesRepository
 import io.github.diegoafaguiar.sintonia.data.RecentEntry
@@ -127,6 +132,16 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             try { prefs.activeProfileForThisBoot()?.let { id -> Profiles.byId(id)?.let { profile.value = it } } } catch (e: Exception) { /* seletor */ }
             profileRestoring.value = false
+        }
+        // TV foi para o standby: ao ligar, o seletor de perfil (ver TvHomeApp). drop(1): só o que
+        // acontecer depois daqui (uma Activity recriada não perde o perfil escolhido)
+        viewModelScope.launch { TvHomeApp.screenOffs.drop(1).collect { profile.value = null } }
+        // Fundo rotativo: por tempo, ou a cada vez que a TV liga
+        viewModelScope.launch {
+            prefs.settings.map { it.bgRotation }.distinctUntilChanged().collectLatest { r ->
+                if (r.minutes > 0) while (true) { delay(r.minutes * 60_000L); prefs.nextBackground() }
+                else if (r == BgRotation.AO_LIGAR) TvHomeApp.screenOns.drop(1).collect { prefs.nextBackground() }
+            }
         }
         // Cotações: a cada 30 min enquanto a home existir (sem serviço em background).
         viewModelScope.launch {

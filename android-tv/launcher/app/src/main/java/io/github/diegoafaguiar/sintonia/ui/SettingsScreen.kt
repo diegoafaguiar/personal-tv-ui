@@ -29,6 +29,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.AspectRatio
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Autorenew
 import androidx.compose.material.icons.rounded.BlurOn
 import androidx.compose.material.icons.rounded.BorderOuter
 import androidx.compose.material.icons.rounded.Bedtime
@@ -112,6 +113,7 @@ import io.github.diegoafaguiar.sintonia.data.FontChoice
 import io.github.diegoafaguiar.sintonia.data.AppEntry
 import io.github.diegoafaguiar.sintonia.data.AppTile
 import io.github.diegoafaguiar.sintonia.data.Background
+import io.github.diegoafaguiar.sintonia.data.BgRotation
 import io.github.diegoafaguiar.sintonia.data.FocusStyle
 import io.github.diegoafaguiar.sintonia.data.Profile
 import io.github.diegoafaguiar.sintonia.data.Profiles
@@ -202,9 +204,12 @@ fun SettingsScreen(
                         }
                     }
                     Page.APARENCIA -> {
-                        item { ChoiceRow(Icons.Rounded.Wallpaper, "Papel de parede", settings.background.label, m(),
+                        item { ChoiceRow(Icons.Rounded.Wallpaper, "Papel de parede", settings.background.label + (settings.background.credit?.let { "\nFoto: $it" } ?: ""), m(),
                             onPrev = { go { prefs.setBackground(Background.entries[(settings.background.ordinal - 1 + Background.entries.size) % Background.entries.size]) } },
                             onNext = { go { prefs.setBackground(Background.entries[(settings.background.ordinal + 1) % Background.entries.size]) } }) }
+                        item { ChoiceRow(Icons.Rounded.Autorenew, "Trocar o fundo sozinho", settings.bgRotation.label,
+                            onPrev = { go { prefs.cycleEnum("bg_rotation", BgRotation.entries, BgRotation.DESLIGADO, -1) } },
+                            onNext = { go { prefs.cycleEnum("bg_rotation", BgRotation.entries, BgRotation.DESLIGADO, +1) } }) }
                         item { ChoiceRow(Icons.Rounded.Palette, "Cor de destaque", look.accent.label, swatch = Color(look.accent.argb),
                             onPrev = { go { prefs.cycleEnum("look_accent", Accent.entries, Accent.BRANCO, -1) } },
                             onNext = { go { prefs.cycleEnum("look_accent", Accent.entries, Accent.BRANCO, +1) } }) }
@@ -376,7 +381,7 @@ private fun PanelRow(
                 }
                 Column(Modifier.weight(1f).padding(start = 12.dp, end = 8.dp)) {
                     Text(title, fontSize = 14.sp, color = if (focused) TvColors.text else TvColors.text.copy(alpha = 0.8f), maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    if (sub != null) Text(sub, fontSize = 12.sp, color = if (focused) TvColors.text.copy(alpha = 0.75f) else TvColors.textDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    if (sub != null) Text(sub, fontSize = 12.sp, color = if (focused) TvColors.text.copy(alpha = 0.75f) else TvColors.textDim, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
                 trailing(focused)
             }

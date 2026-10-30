@@ -8,6 +8,7 @@ import coil.memory.MemoryCache
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -31,6 +32,22 @@ class TvHomeApp : Application(), ImageLoaderFactory {
                 if (on) server.start() else server.stop()
             }
         }
+        // TV em standby (tela apagou): esquece o perfil, para ligar a TV sempre cair no seletor.
+        // Aqui e não na Activity: vale mesmo com outro app (Netflix, TV) na frente.
+        registerReceiver(object : android.content.BroadcastReceiver() {
+            override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+                when (intent?.action) {
+                    android.content.Intent.ACTION_SCREEN_OFF -> { scope.launch { Prefs(this@TvHomeApp).setActiveProfile(null) }; screenOffs.value++ }
+                    android.content.Intent.ACTION_SCREEN_ON -> screenOns.value++
+                }
+            }
+        }, android.content.IntentFilter().apply { addAction(android.content.Intent.ACTION_SCREEN_OFF); addAction(android.content.Intent.ACTION_SCREEN_ON) })
+    }
+
+    companion object {
+        /** Contadores de tela apagada/acesa (standby da TV), para o HomeViewModel reagir. */
+        val screenOffs = MutableStateFlow(0)
+        val screenOns = MutableStateFlow(0)
     }
 
     override fun newImageLoader(): ImageLoader = ImageLoader.Builder(this)
